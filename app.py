@@ -128,105 +128,118 @@ def get_db_connection():
     return psycopg.connect(DATABASE_URL, row_factory=dict_row)
 
 
+def disable_database_mode(reason: str) -> None:
+    """Fall back to local JSON storage when DB is unavailable."""
+    global USE_DATABASE, DATABASE_URL
+    USE_DATABASE = False
+    DATABASE_URL = ""
+    print(f"[Home13] Database disabled: {reason}", file=sys.stderr, flush=True)
+
+
 def ensure_database_ready() -> None:
     if not USE_DATABASE:
         return
     if psycopg is None:
-        raise RuntimeError(
-            "DATABASE_URL configurata ma psycopg non e installata "
-            f"nell'interprete corrente ({sys.executable}). "
-            "Installa con: python -m pip install -r requirements.txt"
+        disable_database_mode(
+            "DATABASE_URL presente ma psycopg non disponibile nell'interprete corrente"
         )
+        return
 
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS expenses (
-                    id TEXT PRIMARY KEY,
-                    category TEXT NOT NULL CHECK (category IN ('acquisto_casa', 'ristrutturazione')),
-                    operation_date DATE NOT NULL,
-                    description TEXT NOT NULL,
-                    amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0)
-                )
-                """
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS loans (
-                    id TEXT PRIMARY KEY,
-                    operation_date DATE NOT NULL,
-                    lender TEXT NOT NULL,
-                    amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0)
-                )
-                """
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS repayments (
-                    id TEXT PRIMARY KEY,
-                    operation_date DATE NOT NULL,
-                    lender TEXT NOT NULL,
-                    amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0)
-                )
-                """
-            )
-        conn.commit()
-
-def load_data() -> dict:
-    if USE_DATABASE:
-        data = json.loads(json.dumps(DEFAULT_DATA))
+    try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT id, category, operation_date, description, amount::DOUBLE PRECISION AS amount
-                    FROM expenses
+                    CREATE TABLE IF NOT EXISTS expenses (
+                        id TEXT PRIMARY KEY,
+                        category TEXT NOT NULL CHECK (category IN ('acquisto_casa', 'ristrutturazione')),
+                        operation_date DATE NOT NULL,
+                        description TEXT NOT NULL,
+                        amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0)
+                    )
                     """
                 )
-                for row in cur.fetchall():
-                    data["expenses"][row["category"]].append(
-                        {
-                            "id": row["id"],
-                            "date": row["operation_date"].isoformat(),
-                            "description": row["description"],
-                            "amount": float(row["amount"]),
-                        }
-                    )
-
                 cur.execute(
                     """
-                    SELECT id, operation_date, lender, amount::DOUBLE PRECISION AS amount
-                    FROM loans
+                    CREATE TABLE IF NOT EXISTS loans (
+                        id TEXT PRIMARY KEY,
+                        operation_date DATE NOT NULL,
+                        lender TEXT NOT NULL,
+                        amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0)
+                    )
                     """
                 )
-                for row in cur.fetchall():
-                    data["loans"].append(
-                        {
-                            "id": row["id"],
-                            "date": row["operation_date"].isoformat(),
-                            "lender": row["lender"],
-                            "amount": float(row["amount"]),
-                        }
-                    )
-
                 cur.execute(
                     """
-                    SELECT id, operation_date, lender, amount::DOUBLE PRECISION AS amount
-                    FROM repayments
+                    CREATE TABLE IF NOT EXISTS repayments (
+                        id TEXT PRIMARY KEY,
+                        operation_date DATE NOT NULL,
+                        lender TEXT NOT NULL,
+                        amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0)
+                    )
                     """
                 )
-                for row in cur.fetchall():
-                    data["repayments"].append(
-                        {
-                            "id": row["id"],
-                            "date": row["operation_date"].isoformat(),
-                            "lender": row["lender"],
-                            "amount": float(row["amount"]),
-                        }
-                    )
+            conn.commit()
+    except Exception as exc:
+        disable_database_mode(f"inizializzazione DB fallita ({exc.__class__.__name__}: {exc})")
 
-        return data
+def load_data() -> dict:
+    if USE_DATABASE:
+        try:
+            data = json.loads(json.dumps(DEFAULT_DATA))
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT id, category, operation_date, description, amount::DOUBLE PRECISION AS amount
+                        FROM expenses
+                        """
+                    )
+                    for row in cur.fetchall():
+                        data["expenses"][row["category"]].append(
+                            {
+                                "id": row["id"],
+                                "date": row["operation_date"].isoformat(),
+                                "description": row["description"],
+                                "amount": float(row["amount"]),
+                            }
+                        )
+
+                    cur.execute(
+                        """
+                        SELECT id, operation_date, lender, amount::DOUBLE PRECISION AS amount
+                        FROM loans
+                        """
+                    )
+                    for row in cur.fetchall():
+                        data["loans"].append(
+                            {
+                                "id": row["id"],
+                                "date": row["operation_date"].isoformat(),
+                                "lender": row["lender"],
+                                "amount": float(row["amount"]),
+                            }
+                        )
+
+                    cur.execute(
+                        """
+                        SELECT id, operation_date, lender, amount::DOUBLE PRECISION AS amount
+                        FROM repayments
+                        """
+                    )
+                    for row in cur.fetchall():
+                        data["repayments"].append(
+                            {
+                                "id": row["id"],
+                                "date": row["operation_date"].isoformat(),
+                                "lender": row["lender"],
+                                "amount": float(row["amount"]),
+                            }
+                        )
+
+            return data
+        except Exception as exc:
+            disable_database_mode(f"lettura DB fallita ({exc.__class__.__name__}: {exc})")
 
     if not os.path.exists(DATA_FILE):
         save_data(DEFAULT_DATA)
@@ -421,6 +434,11 @@ def index():
         filtered_repayments=vm["filtered_repayments"],
         error=None,
     )
+
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    return Response("OK", status=200, mimetype="text/plain")
 
 
 @app.route("/add-expense", methods=["POST"])

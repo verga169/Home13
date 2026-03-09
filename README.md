@@ -78,7 +78,7 @@ start_app.bat
 
 - Runtime: Python
 - Build command: `pip install -r requirements.txt`
-- Start command: `gunicorn app:app`
+- Start command: `gunicorn --config gunicorn.conf.py app:app`
 - Variabili ambiente minime consigliate:
 	- `DATABASE_URL=<url_neon>`
 
