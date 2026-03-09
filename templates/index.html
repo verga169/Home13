@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Home13">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v={{ deploy_version }}">
+    <link rel="manifest" href="{{ url_for('web_manifest') }}?v={{ deploy_version }}">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.ico') }}">
@@ -849,6 +849,11 @@
             {% else %}
             <div class="empty">Nessun rimborso trovato per il filtro selezionato.</div>
             {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>Informazioni</h2>
+            <div class="empty">Versione {{ app_version }}</div>
         </section>
     </main>
 

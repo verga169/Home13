@@ -3,7 +3,7 @@ const CACHE_NAME = `home13-pwa-${VERSION}`;
 const APP_SHELL = [
   "/",
   "/static/favicon.ico",
-  "/static/manifest.webmanifest"
+  "/manifest.webmanifest"
 ];
 
 self.addEventListener("install", (event) => {

@@ -52,10 +52,12 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
 ## PWA (Installazione Smartphone)
 
-- Manifest: `static/manifest.webmanifest`
+- Manifest dinamico: `GET /manifest.webmanifest`
 - Service worker: `static/sw.js` registrato su scope `/`
 - Endpoint service worker: `GET /sw.js`
 - Health check: `GET /health`
+- Versione app mostrata nella sezione `Informazioni` e inserita nel manifest come `version`.
+- Incremento versione: prova prima `APP_VERSION` o `GIT_COMMIT_COUNT`, altrimenti usa il numero commit git (`git rev-list --count HEAD`) quando disponibile.
 
 ## Avvio Locale (Windows)
 

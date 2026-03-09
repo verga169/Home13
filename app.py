@@ -2,6 +2,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import sys
 from collections import defaultdict
 from datetime import date, datetime
@@ -21,6 +22,44 @@ app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(BASE_DIR, "data_store.json")
 DEPLOY_VERSION = os.environ.get("RENDER_GIT_COMMIT", "dev")[:12] or "dev"
+
+
+def resolve_app_version() -> str:
+    """Resolve a numeric app version that tends to increase at each main push/deploy."""
+    env_version = (os.environ.get("APP_VERSION") or "").strip()
+    if env_version.isdigit():
+        return env_version
+
+    env_commit_count = (os.environ.get("GIT_COMMIT_COUNT") or "").strip()
+    if env_commit_count.isdigit():
+        return env_commit_count
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            cwd=BASE_DIR,
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=True,
+        )
+        git_count = (result.stdout or "").strip()
+        if git_count.isdigit():
+            return git_count
+    except Exception:
+        pass
+
+    if DEPLOY_VERSION and DEPLOY_VERSION != "dev":
+        # Fallback: deterministic numeric build id from commit hash fragment.
+        try:
+            return str(int(DEPLOY_VERSION[:8], 16))
+        except ValueError:
+            pass
+
+    return "1"
+
+
+APP_VERSION = resolve_app_version()
 
 
 def load_local_env() -> None:
@@ -82,7 +121,7 @@ app.jinja_env.filters["date_it"] = format_date_it
 
 @app.context_processor
 def inject_template_globals() -> dict:
-    return {"deploy_version": DEPLOY_VERSION}
+    return {"deploy_version": DEPLOY_VERSION, "app_version": APP_VERSION}
 
 
 def parse_amount(raw_value: str) -> float:
@@ -450,6 +489,31 @@ def health_check():
 @app.route("/sw.js", methods=["GET"])
 def service_worker():
     response = send_from_directory(os.path.join(BASE_DIR, "static"), "sw.js")
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.route("/manifest.webmanifest", methods=["GET"])
+def web_manifest():
+    payload = {
+        "name": "Home13",
+        "short_name": "Home13",
+        "description": "Tracciamento spese casa, ristrutturazione, prestiti e rimborsi.",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#f3f5f4",
+        "theme_color": "#0f766e",
+        "version": APP_VERSION,
+        "icons": [
+            {
+                "src": "/static/favicon.ico",
+                "sizes": "any",
+                "type": "image/x-icon",
+            }
+        ],
+    }
+    response = Response(json.dumps(payload), mimetype="application/manifest+json")
     response.headers["Cache-Control"] = "no-cache"
     return response
 
