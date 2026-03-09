@@ -410,10 +410,33 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.8rem;
-            font-weight: 700;
             color: #0b4f4a;
             line-height: 1;
+            position: relative;
+        }
+
+        .install-icon::before {
+            content: "";
+            position: absolute;
+            width: 2px;
+            height: 8px;
+            background: currentColor;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 1px;
+        }
+
+        .install-icon::after {
+            content: "";
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-left: 2px solid currentColor;
+            border-bottom: 2px solid currentColor;
+            transform: translateX(-50%) rotate(-45deg);
+            left: 50%;
+            top: 9px;
         }
 
         .install-hint {
@@ -544,7 +567,7 @@
             <button class="btn btn-light hidden" id="install-app-btn" type="button">Installa app</button>
         </section>
         <div id="install-panel" class="install-panel hidden">
-            <p class="install-title"><span class="install-icon">A</span>Installazione app</p>
+            <p class="install-title"><span class="install-icon" aria-hidden="true"></span>Installazione app</p>
             <p id="install-hint" class="install-hint"></p>
         </div>
 
