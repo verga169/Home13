@@ -8,10 +8,19 @@ from uuid import uuid4
 
 from flask import Flask, Response, redirect, render_template, request, url_for
 
+try:
+    import psycopg
+    from psycopg.rows import dict_row
+except Exception:
+    psycopg = None
+    dict_row = None
+
 app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(BASE_DIR, "data_store.json")
+DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
+USE_DATABASE = bool(DATABASE_URL)
 
 DEFAULT_DATA = {
     "expenses": {
@@ -31,6 +40,20 @@ def format_euro(value: float) -> str:
 
 
 app.jinja_env.filters["euro"] = format_euro
+
+
+def format_date_it(value: str) -> str:
+    raw = (value or "").strip()
+    if not raw:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(raw[:10])
+        return parsed.strftime("%d/%m/%Y")
+    except ValueError:
+        return raw
+
+
+app.jinja_env.filters["date_it"] = format_date_it
 
 
 def parse_amount(raw_value: str) -> float:
@@ -64,7 +87,205 @@ def sanitize_text(raw_value: str) -> str:
     return (raw_value or "").strip()
 
 
+def parse_iso_date(raw_value: str) -> date:
+    raw = sanitize_text(raw_value)
+    if not raw:
+        return date.today()
+    try:
+        return datetime.fromisoformat(raw[:10]).date()
+    except ValueError as exc:
+        raise ValueError("Data non valida") from exc
+
+
+def get_db_connection():
+    if not USE_DATABASE:
+        raise RuntimeError("DATABASE_URL non configurata")
+    if psycopg is None or dict_row is None:
+        raise RuntimeError("Dipendenza psycopg non installata")
+    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+
+
+def _bootstrap_json_to_db_if_empty() -> None:
+    if not os.path.exists(DATA_FILE):
+        return
+
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        local_data = json.load(f)
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) AS count FROM expenses")
+            expenses_count = int(cur.fetchone()["count"])
+            cur.execute("SELECT COUNT(*) AS count FROM loans")
+            loans_count = int(cur.fetchone()["count"])
+            cur.execute("SELECT COUNT(*) AS count FROM repayments")
+            repayments_count = int(cur.fetchone()["count"])
+
+            if expenses_count == 0 and loans_count == 0 and repayments_count == 0:
+                for item in local_data.get("expenses", {}).get("acquisto_casa", []):
+                    cur.execute(
+                        """
+                        INSERT INTO expenses (id, category, operation_date, description, amount)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (id) DO NOTHING
+                        """,
+                        (
+                            item.get("id") or new_id(),
+                            "acquisto_casa",
+                            parse_iso_date(item.get("date", "")).isoformat(),
+                            sanitize_text(item.get("description", "")) or "Spesa",
+                            float(item.get("amount", 0.0) or 0.0),
+                        ),
+                    )
+
+                for item in local_data.get("expenses", {}).get("ristrutturazione", []):
+                    cur.execute(
+                        """
+                        INSERT INTO expenses (id, category, operation_date, description, amount)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (id) DO NOTHING
+                        """,
+                        (
+                            item.get("id") or new_id(),
+                            "ristrutturazione",
+                            parse_iso_date(item.get("date", "")).isoformat(),
+                            sanitize_text(item.get("description", "")) or "Spesa",
+                            float(item.get("amount", 0.0) or 0.0),
+                        ),
+                    )
+
+                for item in local_data.get("loans", []):
+                    cur.execute(
+                        """
+                        INSERT INTO loans (id, operation_date, lender, amount)
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (id) DO NOTHING
+                        """,
+                        (
+                            item.get("id") or new_id(),
+                            parse_iso_date(item.get("date", "")).isoformat(),
+                            sanitize_text(item.get("lender", "")) or "Familiare",
+                            float(item.get("amount", 0.0) or 0.0),
+                        ),
+                    )
+
+                for item in local_data.get("repayments", []):
+                    cur.execute(
+                        """
+                        INSERT INTO repayments (id, operation_date, lender, amount)
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (id) DO NOTHING
+                        """,
+                        (
+                            item.get("id") or new_id(),
+                            parse_iso_date(item.get("date", "")).isoformat(),
+                            sanitize_text(item.get("lender", "")) or "Familiare",
+                            float(item.get("amount", 0.0) or 0.0),
+                        ),
+                    )
+
+        conn.commit()
+
+
+def ensure_database_ready() -> None:
+    if not USE_DATABASE:
+        return
+    if psycopg is None:
+        raise RuntimeError("DATABASE_URL configurata ma psycopg non e installata")
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS expenses (
+                    id TEXT PRIMARY KEY,
+                    category TEXT NOT NULL CHECK (category IN ('acquisto_casa', 'ristrutturazione')),
+                    operation_date DATE NOT NULL,
+                    description TEXT NOT NULL,
+                    amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0)
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS loans (
+                    id TEXT PRIMARY KEY,
+                    operation_date DATE NOT NULL,
+                    lender TEXT NOT NULL,
+                    amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0)
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS repayments (
+                    id TEXT PRIMARY KEY,
+                    operation_date DATE NOT NULL,
+                    lender TEXT NOT NULL,
+                    amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0)
+                )
+                """
+            )
+        conn.commit()
+
+    _bootstrap_json_to_db_if_empty()
+
+
 def load_data() -> dict:
+    if USE_DATABASE:
+        data = json.loads(json.dumps(DEFAULT_DATA))
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, category, operation_date, description, amount::DOUBLE PRECISION AS amount
+                    FROM expenses
+                    """
+                )
+                for row in cur.fetchall():
+                    data["expenses"][row["category"]].append(
+                        {
+                            "id": row["id"],
+                            "date": row["operation_date"].isoformat(),
+                            "description": row["description"],
+                            "amount": float(row["amount"]),
+                        }
+                    )
+
+                cur.execute(
+                    """
+                    SELECT id, operation_date, lender, amount::DOUBLE PRECISION AS amount
+                    FROM loans
+                    """
+                )
+                for row in cur.fetchall():
+                    data["loans"].append(
+                        {
+                            "id": row["id"],
+                            "date": row["operation_date"].isoformat(),
+                            "lender": row["lender"],
+                            "amount": float(row["amount"]),
+                        }
+                    )
+
+                cur.execute(
+                    """
+                    SELECT id, operation_date, lender, amount::DOUBLE PRECISION AS amount
+                    FROM repayments
+                    """
+                )
+                for row in cur.fetchall():
+                    data["repayments"].append(
+                        {
+                            "id": row["id"],
+                            "date": row["operation_date"].isoformat(),
+                            "lender": row["lender"],
+                            "amount": float(row["amount"]),
+                        }
+                    )
+
+        return data
+
     if not os.path.exists(DATA_FILE):
         save_data(DEFAULT_DATA)
         return json.loads(json.dumps(DEFAULT_DATA))
@@ -250,17 +471,28 @@ def add_expense():
         if category not in {"acquisto_casa", "ristrutturazione"}:
             raise ValueError("Categoria non valida")
 
-        data = load_data()
-        data["expenses"][category].append(
-            {
-                "id": new_id(),
-                "date": sanitize_text(request.form.get("date")) or date.today().isoformat(),
-                "description": sanitize_text(request.form.get("description")) or "Spesa",
-                "amount": parse_amount(request.form.get("amount")),
-                "notes": sanitize_text(request.form.get("notes")),
-            }
-        )
-        save_data(data)
+        item = {
+            "id": new_id(),
+            "date": parse_iso_date(request.form.get("date") or "").isoformat(),
+            "description": sanitize_text(request.form.get("description")) or "Spesa",
+            "amount": parse_amount(request.form.get("amount")),
+        }
+
+        if USE_DATABASE:
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO expenses (id, category, operation_date, description, amount)
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (item["id"], category, item["date"], item["description"], item["amount"]),
+                    )
+                conn.commit()
+        else:
+            data = load_data()
+            data["expenses"][category].append(item)
+            save_data(data)
         return redirect(url_for("index"))
     except ValueError as exc:
         vm = build_view_model()
@@ -280,17 +512,28 @@ def add_expense():
 @app.route("/add-loan", methods=["POST"])
 def add_loan():
     try:
-        data = load_data()
-        data["loans"].append(
-            {
-                "id": new_id(),
-                "date": sanitize_text(request.form.get("date")) or date.today().isoformat(),
-                "lender": sanitize_text(request.form.get("lender")) or "Familiare",
-                "amount": parse_amount(request.form.get("amount")),
-                "notes": sanitize_text(request.form.get("notes")),
-            }
-        )
-        save_data(data)
+        item = {
+            "id": new_id(),
+            "date": parse_iso_date(request.form.get("date") or "").isoformat(),
+            "lender": sanitize_text(request.form.get("lender")) or "Familiare",
+            "amount": parse_amount(request.form.get("amount")),
+        }
+
+        if USE_DATABASE:
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO loans (id, operation_date, lender, amount)
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (item["id"], item["date"], item["lender"], item["amount"]),
+                    )
+                conn.commit()
+        else:
+            data = load_data()
+            data["loans"].append(item)
+            save_data(data)
         return redirect(url_for("index"))
     except ValueError as exc:
         vm = build_view_model()
@@ -310,17 +553,28 @@ def add_loan():
 @app.route("/add-repayment", methods=["POST"])
 def add_repayment():
     try:
-        data = load_data()
-        data["repayments"].append(
-            {
-                "id": new_id(),
-                "date": sanitize_text(request.form.get("date")) or date.today().isoformat(),
-                "lender": sanitize_text(request.form.get("lender")) or "Familiare",
-                "amount": parse_amount(request.form.get("amount")),
-                "notes": sanitize_text(request.form.get("notes")),
-            }
-        )
-        save_data(data)
+        item = {
+            "id": new_id(),
+            "date": parse_iso_date(request.form.get("date") or "").isoformat(),
+            "lender": sanitize_text(request.form.get("lender")) or "Familiare",
+            "amount": parse_amount(request.form.get("amount")),
+        }
+
+        if USE_DATABASE:
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO repayments (id, operation_date, lender, amount)
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (item["id"], item["date"], item["lender"], item["amount"]),
+                    )
+                conn.commit()
+        else:
+            data = load_data()
+            data["repayments"].append(item)
+            save_data(data)
         return redirect(url_for("index"))
     except ValueError as exc:
         vm = build_view_model()
@@ -344,18 +598,32 @@ def delete_item():
     if not item_id:
         return redirect(url_for("index"))
 
-    data = load_data()
-    deleted = False
+    if USE_DATABASE:
+        deleted = False
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                if section in {"acquisto_casa", "ristrutturazione"}:
+                    cur.execute("DELETE FROM expenses WHERE id = %s AND category = %s", (item_id, section))
+                elif section == "loans":
+                    cur.execute("DELETE FROM loans WHERE id = %s", (item_id,))
+                elif section == "repayments":
+                    cur.execute("DELETE FROM repayments WHERE id = %s", (item_id,))
+                deleted = cur.rowcount > 0
+            if deleted:
+                conn.commit()
+    else:
+        data = load_data()
+        deleted = False
 
-    if section in {"acquisto_casa", "ristrutturazione"}:
-        deleted = remove_by_id(data["expenses"][section], item_id)
-    elif section == "loans":
-        deleted = remove_by_id(data["loans"], item_id)
-    elif section == "repayments":
-        deleted = remove_by_id(data["repayments"], item_id)
+        if section in {"acquisto_casa", "ristrutturazione"}:
+            deleted = remove_by_id(data["expenses"][section], item_id)
+        elif section == "loans":
+            deleted = remove_by_id(data["loans"], item_id)
+        elif section == "repayments":
+            deleted = remove_by_id(data["repayments"], item_id)
 
-    if deleted:
-        save_data(data)
+        if deleted:
+            save_data(data)
     return redirect(url_for("index"))
 
 
@@ -396,15 +664,15 @@ def build_excel_workbook(data: dict):
     def append_sheet(title: str, entries: list[dict], include_lender: bool = False):
         sheet = wb.create_sheet(title)
         if include_lender:
-            sheet.append(["Data", "Prestatore", "Importo", "Note"])
+            sheet.append(["Data", "Prestatore", "Importo"])
         else:
-            sheet.append(["Data", "Descrizione", "Importo", "Note"])
+            sheet.append(["Data", "Descrizione", "Importo"])
 
         for item in sort_entries(entries):
             if include_lender:
-                sheet.append([item.get("date", ""), item.get("lender", ""), item.get("amount", 0.0), item.get("notes", "")])
+                sheet.append([item.get("date", ""), item.get("lender", ""), item.get("amount", 0.0)])
             else:
-                sheet.append([item.get("date", ""), item.get("description", ""), item.get("amount", 0.0), item.get("notes", "")])
+                sheet.append([item.get("date", ""), item.get("description", ""), item.get("amount", 0.0)])
 
         for cell in sheet[1]:
             cell.font = Font(bold=True)
@@ -412,7 +680,6 @@ def build_excel_workbook(data: dict):
         sheet.column_dimensions["A"].width = 14
         sheet.column_dimensions["B"].width = 30
         sheet.column_dimensions["C"].width = 14
-        sheet.column_dimensions["D"].width = 40
 
     append_sheet("Acquisto casa", data["expenses"]["acquisto_casa"])
     append_sheet("Ristrutturazione", data["expenses"]["ristrutturazione"])
@@ -507,8 +774,6 @@ def export_pdf():
                 left = f"{item.get('date', '')} | {item.get('description', '')}"
             right = f"EUR {format_euro(item.get('amount', 0.0))}"
             current_y = draw_row(left, right, current_y)
-            if item.get("notes"):
-                current_y = draw_row(f"   note: {item['notes']}", "", current_y)
         return current_y - 6
 
     y = height - 44
@@ -548,6 +813,9 @@ def export_pdf():
         mimetype="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+ensure_database_ready()
 
 
 if __name__ == "__main__":

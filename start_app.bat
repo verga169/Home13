@@ -3,7 +3,7 @@
 cd /d "%~dp0"
 
 :: install dependencies if they are missing
-py -c "import flask, reportlab, openpyxl" >nul 2>&1
+py -c "import flask, reportlab, openpyxl, psycopg" >nul 2>&1
 if errorlevel 1 (
 	echo Installing Python dependencies...
 	py -m pip install -r requirements.txt

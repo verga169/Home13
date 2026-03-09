@@ -41,7 +41,11 @@ Se usi `start_app.bat`, la porta impostata e `5001`.
 
 ## Dati
 
-I dati sono salvati in locale nel file `data_store.json`.
+Se imposti la variabile ambiente `DATABASE_URL` (es. Neon PostgreSQL), l'app salva e legge i dati dal database.
+
+Se `DATABASE_URL` non e impostata, l'app usa il file locale `data_store.json`.
+
+Al primo avvio con database vuoto, eventuali dati locali presenti in `data_store.json` vengono importati automaticamente.
 
 ## Export
 
