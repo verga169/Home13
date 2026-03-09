@@ -108,7 +108,7 @@
 
         .top-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 12px;
             margin: 16px 0 24px;
         }
@@ -467,6 +467,10 @@
             <article class="metric">
                 <div class="label">Rimborsi Effettuati</div>
                 <div class="value">{{ summary.repayments_total|euro }} EUR</div>
+            </article>
+            <article class="metric">
+                <div class="label">Spese Ristrutturazione</div>
+                <div class="value">{{ summary.ristr_total|euro }} EUR</div>
             </article>
             <article class="metric">
                 <div class="label">Debito Residuo</div>
