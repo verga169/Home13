@@ -26,7 +26,8 @@ for /f %%P in ('powershell -NoProfile -Command "$port=5000..5010 | Where-Object 
 set "FLASK_DEBUG=1"
 
 :: start server in a new window so the launcher console is free
-start "Home13 server" cmd /k "set PORT=%PORT%&&set FLASK_DEBUG=%FLASK_DEBUG%&&\"%PY_CMD%\" app.py"
+:: env vars are inherited by the child process
+start "Home13 server" "%PY_CMD%" app.py
 
 :: give the server a moment to start then open browser
 timeout /t 2 /nobreak >nul

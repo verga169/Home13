@@ -179,6 +179,44 @@
             padding: 8px 10px;
         }
 
+        .btn-edit {
+            background: #e6f5f2;
+            color: #0f4f49;
+            border: 1px solid #b7dfd7;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 40px;
+            padding: 8px 10px;
+            font-weight: 700;
+        }
+
+        .actions-cell {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .inline-edit-row {
+            display: none;
+            background: #f4faf8;
+        }
+
+        .inline-edit-row.open {
+            display: table-row;
+        }
+
+        .inline-edit-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .inline-edit-form .btn {
+            min-height: 40px;
+        }
+
         .btn:hover,
         .btn-ghost:hover {
             transform: translateY(-1px);
@@ -374,6 +412,13 @@
             table { min-width: 500px; }
             th, td { font-size: 0.86rem; padding: 8px; }
             .btn-danger { min-width: 72px; }
+            .actions-cell {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .inline-edit-form {
+                grid-template-columns: 1fr;
+            }
             .card h2 { font-size: 1.15rem; }
             .metric .value { font-size: 1.16rem; }
             .actions .btn {
@@ -494,10 +539,25 @@
                                 <td>{{ row.description }}</td>
                                 <td>{{ row.amount|euro }} EUR</td>
                                 <td>
-                                    <form method="post" action="{{ url_for('delete_item') }}">
+                                    <div class="actions-cell">
+                                        <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-acquisto-{{ row.id }}')">&#9998;</button>
+                                        <form method="post" action="{{ url_for('delete_item') }}">
+                                            <input type="hidden" name="section" value="acquisto_casa">
+                                            <input type="hidden" name="item_id" value="{{ row.id }}">
+                                            <button class="btn btn-danger" type="submit">Elimina</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr id="edit-acquisto-{{ row.id }}" class="inline-edit-row">
+                                <td colspan="4">
+                                    <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
                                         <input type="hidden" name="section" value="acquisto_casa">
                                         <input type="hidden" name="item_id" value="{{ row.id }}">
-                                        <button class="btn btn-danger" type="submit">Elimina</button>
+                                        <input type="date" name="date" value="{{ row.date }}" required>
+                                        <input type="text" name="label" value="{{ row.description }}" placeholder="Descrizione" required>
+                                        <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
+                                        <button class="btn btn-brand" type="submit">Salva</button>
                                     </form>
                                 </td>
                             </tr>
@@ -539,10 +599,25 @@
                                 <td>{{ row.description }}</td>
                                 <td>{{ row.amount|euro }} EUR</td>
                                 <td>
-                                    <form method="post" action="{{ url_for('delete_item') }}">
+                                    <div class="actions-cell">
+                                        <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-ristr-{{ row.id }}')">&#9998;</button>
+                                        <form method="post" action="{{ url_for('delete_item') }}">
+                                            <input type="hidden" name="section" value="ristrutturazione">
+                                            <input type="hidden" name="item_id" value="{{ row.id }}">
+                                            <button class="btn btn-danger" type="submit">Elimina</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr id="edit-ristr-{{ row.id }}" class="inline-edit-row">
+                                <td colspan="4">
+                                    <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
                                         <input type="hidden" name="section" value="ristrutturazione">
                                         <input type="hidden" name="item_id" value="{{ row.id }}">
-                                        <button class="btn btn-danger" type="submit">Elimina</button>
+                                        <input type="date" name="date" value="{{ row.date }}" required>
+                                        <input type="text" name="label" value="{{ row.description }}" placeholder="Descrizione" required>
+                                        <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
+                                        <button class="btn btn-brand" type="submit">Salva</button>
                                     </form>
                                 </td>
                             </tr>
@@ -575,7 +650,12 @@
                     <form method="post" action="{{ url_for('add_repayment') }}">
                         <div class="fields">
                             <input type="date" name="date" value="{{ today }}" required>
-                            <input type="text" name="lender" placeholder="Prestatore" required>
+                            <select name="lender" required>
+                                <option value="">Prestatore</option>
+                                {% for lender in repayment_lenders %}
+                                <option value="{{ lender }}">{{ lender }}</option>
+                                {% endfor %}
+                            </select>
                             <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
                         </div>
                         <button class="btn btn-brand" type="submit">Aggiungi rimborso</button>
@@ -604,10 +684,25 @@
                                     <td>{{ row.lender }}</td>
                                     <td>{{ row.amount|euro }} EUR</td>
                                     <td>
-                                        <form method="post" action="{{ url_for('delete_item') }}">
+                                        <div class="actions-cell">
+                                            <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-loan-{{ row.id }}')">&#9998;</button>
+                                            <form method="post" action="{{ url_for('delete_item') }}">
+                                                <input type="hidden" name="section" value="loans">
+                                                <input type="hidden" name="item_id" value="{{ row.id }}">
+                                                <button class="btn btn-danger" type="submit">Elimina</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr id="edit-loan-{{ row.id }}" class="inline-edit-row">
+                                    <td colspan="4">
+                                        <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
                                             <input type="hidden" name="section" value="loans">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
-                                            <button class="btn btn-danger" type="submit">Elimina</button>
+                                            <input type="date" name="date" value="{{ row.date }}" required>
+                                            <input type="text" name="label" value="{{ row.lender }}" placeholder="Prestatore" required>
+                                            <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
+                                            <button class="btn btn-brand" type="submit">Salva</button>
                                         </form>
                                     </td>
                                 </tr>
@@ -639,10 +734,25 @@
                                     <td>{{ row.lender }}</td>
                                     <td>{{ row.amount|euro }} EUR</td>
                                     <td>
-                                        <form method="post" action="{{ url_for('delete_item') }}">
+                                        <div class="actions-cell">
+                                            <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-repay-{{ row.id }}')">&#9998;</button>
+                                            <form method="post" action="{{ url_for('delete_item') }}">
+                                                <input type="hidden" name="section" value="repayments">
+                                                <input type="hidden" name="item_id" value="{{ row.id }}">
+                                                <button class="btn btn-danger" type="submit">Elimina</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr id="edit-repay-{{ row.id }}" class="inline-edit-row">
+                                    <td colspan="4">
+                                        <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
                                             <input type="hidden" name="section" value="repayments">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
-                                            <button class="btn btn-danger" type="submit">Elimina</button>
+                                            <input type="date" name="date" value="{{ row.date }}" required>
+                                            <input type="text" name="label" value="{{ row.lender }}" placeholder="Prestatore" required>
+                                            <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
+                                            <button class="btn btn-brand" type="submit">Salva</button>
                                         </form>
                                     </td>
                                 </tr>
@@ -723,6 +833,12 @@
 
     <script id="chart-data" type="application/json">{{ chart_data | tojson }}</script>
     <script>
+        function toggleEditRow(rowId) {
+            const target = document.getElementById(rowId);
+            if (!target) return;
+            target.classList.toggle("open");
+        }
+
         function normalizeItalianNumber(rawValue) {
             const raw = (rawValue || "").trim().replace(/\s+/g, "");
             if (!raw) return "";
@@ -805,6 +921,17 @@
             return { min: minIdx, max: labels.length - 1 };
         }
 
+        function buildEventPoints(values) {
+            const points = [];
+            values.forEach((value, idx) => {
+                const amount = Number(value) || 0;
+                if (amount > 0) {
+                    points.push({ x: idx, y: amount });
+                }
+            });
+            return points;
+        }
+
         const totalsCanvas = document.getElementById("totalsChart");
         const totalsCtx = totalsCanvas.getContext("2d");
 
@@ -879,49 +1006,52 @@
         const initialYearWindow = computeInitialWindow(timelineLabels, 365);
 
         const timelineChart = new Chart(timelineCtx, {
-            type: "line",
+            type: "scatter",
             data: {
-                labels: timelineLabels,
                 datasets: [
                     {
                         label: "Acquisto casa",
-                        data: payload.timeline.acquistoCasa,
+                        data: buildEventPoints(payload.timeline.acquistoCasa),
                         borderColor: "#3b82f6",
-                        backgroundColor: "rgba(59,130,246,0.15)",
-                        fill: true,
-                        tension: 0.28,
-                        pointRadius: isMobile ? 0 : 2,
-                        pointHoverRadius: isMobile ? 4 : 5,
+                        backgroundColor: "rgba(59,130,246,0.75)",
+                        pointRadius: isMobile ? 4 : 5,
+                        pointHoverRadius: isMobile ? 7 : 9,
+                        pointBorderWidth: 2,
+                        pointBorderColor: "#ffffff",
+                        showLine: false,
                     },
                     {
                         label: "Ristrutturazione",
-                        data: payload.timeline.ristrutturazione,
+                        data: buildEventPoints(payload.timeline.ristrutturazione),
                         borderColor: "#ef4444",
-                        backgroundColor: "rgba(239,68,68,0.14)",
-                        fill: true,
-                        tension: 0.28,
-                        pointRadius: isMobile ? 0 : 2,
-                        pointHoverRadius: isMobile ? 4 : 5,
+                        backgroundColor: "rgba(239,68,68,0.75)",
+                        pointRadius: isMobile ? 4 : 5,
+                        pointHoverRadius: isMobile ? 7 : 9,
+                        pointBorderWidth: 2,
+                        pointBorderColor: "#ffffff",
+                        showLine: false,
                     },
                     {
                         label: "Prestiti ricevuti",
-                        data: payload.timeline.prestiti,
+                        data: buildEventPoints(payload.timeline.prestiti),
                         borderColor: "#10b981",
-                        backgroundColor: "rgba(16,185,129,0.14)",
-                        fill: true,
-                        tension: 0.28,
-                        pointRadius: isMobile ? 0 : 2,
-                        pointHoverRadius: isMobile ? 4 : 5,
+                        backgroundColor: "rgba(16,185,129,0.75)",
+                        pointRadius: isMobile ? 4 : 5,
+                        pointHoverRadius: isMobile ? 7 : 9,
+                        pointBorderWidth: 2,
+                        pointBorderColor: "#ffffff",
+                        showLine: false,
                     },
                     {
                         label: "Rimborsi",
-                        data: payload.timeline.rimborsi,
+                        data: buildEventPoints(payload.timeline.rimborsi),
                         borderColor: "#f97316",
-                        backgroundColor: "rgba(249,115,22,0.14)",
-                        fill: true,
-                        tension: 0.28,
-                        pointRadius: isMobile ? 0 : 2,
-                        pointHoverRadius: isMobile ? 4 : 5,
+                        backgroundColor: "rgba(249,115,22,0.75)",
+                        pointRadius: isMobile ? 4 : 5,
+                        pointHoverRadius: isMobile ? 7 : 9,
+                        pointBorderWidth: 2,
+                        pointBorderColor: "#ffffff",
+                        showLine: false,
                     },
                 ],
             },
@@ -931,13 +1061,15 @@
                 interaction: { mode: "index", intersect: false, axis: "x" },
                 scales: {
                     x: {
+                        type: "linear",
                         min: initialYearWindow.min,
                         max: initialYearWindow.max,
                         ticks: {
                             autoSkip: true,
                             maxTicksLimit: isMobile ? 4 : 8,
                             maxRotation: 0,
-                            callback: (_, idx) => {
+                            callback: (value) => {
+                                const idx = Math.round(Number(value));
                                 const raw = timelineLabels[idx] || "";
                                 const dateObj = raw ? new Date(raw) : null;
                                 if (!dateObj || Number.isNaN(dateObj.getTime())) return raw;
@@ -981,7 +1113,8 @@
                     tooltip: {
                         callbacks: {
                             title: (items) => {
-                                const raw = timelineLabels[items[0].dataIndex] || "";
+                                const idx = Math.round(Number(items[0].parsed.x));
+                                const raw = timelineLabels[idx] || "";
                                 const d = raw ? new Date(raw) : null;
                                 return d && !Number.isNaN(d.getTime())
                                     ? d.toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })

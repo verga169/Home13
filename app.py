@@ -262,6 +262,23 @@ def remove_by_id(entries: list[dict], item_id: str) -> bool:
     return len(entries) < before
 
 
+def update_local_item(
+    entries: list[dict],
+    item_id: str,
+    label_key: str,
+    label_value: str,
+    amount_value: float,
+    date_value: str,
+) -> bool:
+    for item in entries:
+        if item.get("id") == item_id:
+            item[label_key] = label_value
+            item["amount"] = amount_value
+            item["date"] = date_value
+            return True
+    return False
+
+
 def sum_amount(entries: list[dict]) -> float:
     return round(sum(float(item.get("amount", 0.0) or 0.0) for item in entries), 2)
 
@@ -569,6 +586,102 @@ def delete_item():
     return redirect(url_for("index"))
 
 
+@app.route("/edit-item", methods=["POST"])
+def edit_item():
+    section = sanitize_text(request.form.get("section"))
+    item_id = sanitize_text(request.form.get("item_id"))
+    label = sanitize_text(request.form.get("label"))
+    date_raw = request.form.get("date") or ""
+
+    try:
+        amount = parse_amount(request.form.get("amount"))
+        operation_date = parse_iso_date(date_raw).isoformat()
+    except ValueError as exc:
+        vm = build_view_model()
+        return render_template(
+            "index.html",
+            data=vm["data"],
+            summary=vm["summary"],
+            chart_data=vm["chart_data"],
+            today=vm["today"],
+            repayment_lenders=vm["repayment_lenders"],
+            selected_repayment_lender=vm["selected_repayment_lender"],
+            filtered_repayments=vm["filtered_repayments"],
+            error=str(exc),
+        )
+
+    if not item_id or not label:
+        vm = build_view_model()
+        return render_template(
+            "index.html",
+            data=vm["data"],
+            summary=vm["summary"],
+            chart_data=vm["chart_data"],
+            today=vm["today"],
+            repayment_lenders=vm["repayment_lenders"],
+            selected_repayment_lender=vm["selected_repayment_lender"],
+            filtered_repayments=vm["filtered_repayments"],
+            error="Compila nome e importo per modificare la voce",
+        )
+
+    if USE_DATABASE:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                if section in {"acquisto_casa", "ristrutturazione"}:
+                    cur.execute(
+                        """
+                        UPDATE expenses
+                        SET description = %s, amount = %s, operation_date = %s
+                        WHERE id = %s AND category = %s
+                        """,
+                        (label, amount, operation_date, item_id, section),
+                    )
+                elif section == "loans":
+                    cur.execute(
+                        """
+                        UPDATE loans
+                        SET lender = %s, amount = %s, operation_date = %s
+                        WHERE id = %s
+                        """,
+                        (label, amount, operation_date, item_id),
+                    )
+                elif section == "repayments":
+                    cur.execute(
+                        """
+                        UPDATE repayments
+                        SET lender = %s, amount = %s, operation_date = %s
+                        WHERE id = %s
+                        """,
+                        (label, amount, operation_date, item_id),
+                    )
+                else:
+                    return redirect(url_for("index"))
+
+                if cur.rowcount > 0:
+                    conn.commit()
+    else:
+        data = load_data()
+        updated = False
+        if section in {"acquisto_casa", "ristrutturazione"}:
+            updated = update_local_item(
+                data["expenses"][section],
+                item_id,
+                "description",
+                label,
+                amount,
+                operation_date,
+            )
+        elif section == "loans":
+            updated = update_local_item(data["loans"], item_id, "lender", label, amount, operation_date)
+        elif section == "repayments":
+            updated = update_local_item(data["repayments"], item_id, "lender", label, amount, operation_date)
+
+        if updated:
+            save_data(data)
+
+    return redirect(url_for("index"))
+
+
 def build_excel_workbook(data: dict):
     from openpyxl import Workbook
     from openpyxl.styles import Font
@@ -744,20 +857,15 @@ def export_pdf():
             return content_top
         return current_y
 
-    def draw_title(text: str, current_y: float, subtitle: str | None = None) -> float:
+    def draw_title(text: str, current_y: float) -> float:
         current_y = new_page(current_y)
         pdf.setFillColor(palette["brand_dark"])
         pdf.setFont("Helvetica-Bold", 18)
         pdf.drawString(left, current_y, text)
-        if subtitle:
-            pdf.setFillColor(palette["ink_soft"])
-            pdf.setFont("Helvetica", 10)
-            pdf.drawString(left, current_y - 14, subtitle)
-            pdf.setStrokeColor(palette["line"])
-            pdf.setLineWidth(1)
-            pdf.line(left, current_y - 20, right, current_y - 20)
-            return current_y - 30
-        return current_y - 22
+        pdf.setStrokeColor(palette["line"])
+        pdf.setLineWidth(1)
+        pdf.line(left, current_y - 10, right, current_y - 10)
+        return current_y - 28
 
     def draw_section_header(text: str, current_y: float) -> float:
         current_y = new_page(current_y)
@@ -767,7 +875,7 @@ def export_pdf():
         pdf.setStrokeColor(palette["line_soft"])
         pdf.setLineWidth(0.8)
         pdf.line(left, current_y - 3, right, current_y - 3)
-        return current_y - 16
+        return current_y - 20
 
     def draw_metric_card(x: float, top_y: float, card_w: float, label: str, value: str) -> None:
         card_h = 56
@@ -795,7 +903,7 @@ def export_pdf():
         draw_metric_card(left, top2, card_w, "Prestiti ricevuti", f"EUR {format_euro(summary['loans_total'])}")
         draw_metric_card(left + card_w + card_gap, top2, card_w, "Rimborsi effettuati", f"EUR {format_euro(summary['repayments_total'])}")
 
-        return top2 - 66
+        return top2 - 74
 
     def draw_category_bars(current_y: float) -> float:
         current_y = draw_section_header("Sintesi categorie", current_y)
@@ -827,11 +935,11 @@ def export_pdf():
             pdf.roundRect(bar_left, y_pos - 8, scaled_w, 8, 3, fill=1, stroke=0)
             y_pos -= 18
 
-        return y_pos - 4
+        return y_pos - 12
 
     def draw_table(title: str, headers: list[str], rows: list[list[str]], col_widths: list[float], current_y: float) -> float:
         current_y = draw_section_header(title, current_y)
-        row_h = 18
+        row_h = 20
 
         def draw_header_and_frame(y_top: float) -> float:
             pdf.setFillColor(palette["header_bg"])
@@ -853,7 +961,7 @@ def export_pdf():
             pdf.setFillColor(palette["ink_soft"])
             pdf.setFont("Helvetica", 9)
             pdf.drawString(left, current_y, "Nessun dato disponibile")
-            return current_y - 14
+            return current_y - 20
 
         current_y = new_page(current_y)
         current_y = draw_header_and_frame(current_y)
@@ -884,10 +992,10 @@ def export_pdf():
             pdf.line(left, current_y - row_h, left + sum(col_widths), current_y - row_h)
             current_y -= row_h
 
-        return current_y - 12
+        return current_y - 18
 
     y = content_top
-    y = draw_title("Report Home13", y, "Riepilogo premium di spese, prestiti e rimborsi")
+    y = draw_title("Report Home13", y)
     y = draw_summary_cards(y)
     y = draw_category_bars(y)
 
