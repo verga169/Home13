@@ -2,6 +2,7 @@ import io
 import json
 import os
 import re
+import sys
 from collections import defaultdict
 from datetime import date, datetime
 from uuid import uuid4
@@ -131,7 +132,11 @@ def ensure_database_ready() -> None:
     if not USE_DATABASE:
         return
     if psycopg is None:
-        raise RuntimeError("DATABASE_URL configurata ma psycopg non e installata")
+        raise RuntimeError(
+            "DATABASE_URL configurata ma psycopg non e installata "
+            f"nell'interprete corrente ({sys.executable}). "
+            "Installa con: python -m pip install -r requirements.txt"
+        )
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
