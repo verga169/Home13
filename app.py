@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import date, datetime
 from uuid import uuid4
 
-from flask import Flask, Response, redirect, render_template, request, url_for
+from flask import Flask, Response, redirect, render_template, request, send_from_directory, url_for
 
 try:
     import psycopg
@@ -20,6 +20,7 @@ app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(BASE_DIR, "data_store.json")
+DEPLOY_VERSION = os.environ.get("RENDER_GIT_COMMIT", "dev")[:12] or "dev"
 
 
 def load_local_env() -> None:
@@ -77,6 +78,11 @@ def format_date_it(value: str) -> str:
 
 
 app.jinja_env.filters["date_it"] = format_date_it
+
+
+@app.context_processor
+def inject_template_globals() -> dict:
+    return {"deploy_version": DEPLOY_VERSION}
 
 
 def parse_amount(raw_value: str) -> float:
@@ -439,6 +445,13 @@ def index():
 @app.route("/health", methods=["GET"])
 def health_check():
     return Response("OK", status=200, mimetype="text/plain")
+
+
+@app.route("/sw.js", methods=["GET"])
+def service_worker():
+    response = send_from_directory(os.path.join(BASE_DIR, "static"), "sw.js")
+    response.headers["Cache-Control"] = "no-cache"
+    return response
 
 
 @app.route("/add-expense", methods=["POST"])

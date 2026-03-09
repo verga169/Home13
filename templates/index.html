@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Home13 - Spese Casa e Ristrutturazione</title>
+    <meta name="theme-color" content="#0f766e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Home13">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}?v={{ deploy_version }}">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.ico') }}">
@@ -1149,6 +1154,14 @@
         document.getElementById("timeline-6m").addEventListener("click", () => setTimelineWindow(182));
         document.getElementById("timeline-3m").addEventListener("click", () => setTimelineWindow(92));
         document.getElementById("timeline-1m").addEventListener("click", () => setTimelineWindow(31));
+
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("/sw.js?v={{ deploy_version }}", { scope: "/" }).catch(() => {
+                    // SW registration failure should not block app usage.
+                });
+            });
+        }
     </script>
 </body>
 </html>

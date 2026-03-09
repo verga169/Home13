@@ -17,6 +17,7 @@ Home13 e una web app Flask per monitorare i costi legati a casa e ristrutturazio
 - Date mostrate in formato italiano (`gg/mm/aaaa`).
 - UI responsive desktop/mobile con attenzione a overflow e touch interactions.
 - Favicon da `static/favicon.ico`.
+- Installabile come PWA su smartphone (manifest + service worker).
 
 ## Persistenza Dati
 
@@ -48,6 +49,13 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 	- export `.xlsx` con fogli separati per sezione e riepilogo.
 - `GET /export/pdf`
 	- report PDF con layout premium/minimal: header/footer paginati, metric cards, sintesi categorie e tabelle dettagliate.
+
+## PWA (Installazione Smartphone)
+
+- Manifest: `static/manifest.webmanifest`
+- Service worker: `static/sw.js` registrato su scope `/`
+- Endpoint service worker: `GET /sw.js`
+- Health check: `GET /health`
 
 ## Avvio Locale (Windows)
 

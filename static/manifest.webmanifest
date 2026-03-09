@@ -1,0 +1,17 @@
+{
+  "name": "Home13",
+  "short_name": "Home13",
+  "description": "Tracciamento spese casa, ristrutturazione, prestiti e rimborsi.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f3f5f4",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/static/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}
