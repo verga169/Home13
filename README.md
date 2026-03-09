@@ -45,8 +45,6 @@ Se imposti la variabile ambiente `DATABASE_URL` (es. Neon PostgreSQL), l'app sal
 
 Se `DATABASE_URL` non e impostata, l'app usa il file locale `data_store.json`.
 
-Al primo avvio con database vuoto, eventuali dati locali presenti in `data_store.json` vengono importati automaticamente.
-
 ## Export
 
 - `GET /export/excel` genera un file `.xlsx` con fogli separati per sezione.

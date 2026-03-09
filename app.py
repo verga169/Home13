@@ -105,88 +105,6 @@ def get_db_connection():
     return psycopg.connect(DATABASE_URL, row_factory=dict_row)
 
 
-def _bootstrap_json_to_db_if_empty() -> None:
-    if not os.path.exists(DATA_FILE):
-        return
-
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        local_data = json.load(f)
-
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) AS count FROM expenses")
-            expenses_count = int(cur.fetchone()["count"])
-            cur.execute("SELECT COUNT(*) AS count FROM loans")
-            loans_count = int(cur.fetchone()["count"])
-            cur.execute("SELECT COUNT(*) AS count FROM repayments")
-            repayments_count = int(cur.fetchone()["count"])
-
-            if expenses_count == 0 and loans_count == 0 and repayments_count == 0:
-                for item in local_data.get("expenses", {}).get("acquisto_casa", []):
-                    cur.execute(
-                        """
-                        INSERT INTO expenses (id, category, operation_date, description, amount)
-                        VALUES (%s, %s, %s, %s, %s)
-                        ON CONFLICT (id) DO NOTHING
-                        """,
-                        (
-                            item.get("id") or new_id(),
-                            "acquisto_casa",
-                            parse_iso_date(item.get("date", "")).isoformat(),
-                            sanitize_text(item.get("description", "")) or "Spesa",
-                            float(item.get("amount", 0.0) or 0.0),
-                        ),
-                    )
-
-                for item in local_data.get("expenses", {}).get("ristrutturazione", []):
-                    cur.execute(
-                        """
-                        INSERT INTO expenses (id, category, operation_date, description, amount)
-                        VALUES (%s, %s, %s, %s, %s)
-                        ON CONFLICT (id) DO NOTHING
-                        """,
-                        (
-                            item.get("id") or new_id(),
-                            "ristrutturazione",
-                            parse_iso_date(item.get("date", "")).isoformat(),
-                            sanitize_text(item.get("description", "")) or "Spesa",
-                            float(item.get("amount", 0.0) or 0.0),
-                        ),
-                    )
-
-                for item in local_data.get("loans", []):
-                    cur.execute(
-                        """
-                        INSERT INTO loans (id, operation_date, lender, amount)
-                        VALUES (%s, %s, %s, %s)
-                        ON CONFLICT (id) DO NOTHING
-                        """,
-                        (
-                            item.get("id") or new_id(),
-                            parse_iso_date(item.get("date", "")).isoformat(),
-                            sanitize_text(item.get("lender", "")) or "Familiare",
-                            float(item.get("amount", 0.0) or 0.0),
-                        ),
-                    )
-
-                for item in local_data.get("repayments", []):
-                    cur.execute(
-                        """
-                        INSERT INTO repayments (id, operation_date, lender, amount)
-                        VALUES (%s, %s, %s, %s)
-                        ON CONFLICT (id) DO NOTHING
-                        """,
-                        (
-                            item.get("id") or new_id(),
-                            parse_iso_date(item.get("date", "")).isoformat(),
-                            sanitize_text(item.get("lender", "")) or "Familiare",
-                            float(item.get("amount", 0.0) or 0.0),
-                        ),
-                    )
-
-        conn.commit()
-
-
 def ensure_database_ready() -> None:
     if not USE_DATABASE:
         return
@@ -227,9 +145,6 @@ def ensure_database_ready() -> None:
                 """
             )
         conn.commit()
-
-    _bootstrap_json_to_db_if_empty()
-
 
 def load_data() -> dict:
     if USE_DATABASE:
