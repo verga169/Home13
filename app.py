@@ -635,6 +635,7 @@ def export_excel():
 @app.route("/export/pdf", methods=["GET"])
 def export_pdf():
     try:
+        from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas
     except Exception as exc:
@@ -654,71 +655,238 @@ def export_pdf():
     data = load_data()
     summary = build_summary(data)
 
+    class NumberedCanvas(canvas.Canvas):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._saved_page_states = []
+
+        def showPage(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            page_count = len(self._saved_page_states)
+            for state in self._saved_page_states:
+                self.__dict__.update(state)
+                draw_page_chrome(self, self._pageNumber, page_count)
+                canvas.Canvas.showPage(self)
+            canvas.Canvas.save(self)
+
     buffer = io.BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
+    pdf = NumberedCanvas(buffer, pagesize=A4)
     width, height = A4
+    left = 34
+    right = width - 34
+    content_top = height - 72
+    content_bottom = 42
+
+    generated_on = format_date_it(date.today().isoformat())
+    palette = {
+        "brand": colors.HexColor("#0f4f49"),
+        "brand_dark": colors.HexColor("#123f3a"),
+        "ink_soft": colors.HexColor("#5d746e"),
+        "line": colors.HexColor("#d7e4e0"),
+        "line_soft": colors.HexColor("#e3ece9"),
+        "header_bg": colors.HexColor("#eef5f3"),
+        "row_alt": colors.HexColor("#f9fcfb"),
+        "card_bg": colors.HexColor("#f4f9f8"),
+    }
+
+    def draw_page_chrome(cnv, page_number: int, page_count: int) -> None:
+        cnv.saveState()
+        cnv.setStrokeColor(palette["line"])
+        cnv.setLineWidth(0.8)
+        cnv.line(left, height - 32, right, height - 32)
+        cnv.line(left, 24, right, 24)
+
+        cnv.setFillColor(palette["brand"])
+        cnv.setFont("Helvetica-Bold", 9)
+        cnv.drawString(left, height - 25, "Home13 - Report Spese")
+
+        cnv.setFillColor(palette["ink_soft"])
+        cnv.setFont("Helvetica", 8)
+        cnv.drawRightString(right, height - 25, f"Generato il {generated_on}")
+        cnv.drawString(left, 14, "Documento riservato")
+        cnv.drawRightString(right, 14, f"Pag. {page_number}/{page_count}")
+        cnv.restoreState()
 
     def new_page(current_y: float) -> float:
-        if current_y < 70:
+        if current_y < content_bottom:
             pdf.showPage()
-            return height - 48
+            return content_top
         return current_y
 
-    def draw_title(text: str, current_y: float) -> float:
+    def draw_title(text: str, current_y: float, subtitle: str | None = None) -> float:
         current_y = new_page(current_y)
+        pdf.setFillColor(palette["brand_dark"])
+        pdf.setFont("Helvetica-Bold", 18)
+        pdf.drawString(left, current_y, text)
+        if subtitle:
+            pdf.setFillColor(palette["ink_soft"])
+            pdf.setFont("Helvetica", 10)
+            pdf.drawString(left, current_y - 14, subtitle)
+            pdf.setStrokeColor(palette["line"])
+            pdf.setLineWidth(1)
+            pdf.line(left, current_y - 20, right, current_y - 20)
+            return current_y - 30
+        return current_y - 22
+
+    def draw_section_header(text: str, current_y: float) -> float:
+        current_y = new_page(current_y)
+        pdf.setFillColor(palette["brand_dark"])
         pdf.setFont("Helvetica-Bold", 13)
-        pdf.drawString(40, current_y, text)
-        return current_y - 18
+        pdf.drawString(left, current_y, text)
+        pdf.setStrokeColor(palette["line_soft"])
+        pdf.setLineWidth(0.8)
+        pdf.line(left, current_y - 3, right, current_y - 3)
+        return current_y - 16
 
-    def draw_row(left_text: str, right_text: str, current_y: float) -> float:
+    def draw_metric_card(x: float, top_y: float, card_w: float, label: str, value: str) -> None:
+        card_h = 56
+        pdf.setFillColor(palette["card_bg"])
+        pdf.setStrokeColor(palette["line"])
+        pdf.roundRect(x, top_y - card_h, card_w, card_h, 8, fill=1, stroke=1)
+
+        pdf.setFillColor(palette["ink_soft"])
+        pdf.setFont("Helvetica", 8)
+        pdf.drawString(x + 10, top_y - 16, label)
+
+        pdf.setFillColor(palette["brand_dark"])
+        pdf.setFont("Helvetica-Bold", 12)
+        pdf.drawString(x + 10, top_y - 37, value)
+
+    def draw_summary_cards(current_y: float) -> float:
+        card_gap = 10
+        card_w = (right - left - card_gap) / 2
+        top = current_y
+
+        draw_metric_card(left, top, card_w, "Spese totali", f"EUR {format_euro(summary['spese_total'])}")
+        draw_metric_card(left + card_w + card_gap, top, card_w, "Debito residuo", f"EUR {format_euro(summary['debito_residuo'])}")
+
+        top2 = top - 66
+        draw_metric_card(left, top2, card_w, "Prestiti ricevuti", f"EUR {format_euro(summary['loans_total'])}")
+        draw_metric_card(left + card_w + card_gap, top2, card_w, "Rimborsi effettuati", f"EUR {format_euro(summary['repayments_total'])}")
+
+        return top2 - 66
+
+    def draw_category_bars(current_y: float) -> float:
+        current_y = draw_section_header("Sintesi categorie", current_y)
+        bar_left = left
+        bar_right = right
+        bar_width = bar_right - bar_left
+
+        series = [
+            ("Acquisto casa", summary["acquisto_total"], colors.HexColor("#4c89e8")),
+            ("Ristrutturazione", summary["ristr_total"], colors.HexColor("#ef5c58")),
+            ("Prestiti ricevuti", summary["loans_total"], colors.HexColor("#21a77f")),
+            ("Rimborsi", summary["repayments_total"], colors.HexColor("#f08c4a")),
+        ]
+        max_value = max((row[1] for row in series), default=1.0) or 1.0
+
+        y_pos = current_y
+        for label, value, color in series:
+            y_pos = new_page(y_pos)
+            pdf.setFillColor(palette["ink_soft"])
+            pdf.setFont("Helvetica", 9)
+            pdf.drawString(bar_left, y_pos, label)
+            pdf.drawRightString(right, y_pos, f"EUR {format_euro(value)}")
+
+            y_pos -= 8
+            pdf.setFillColor(palette["header_bg"])
+            pdf.roundRect(bar_left, y_pos - 8, bar_width, 8, 3, fill=1, stroke=0)
+            scaled_w = max((value / max_value) * bar_width, 0.0)
+            pdf.setFillColor(color)
+            pdf.roundRect(bar_left, y_pos - 8, scaled_w, 8, 3, fill=1, stroke=0)
+            y_pos -= 18
+
+        return y_pos - 4
+
+    def draw_table(title: str, headers: list[str], rows: list[list[str]], col_widths: list[float], current_y: float) -> float:
+        current_y = draw_section_header(title, current_y)
+        row_h = 18
+
+        def draw_header_and_frame(y_top: float) -> float:
+            pdf.setFillColor(palette["header_bg"])
+            pdf.rect(left, y_top - row_h, sum(col_widths), row_h, fill=1, stroke=0)
+
+            x = left
+            pdf.setFillColor(palette["brand_dark"])
+            pdf.setFont("Helvetica-Bold", 9)
+            for idx, header in enumerate(headers):
+                pdf.drawString(x + 5, y_top - 12, header)
+                x += col_widths[idx]
+
+            pdf.setStrokeColor(palette["line"])
+            pdf.setLineWidth(0.6)
+            pdf.rect(left, y_top - row_h, sum(col_widths), row_h, fill=0, stroke=1)
+            return y_top - row_h
+
+        if not rows:
+            pdf.setFillColor(palette["ink_soft"])
+            pdf.setFont("Helvetica", 9)
+            pdf.drawString(left, current_y, "Nessun dato disponibile")
+            return current_y - 14
+
         current_y = new_page(current_y)
-        pdf.setFont("Helvetica", 10)
-        pdf.drawString(44, current_y, left_text)
-        pdf.drawRightString(width - 44, current_y, right_text)
-        return current_y - 14
+        current_y = draw_header_and_frame(current_y)
 
-    def draw_entries(title: str, entries: list[dict], include_lender: bool, current_y: float) -> float:
-        current_y = draw_title(title, current_y)
-        if not entries:
-            return draw_row("Nessuna voce", "", current_y - 2)
+        for idx, row in enumerate(rows):
+            if current_y - row_h < content_bottom:
+                pdf.showPage()
+                current_y = content_top
+                current_y = draw_header_and_frame(current_y)
 
-        for item in sort_entries(entries):
-            if include_lender:
-                left = f"{item.get('date', '')} | {item.get('lender', '')}"
-            else:
-                left = f"{item.get('date', '')} | {item.get('description', '')}"
-            right = f"EUR {format_euro(item.get('amount', 0.0))}"
-            current_y = draw_row(left, right, current_y)
-        return current_y - 6
+            if idx % 2 == 0:
+                pdf.setFillColor(palette["row_alt"])
+                pdf.rect(left, current_y - row_h, sum(col_widths), row_h, fill=1, stroke=0)
 
-    y = height - 44
-    pdf.setFont("Helvetica-Bold", 16)
-    pdf.drawString(40, y, "Report Home13")
-    pdf.setFont("Helvetica", 9)
-    pdf.drawRightString(width - 44, y + 1, f"Generato il {date.today().isoformat()}")
-    y -= 26
+            x = left
+            pdf.setFillColor(palette["brand_dark"])
+            pdf.setFont("Helvetica", 9)
+            for col_idx, cell in enumerate(row):
+                text = str(cell)
+                if col_idx == len(row) - 1:
+                    pdf.drawRightString(x + col_widths[col_idx] - 5, current_y - 12, text)
+                else:
+                    pdf.drawString(x + 5, current_y - 12, text)
+                x += col_widths[col_idx]
 
-    y = draw_title("Riepilogo", y)
-    y = draw_row("Spese acquisto casa", f"EUR {format_euro(summary['acquisto_total'])}", y)
-    y = draw_row("Spese ristrutturazione", f"EUR {format_euro(summary['ristr_total'])}", y)
-    y = draw_row("Spese totali", f"EUR {format_euro(summary['spese_total'])}", y)
-    y = draw_row("Prestiti ricevuti", f"EUR {format_euro(summary['loans_total'])}", y)
-    y = draw_row("Rimborsi effettuati", f"EUR {format_euro(summary['repayments_total'])}", y)
-    y = draw_row("Debito residuo", f"EUR {format_euro(summary['debito_residuo'])}", y)
-    y = draw_row("Cash netto", f"EUR {format_euro(summary['cash_netto'])}", y - 4)
-    y -= 10
+            pdf.setStrokeColor(palette["line_soft"])
+            pdf.setLineWidth(0.5)
+            pdf.line(left, current_y - row_h, left + sum(col_widths), current_y - row_h)
+            current_y -= row_h
 
-    y = draw_entries("Acquisto casa", data["expenses"]["acquisto_casa"], include_lender=False, current_y=y)
-    y = draw_entries("Ristrutturazione", data["expenses"]["ristrutturazione"], include_lender=False, current_y=y)
-    y = draw_entries("Prestiti ricevuti", data["loans"], include_lender=True, current_y=y)
-    y = draw_entries("Rimborsi", data["repayments"], include_lender=True, current_y=y)
+        return current_y - 12
 
-    y = draw_title("Saldo per prestatore", y)
-    if summary["lender_balance"]:
-        for row in summary["lender_balance"]:
-            y = draw_row(row["lender"], f"EUR {format_euro(row['balance'])}", y)
-    else:
-        y = draw_row("Nessun saldo", "", y)
+    y = content_top
+    y = draw_title("Report Home13", y, "Riepilogo premium di spese, prestiti e rimborsi")
+    y = draw_summary_cards(y)
+    y = draw_category_bars(y)
+
+    acquisto_rows = [
+        [format_date_it(item.get("date", "")), item.get("description", ""), f"EUR {format_euro(item.get('amount', 0.0))}"]
+        for item in sort_entries(data["expenses"]["acquisto_casa"])
+    ]
+    ristr_rows = [
+        [format_date_it(item.get("date", "")), item.get("description", ""), f"EUR {format_euro(item.get('amount', 0.0))}"]
+        for item in sort_entries(data["expenses"]["ristrutturazione"])
+    ]
+    prestiti_rows = [
+        [format_date_it(item.get("date", "")), item.get("lender", ""), f"EUR {format_euro(item.get('amount', 0.0))}"]
+        for item in sort_entries(data["loans"])
+    ]
+    rimborsi_rows = [
+        [format_date_it(item.get("date", "")), item.get("lender", ""), f"EUR {format_euro(item.get('amount', 0.0))}"]
+        for item in sort_entries(data["repayments"])
+    ]
+    saldo_rows = [[row["lender"], f"EUR {format_euro(row['balance'])}"] for row in summary["lender_balance"]]
+
+    y = draw_table("Acquisto casa", ["Data", "Voce", "Importo"], acquisto_rows, [110, 300, 110], y)
+    y = draw_table("Ristrutturazione", ["Data", "Voce", "Importo"], ristr_rows, [110, 300, 110], y)
+    y = draw_table("Prestiti ricevuti", ["Data", "Prestatore", "Importo"], prestiti_rows, [110, 300, 110], y)
+    y = draw_table("Rimborsi", ["Data", "Prestatore", "Importo"], rimborsi_rows, [110, 300, 110], y)
+    draw_table("Saldo per prestatore", ["Prestatore", "Saldo residuo"], saldo_rows, [380, 140], y)
 
     pdf.save()
     buffer.seek(0)
