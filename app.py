@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 from collections import defaultdict
 from datetime import date, datetime
 from uuid import uuid4
@@ -33,10 +34,27 @@ app.jinja_env.filters["euro"] = format_euro
 
 
 def parse_amount(raw_value: str) -> float:
-    cleaned = (raw_value or "").strip().replace(".", "").replace(",", ".")
-    if not cleaned:
+    raw = (raw_value or "").strip().replace(" ", "")
+    if not raw:
         raise ValueError("Importo mancante")
-    value = float(cleaned)
+
+    has_dot = "." in raw
+    has_comma = "," in raw
+
+    if has_dot and has_comma:
+        # Italian style: 1.234,56
+        normalized = raw.replace(".", "").replace(",", ".")
+    elif has_comma:
+        # Decimal comma: 1234,56
+        normalized = raw.replace(",", ".")
+    elif re.fullmatch(r"\d{1,3}(?:\.\d{3})+", raw):
+        # Thousands only with dots: 1.234.567
+        normalized = raw.replace(".", "")
+    else:
+        # Plain or dot-decimal input: 1234 or 1234.56
+        normalized = raw
+
+    value = float(normalized)
     if value <= 0:
         raise ValueError("Importo deve essere maggiore di zero")
     return value
@@ -85,8 +103,24 @@ def sum_amount(entries: list[dict]) -> float:
     return round(sum(float(item.get("amount", 0.0) or 0.0) for item in entries), 2)
 
 
+def unique_lenders(loans: list[dict], repayments: list[dict]) -> list[str]:
+    names = set()
+    for item in loans + repayments:
+        lender = sanitize_text(item.get("lender", ""))
+        if lender:
+            names.add(lender)
+    return sorted(names, key=str.lower)
+
+
+def filter_repayments_by_lender(repayments: list[dict], lender: str | None) -> list[dict]:
+    selected = sanitize_text(lender)
+    if not selected:
+        return repayments
+    return [row for row in repayments if sanitize_text(row.get("lender", "")) == selected]
+
+
 def build_chart_data(data: dict) -> dict:
-    monthly = defaultdict(
+    daily = defaultdict(
         lambda: {
             "acquisto_casa": 0.0,
             "ristrutturazione": 0.0,
@@ -96,24 +130,40 @@ def build_chart_data(data: dict) -> dict:
     )
 
     for item in data["expenses"]["acquisto_casa"]:
-        monthly[item.get("date", "sconosciuto")[:7]]["acquisto_casa"] += float(item.get("amount", 0.0) or 0.0)
+        daily[item.get("date", "sconosciuto")[:10]]["acquisto_casa"] += float(item.get("amount", 0.0) or 0.0)
 
     for item in data["expenses"]["ristrutturazione"]:
-        monthly[item.get("date", "sconosciuto")[:7]]["ristrutturazione"] += float(item.get("amount", 0.0) or 0.0)
+        daily[item.get("date", "sconosciuto")[:10]]["ristrutturazione"] += float(item.get("amount", 0.0) or 0.0)
 
     for item in data["loans"]:
-        monthly[item.get("date", "sconosciuto")[:7]]["prestiti"] += float(item.get("amount", 0.0) or 0.0)
+        daily[item.get("date", "sconosciuto")[:10]]["prestiti"] += float(item.get("amount", 0.0) or 0.0)
 
     for item in data["repayments"]:
-        monthly[item.get("date", "sconosciuto")[:7]]["rimborsi"] += float(item.get("amount", 0.0) or 0.0)
+        daily[item.get("date", "sconosciuto")[:10]]["rimborsi"] += float(item.get("amount", 0.0) or 0.0)
 
-    labels = sorted(monthly.keys())
-    return {
+    labels = sorted(daily.keys())
+
+    totals = {
+        "labels": ["Acquisto casa", "Ristrutturazione", "Prestiti ricevuti", "Rimborsi"],
+        "values": [
+            round(sum_amount(data["expenses"]["acquisto_casa"]), 2),
+            round(sum_amount(data["expenses"]["ristrutturazione"]), 2),
+            round(sum_amount(data["loans"]), 2),
+            round(sum_amount(data["repayments"]), 2),
+        ],
+    }
+
+    timeline = {
         "labels": labels,
-        "acquistoCasa": [round(monthly[label]["acquisto_casa"], 2) for label in labels],
-        "ristrutturazione": [round(monthly[label]["ristrutturazione"], 2) for label in labels],
-        "prestiti": [round(monthly[label]["prestiti"], 2) for label in labels],
-        "rimborsi": [round(monthly[label]["rimborsi"], 2) for label in labels],
+        "acquistoCasa": [round(daily[label]["acquisto_casa"], 2) for label in labels],
+        "ristrutturazione": [round(daily[label]["ristrutturazione"], 2) for label in labels],
+        "prestiti": [round(daily[label]["prestiti"], 2) for label in labels],
+        "rimborsi": [round(daily[label]["rimborsi"], 2) for label in labels],
+    }
+
+    return {
+        "totals": totals,
+        "timeline": timeline,
     }
 
 
@@ -152,30 +202,43 @@ def build_summary(data: dict) -> dict:
     }
 
 
-def build_view_model() -> dict:
+def build_view_model(selected_repayment_lender: str | None = None) -> dict:
     data = load_data()
     data["expenses"]["acquisto_casa"] = sort_entries(data["expenses"]["acquisto_casa"])
     data["expenses"]["ristrutturazione"] = sort_entries(data["expenses"]["ristrutturazione"])
     data["loans"] = sort_entries(data["loans"])
     data["repayments"] = sort_entries(data["repayments"])
 
+    selected_lender = sanitize_text(selected_repayment_lender)
+    repayment_lenders = unique_lenders(data["loans"], data["repayments"])
+    if selected_lender and selected_lender not in repayment_lenders:
+        selected_lender = ""
+
+    filtered_repayments = filter_repayments_by_lender(data["repayments"], selected_lender)
+
     return {
         "data": data,
         "summary": build_summary(data),
         "chart_data": build_chart_data(data),
         "today": date.today().isoformat(),
+        "repayment_lenders": repayment_lenders,
+        "selected_repayment_lender": selected_lender,
+        "filtered_repayments": filtered_repayments,
     }
 
 
 @app.route("/", methods=["GET"])
 def index():
-    vm = build_view_model()
+    vm = build_view_model(request.args.get("repayment_lender"))
     return render_template(
         "index.html",
         data=vm["data"],
         summary=vm["summary"],
         chart_data=vm["chart_data"],
         today=vm["today"],
+        repayment_lenders=vm["repayment_lenders"],
+        selected_repayment_lender=vm["selected_repayment_lender"],
+        filtered_repayments=vm["filtered_repayments"],
         error=None,
     )
 
@@ -207,6 +270,9 @@ def add_expense():
             summary=vm["summary"],
             chart_data=vm["chart_data"],
             today=vm["today"],
+            repayment_lenders=vm["repayment_lenders"],
+            selected_repayment_lender=vm["selected_repayment_lender"],
+            filtered_repayments=vm["filtered_repayments"],
             error=str(exc),
         )
 
@@ -234,6 +300,9 @@ def add_loan():
             summary=vm["summary"],
             chart_data=vm["chart_data"],
             today=vm["today"],
+            repayment_lenders=vm["repayment_lenders"],
+            selected_repayment_lender=vm["selected_repayment_lender"],
+            filtered_repayments=vm["filtered_repayments"],
             error=str(exc),
         )
 
@@ -261,6 +330,9 @@ def add_repayment():
             summary=vm["summary"],
             chart_data=vm["chart_data"],
             today=vm["today"],
+            repayment_lenders=vm["repayment_lenders"],
+            selected_repayment_lender=vm["selected_repayment_lender"],
+            filtered_repayments=vm["filtered_repayments"],
             error=str(exc),
         )
 
@@ -371,6 +443,9 @@ def export_excel():
             summary=vm["summary"],
             chart_data=vm["chart_data"],
             today=vm["today"],
+            repayment_lenders=vm["repayment_lenders"],
+            selected_repayment_lender=vm["selected_repayment_lender"],
+            filtered_repayments=vm["filtered_repayments"],
             error=f"Errore export Excel: {exc}",
         )
 
@@ -388,6 +463,9 @@ def export_pdf():
             summary=vm["summary"],
             chart_data=vm["chart_data"],
             today=vm["today"],
+            repayment_lenders=vm["repayment_lenders"],
+            selected_repayment_lender=vm["selected_repayment_lender"],
+            filtered_repayments=vm["filtered_repayments"],
             error=f"Errore export PDF: {exc}",
         )
 

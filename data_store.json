@@ -1,8 +1,68 @@
 {
   "expenses": {
-    "acquisto_casa": [],
-    "ristrutturazione": []
+    "acquisto_casa": [
+      {
+        "id": "0aff5bae4f",
+        "date": "2026-03-19",
+        "description": "Casa",
+        "amount": 220000.0,
+        "notes": "Acquisto casa"
+      },
+      {
+        "id": "adc30355d2",
+        "date": "2026-03-09",
+        "description": "Notaio",
+        "amount": 6600.0,
+        "notes": ""
+      },
+      {
+        "id": "468972be1e",
+        "date": "2026-03-15",
+        "description": "Nando",
+        "amount": 5500.0,
+        "notes": ""
+      }
+    ],
+    "ristrutturazione": [
+      {
+        "id": "0c687e6a82",
+        "date": "2026-03-09",
+        "description": "porte",
+        "amount": 22000.0,
+        "notes": ""
+      },
+      {
+        "id": "6efdd481b3",
+        "date": "2026-03-21",
+        "description": "parquet",
+        "amount": 10000.0,
+        "notes": ""
+      },
+      {
+        "id": "a1bf4837e1",
+        "date": "2025-01-17",
+        "description": "corrente",
+        "amount": 12000.0,
+        "notes": ""
+      }
+    ]
   },
-  "loans": [],
-  "repayments": []
+  "loans": [
+    {
+      "id": "f87bf1630c",
+      "date": "2026-02-11",
+      "lender": "Sandro",
+      "amount": 80000.0,
+      "notes": ""
+    }
+  ],
+  "repayments": [
+    {
+      "id": "82a98fc986",
+      "date": "2026-03-09",
+      "lender": "Sandro",
+      "amount": 1000.0,
+      "notes": ""
+    }
+  ]
 }

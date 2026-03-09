@@ -5,24 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Home13 - Spese Casa e Ristrutturazione</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Syne:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #f5f4ef;
+            --bg: #f3f5f4;
             --card: #ffffff;
             --ink: #1f2c28;
             --muted: #5f6b66;
             --line: #d8ddd8;
             --brand: #0f766e;
             --brand-dark: #0b4f4a;
-            --accent: #f59e0b;
+            --accent: #4f9b92;
             --buy: #3b82f6;
             --reno: #ef4444;
             --loan: #10b981;
             --repay: #f97316;
-            --shadow: 0 12px 32px rgba(20, 36, 31, 0.12);
+            --shadow: 0 12px 30px rgba(20, 36, 31, 0.10);
         }
 
         * { box-sizing: border-box; }
@@ -31,9 +33,9 @@
             margin: 0;
             color: var(--ink);
             background:
-                radial-gradient(circle at 15% 10%, #dce9e6 0%, transparent 45%),
-                radial-gradient(circle at 85% 20%, #fde7c2 0%, transparent 35%),
-                linear-gradient(180deg, #f8f7f2 0%, #edf1ec 100%);
+                radial-gradient(circle at 12% 8%, rgba(136, 182, 174, 0.22) 0%, transparent 42%),
+                radial-gradient(circle at 88% 16%, rgba(173, 194, 191, 0.16) 0%, transparent 34%),
+                linear-gradient(180deg, #f7f8f7 0%, #edf2f0 52%, #eaf0ee 100%);
             font-family: "DM Sans", sans-serif;
         }
 
@@ -98,6 +100,19 @@
             gap: 10px;
             flex-wrap: wrap;
             margin-bottom: 20px;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .filter-bar select {
+            min-width: 210px;
+            max-width: 300px;
         }
 
         .btn {
@@ -185,6 +200,46 @@
             height: 360px;
         }
 
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .chart-card {
+            background:
+                radial-gradient(circle at 92% 8%, rgba(127, 166, 160, 0.14), transparent 32%),
+                radial-gradient(circle at 14% 96%, rgba(95, 144, 137, 0.12), transparent 30%),
+                #ffffff;
+        }
+
+        .chart-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .chart-tools {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .btn-ghost {
+            background: rgba(15, 118, 110, 0.1);
+            color: #0b4f4a;
+            border: 1px solid rgba(15, 118, 110, 0.22);
+            border-radius: 10px;
+            padding: 6px 10px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
         .error {
             background: #fee2e2;
             color: #7f1d1d;
@@ -196,6 +251,7 @@
         @media (max-width: 980px) {
             .top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .grid-2 { grid-template-columns: 1fr; }
+            .chart-grid { grid-template-columns: 1fr; }
             .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
 
@@ -242,11 +298,34 @@
             <a class="btn btn-light" href="{{ url_for('export_pdf') }}">Export PDF</a>
         </section>
 
-        <section class="card">
-            <h2>Andamento Mensile</h2>
-            <div class="chart-area">
-                <canvas id="speseChart"></canvas>
-            </div>
+        <section class="chart-grid">
+            <article class="card chart-card">
+                <div class="chart-head">
+                    <h2>Totali per Categoria</h2>
+                    <div class="chart-tools">
+                        <button class="btn-ghost" type="button" id="totals-reset-zoom">Reset zoom</button>
+                    </div>
+                </div>
+                <div class="chart-area">
+                    <canvas id="totalsChart"></canvas>
+                </div>
+            </article>
+
+            <article class="card chart-card">
+                <div class="chart-head">
+                    <h2>Andamento Operazioni</h2>
+                    <div class="chart-tools">
+                        <button class="btn-ghost" type="button" id="timeline-1y">1Y</button>
+                        <button class="btn-ghost" type="button" id="timeline-6m">6M</button>
+                        <button class="btn-ghost" type="button" id="timeline-3m">3M</button>
+                        <button class="btn-ghost" type="button" id="timeline-1m">1M</button>
+                        <button class="btn-ghost" type="button" id="timeline-reset-zoom">Reset zoom</button>
+                    </div>
+                </div>
+                <div class="chart-area">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </article>
         </section>
 
         <section class="grid-2">
@@ -256,9 +335,9 @@
                     <input type="hidden" name="category" value="acquisto_casa">
                     <div class="fields">
                         <input type="date" name="date" value="{{ today }}" required>
-                        <input type="text" name="description" placeholder="Notaio, agenzia, mediatore" required>
-                        <input type="text" name="amount" placeholder="Importo EUR" required>
-                        <input type="text" name="notes" placeholder="Note opzionali">
+                        <input type="text" name="description" placeholder="Descrizione" required>
+                        <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
+                        <input type="text" name="notes" placeholder="Note">
                     </div>
                     <button class="btn btn-brand" type="submit">Aggiungi spesa acquisto</button>
                 </form>
@@ -302,9 +381,9 @@
                     <input type="hidden" name="category" value="ristrutturazione">
                     <div class="fields">
                         <input type="date" name="date" value="{{ today }}" required>
-                        <input type="text" name="description" placeholder="Infissi, impianto, cucina" required>
-                        <input type="text" name="amount" placeholder="Importo EUR" required>
-                        <input type="text" name="notes" placeholder="Note opzionali">
+                        <input type="text" name="description" placeholder="Descrizione" required>
+                        <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
+                        <input type="text" name="notes" placeholder="Note">
                     </div>
                     <button class="btn btn-brand" type="submit">Aggiungi spesa ristrutturazione</button>
                 </form>
@@ -351,9 +430,9 @@
                     <form method="post" action="{{ url_for('add_loan') }}">
                         <div class="fields">
                             <input type="date" name="date" value="{{ today }}" required>
-                            <input type="text" name="lender" placeholder="Padre, madre, altro" required>
-                            <input type="text" name="amount" placeholder="Importo EUR" required>
-                            <input type="text" name="notes" placeholder="Note opzionali">
+                            <input type="text" name="lender" placeholder="Prestatore" required>
+                            <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
+                            <input type="text" name="notes" placeholder="Note">
                         </div>
                         <button class="btn btn-brand" type="submit">Aggiungi prestito</button>
                     </form>
@@ -363,9 +442,9 @@
                     <form method="post" action="{{ url_for('add_repayment') }}">
                         <div class="fields">
                             <input type="date" name="date" value="{{ today }}" required>
-                            <input type="text" name="lender" placeholder="A chi hai rimborsato" required>
-                            <input type="text" name="amount" placeholder="Importo EUR" required>
-                            <input type="text" name="notes" placeholder="Note opzionali">
+                            <input type="text" name="lender" placeholder="Prestatore" required>
+                            <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
+                            <input type="text" name="notes" placeholder="Note">
                         </div>
                         <button class="btn btn-brand" type="submit">Aggiungi rimborso</button>
                     </form>
@@ -469,45 +548,327 @@
             <div class="empty">Nessun saldo da mostrare.</div>
             {% endif %}
         </section>
+
+        <section class="card">
+            <h2>Storico Rimborsi</h2>
+            <form method="get" action="{{ url_for('index') }}" class="filter-bar">
+                <select name="repayment_lender">
+                    <option value="">Tutti i prestatori</option>
+                    {% for lender in repayment_lenders %}
+                    <option value="{{ lender }}" {% if lender == selected_repayment_lender %}selected{% endif %}>{{ lender }}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-brand" type="submit">Filtra</button>
+                <a class="btn btn-light" href="{{ url_for('index') }}">Reset</a>
+            </form>
+
+            {% if filtered_repayments %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Prestatore</th>
+                            <th>Importo</th>
+                            <th>Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in filtered_repayments %}
+                        <tr>
+                            <td>{{ row.date }}</td>
+                            <td>{{ row.lender }}</td>
+                            <td>{{ row.amount|euro }} EUR</td>
+                            <td>{{ row.notes or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty">Nessun rimborso trovato per il filtro selezionato.</div>
+            {% endif %}
+        </section>
     </main>
 
     <script id="chart-data" type="application/json">{{ chart_data | tojson }}</script>
     <script>
-        const payload = JSON.parse(document.getElementById("chart-data").textContent);
-        const ctx = document.getElementById("speseChart");
+        function normalizeItalianNumber(rawValue) {
+            const raw = (rawValue || "").trim().replace(/\s+/g, "");
+            if (!raw) return "";
 
-        new Chart(ctx, {
+            const hasDot = raw.includes(".");
+            const hasComma = raw.includes(",");
+
+            if (hasDot && hasComma) {
+                return raw.replace(/\./g, "").replace(",", ".");
+            }
+            if (hasComma) {
+                return raw.replace(",", ".");
+            }
+            if (/^\d{1,3}(?:\.\d{3})+$/.test(raw)) {
+                return raw.replace(/\./g, "");
+            }
+            return raw;
+        }
+
+        function formatItalianCurrency(rawValue) {
+            const normalized = normalizeItalianNumber(rawValue);
+            if (!normalized || Number.isNaN(Number(normalized))) {
+                return "";
+            }
+
+            return Number(normalized).toLocaleString("it-IT", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+        }
+
+        document.querySelectorAll(".amount-input").forEach((input) => {
+            input.addEventListener("blur", () => {
+                input.value = formatItalianCurrency(input.value);
+            });
+
+            input.addEventListener("input", () => {
+                // Keep only digits and decimal separators while typing.
+                input.value = input.value.replace(/[^\d.,\s]/g, "");
+            });
+        });
+
+        const payload = JSON.parse(document.getElementById("chart-data").textContent);
+        const moneyFormatter = new Intl.NumberFormat("it-IT", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+
+        function asMoney(value) {
+            return `${moneyFormatter.format(Number(value) || 0)} EUR`;
+        }
+
+        function gradient(ctx, chartArea, startColor, endColor) {
+            const grad = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            grad.addColorStop(0, startColor);
+            grad.addColorStop(1, endColor);
+            return grad;
+        }
+
+        function computeInitialWindow(labels, daysWindow) {
+            if (!labels || labels.length === 0) {
+                return { min: 0, max: 0 };
+            }
+
+            const lastDate = new Date(labels[labels.length - 1]);
+            const threshold = new Date(lastDate);
+            threshold.setDate(threshold.getDate() - daysWindow);
+
+            let minIdx = 0;
+            for (let idx = labels.length - 1; idx >= 0; idx -= 1) {
+                const currentDate = new Date(labels[idx]);
+                if (currentDate >= threshold) {
+                    minIdx = idx;
+                } else {
+                    break;
+                }
+            }
+
+            return { min: minIdx, max: labels.length - 1 };
+        }
+
+        const totalsCanvas = document.getElementById("totalsChart");
+        const totalsCtx = totalsCanvas.getContext("2d");
+
+        const totalsChart = new Chart(totalsCtx, {
             type: "bar",
             data: {
-                labels: payload.labels,
+                labels: payload.totals.labels,
                 datasets: [
-                    { label: "Acquisto casa", data: payload.acquistoCasa, backgroundColor: "rgba(59,130,246,0.8)", borderColor: "#3b82f6", borderWidth: 1 },
-                    { label: "Ristrutturazione", data: payload.ristrutturazione, backgroundColor: "rgba(239,68,68,0.8)", borderColor: "#ef4444", borderWidth: 1 },
-                    { label: "Prestiti ricevuti", data: payload.prestiti, backgroundColor: "rgba(16,185,129,0.8)", borderColor: "#10b981", borderWidth: 1 },
-                    { label: "Rimborsi", data: payload.rimborsi, backgroundColor: "rgba(249,115,22,0.8)", borderColor: "#f97316", borderWidth: 1 }
-                ]
+                    {
+                        label: "Totale",
+                        data: payload.totals.values,
+                        borderRadius: 14,
+                        borderSkipped: false,
+                        borderWidth: 1,
+                        borderColor: ["#3b82f6", "#ef4444", "#10b981", "#f97316"],
+                        backgroundColor: (context) => {
+                            const chart = context.chart;
+                            const chartArea = chart.chartArea;
+                            if (!chartArea) {
+                                return "rgba(15,118,110,0.35)";
+                            }
+                            const palette = [
+                                ["rgba(59,130,246,0.85)", "rgba(59,130,246,0.25)"],
+                                ["rgba(239,68,68,0.85)", "rgba(239,68,68,0.25)"],
+                                ["rgba(16,185,129,0.85)", "rgba(16,185,129,0.25)"],
+                                ["rgba(249,115,22,0.85)", "rgba(249,115,22,0.25)"],
+                            ];
+                            const [start, end] = palette[context.dataIndex] || palette[0];
+                            return gradient(chart.ctx, chartArea, start, end);
+                        },
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    zoom: {
+                        zoom: {
+                            wheel: { enabled: true },
+                            pinch: { enabled: true },
+                            drag: { enabled: true },
+                            mode: "xy",
+                        },
+                        pan: {
+                            enabled: true,
+                            mode: "xy",
+                        },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `Totale: ${asMoney(context.parsed.y)}`,
+                        },
+                    },
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => moneyFormatter.format(value),
+                        },
+                    },
+                },
+            },
+        });
+
+        const timelineCanvas = document.getElementById("timelineChart");
+        const timelineCtx = timelineCanvas.getContext("2d");
+        const timelineLabels = payload.timeline.labels;
+        const initialYearWindow = computeInitialWindow(timelineLabels, 365);
+
+        const timelineChart = new Chart(timelineCtx, {
+            type: "line",
+            data: {
+                labels: timelineLabels,
+                datasets: [
+                    {
+                        label: "Acquisto casa",
+                        data: payload.timeline.acquistoCasa,
+                        borderColor: "#3b82f6",
+                        backgroundColor: "rgba(59,130,246,0.15)",
+                        fill: true,
+                        tension: 0.28,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
+                    },
+                    {
+                        label: "Ristrutturazione",
+                        data: payload.timeline.ristrutturazione,
+                        borderColor: "#ef4444",
+                        backgroundColor: "rgba(239,68,68,0.14)",
+                        fill: true,
+                        tension: 0.28,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
+                    },
+                    {
+                        label: "Prestiti ricevuti",
+                        data: payload.timeline.prestiti,
+                        borderColor: "#10b981",
+                        backgroundColor: "rgba(16,185,129,0.14)",
+                        fill: true,
+                        tension: 0.28,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
+                    },
+                    {
+                        label: "Rimborsi",
+                        data: payload.timeline.rimborsi,
+                        borderColor: "#f97316",
+                        backgroundColor: "rgba(249,115,22,0.14)",
+                        fill: true,
+                        tension: 0.28,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
+                    },
+                ],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { mode: "index", intersect: false },
                 scales: {
-                    x: { stacked: true },
-                    y: { stacked: true, beginAtZero: true }
+                    x: {
+                        min: initialYearWindow.min,
+                        max: initialYearWindow.max,
+                        ticks: {
+                            maxRotation: 0,
+                            callback: (_, idx) => {
+                                const raw = timelineLabels[idx] || "";
+                                const dateObj = raw ? new Date(raw) : null;
+                                if (!dateObj || Number.isNaN(dateObj.getTime())) return raw;
+                                return dateObj.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "2-digit" });
+                            },
+                        },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => moneyFormatter.format(value),
+                        },
+                    },
                 },
                 plugins: {
                     legend: { position: "bottom" },
+                    zoom: {
+                        limits: {
+                            x: { min: 0, max: Math.max(timelineLabels.length - 1, 0) },
+                        },
+                        pan: {
+                            enabled: true,
+                            mode: "x",
+                        },
+                        zoom: {
+                            wheel: { enabled: true },
+                            pinch: { enabled: true },
+                            drag: { enabled: true },
+                            mode: "x",
+                        },
+                    },
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
-                                const value = context.parsed.y || 0;
-                                return `${context.dataset.label}: ${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR`;
-                            }
-                        }
-                    }
-                }
-            }
+                            title: (items) => {
+                                const raw = timelineLabels[items[0].dataIndex] || "";
+                                const d = raw ? new Date(raw) : null;
+                                return d && !Number.isNaN(d.getTime())
+                                    ? d.toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })
+                                    : raw;
+                            },
+                            label: (context) => `${context.dataset.label}: ${asMoney(context.parsed.y)}`,
+                        },
+                    },
+                },
+            },
         });
+
+        function setTimelineWindow(days) {
+            const windowIdx = computeInitialWindow(timelineLabels, days);
+            timelineChart.options.scales.x.min = windowIdx.min;
+            timelineChart.options.scales.x.max = windowIdx.max;
+            timelineChart.update("none");
+        }
+
+        document.getElementById("totals-reset-zoom").addEventListener("click", () => {
+            totalsChart.resetZoom();
+        });
+        document.getElementById("timeline-reset-zoom").addEventListener("click", () => {
+            timelineChart.resetZoom();
+            setTimelineWindow(365);
+        });
+        document.getElementById("timeline-1y").addEventListener("click", () => setTimelineWindow(365));
+        document.getElementById("timeline-6m").addEventListener("click", () => setTimelineWindow(182));
+        document.getElementById("timeline-3m").addEventListener("click", () => setTimelineWindow(92));
+        document.getElementById("timeline-1m").addEventListener("click", () => setTimelineWindow(31));
     </script>
 </body>
 </html>
