@@ -10,6 +10,8 @@ env/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.env
+.env.local
 
 .DS_Store
 Thumbs.db

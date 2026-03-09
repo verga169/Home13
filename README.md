@@ -1,51 +1,93 @@
 # Home13
 
-Applicazione Flask per tracciare:
-- spese di acquisto casa (notaio, agenzia, mediatore, ecc.);
-- spese di ristrutturazione;
-- prestiti ricevuti e rimborsi effettuati.
+Home13 e una web app Flask per monitorare i costi legati a casa e ristrutturazione, con tracciamento di prestiti/rimborsi e report export.
 
-Include:
-- dashboard con grafico mensile aggregato;
-- riepilogo economico completo;
-- export in Excel e PDF di tutte le voci registrate;
-- saldo residuo per prestatore.
+## Funzionalita
 
-## Avvio locale (Windows)
+- Sezioni separate per:
+	- `Acquisto casa`
+	- `Ristrutturazione`
+	- `Prestiti ricevuti`
+	- `Rimborsi`
+- Dashboard con 2 grafici:
+	- `Totali per categoria`
+	- `Andamento operazioni` (zoom/pan, timeframe 1Y/6M/3M/1M)
+- Filtri rimborsi per prestatore con sezione dedicata `Storico Rimborsi`.
+- Formattazione numeri italiana (migliaia `.` e decimali `,`).
+- Date mostrate in formato italiano (`gg/mm/aaaa`).
+- UI responsive desktop/mobile con attenzione a overflow e touch interactions.
+- Favicon da `static/favicon.ico`.
 
-1. Installare dipendenze:
+## Persistenza Dati
+
+### Produzione (Render + Neon)
+
+Quando `DATABASE_URL` e impostata, l'app usa PostgreSQL (Neon) come storage principale.
+
+Tabelle gestite automaticamente all'avvio:
+- `expenses`
+- `loans`
+- `repayments`
+
+### Locale
+
+- Se `DATABASE_URL` e presente (anche in `.env.local`), l'app usa PostgreSQL.
+- Se `DATABASE_URL` non e presente, usa il file locale `data_store.json`.
+
+L'app carica automaticamente variabili da `.env.local` e `.env` (se presenti).
+
+Esempio `.env.local`:
+
+```env
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+```
+
+## Export
+
+- `GET /export/excel`
+	- export `.xlsx` con fogli separati per sezione e riepilogo.
+- `GET /export/pdf`
+	- report PDF con layout premium/minimal: header/footer paginati, metric cards, sintesi categorie e tabelle dettagliate.
+
+## Avvio Locale (Windows)
+
+1. Installa dipendenze:
 
 ```bash
 py -m pip install -r requirements.txt
 ```
 
-2. Avviare l'app:
+2. Avvia l'app:
 
 ```bash
 py app.py
 ```
 
-Oppure:
+oppure con script:
 
 ```bat
 start_app.bat
 ```
 
-3. Aprire il browser su:
+`start_app.bat`:
+- verifica/install dipendenze mancanti
+- sceglie una porta libera tra `5000` e `5010`
+- apre browser automaticamente su `http://127.0.0.1:<PORT>/`
 
-```text
-http://127.0.0.1:5000/
-```
+## Deploy su Render
 
-Se usi `start_app.bat`, la porta impostata e `5001`.
+- Runtime: Python
+- Build command: `pip install -r requirements.txt`
+- Start command: `gunicorn app:app`
+- Variabili ambiente minime consigliate:
+	- `DATABASE_URL=<url_neon>`
 
-## Dati
+L'app include `gunicorn.conf.py` per bind su `0.0.0.0:$PORT`.
 
-Se imposti la variabile ambiente `DATABASE_URL` (es. Neon PostgreSQL), l'app salva e legge i dati dal database.
+## Dipendenze Principali
 
-Se `DATABASE_URL` non e impostata, l'app usa il file locale `data_store.json`.
-
-## Export
-
-- `GET /export/excel` genera un file `.xlsx` con fogli separati per sezione.
-- `GET /export/pdf` genera un report PDF con riepilogo e dettaglio voci.
+- `flask`
+- `gunicorn` (non-Windows)
+- `psycopg[binary]`
+- `openpyxl`
+- `reportlab`
