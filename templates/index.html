@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home13 - Spese Casa e Ristrutturazione</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Syne:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f5f4ef;
+            --card: #ffffff;
+            --ink: #1f2c28;
+            --muted: #5f6b66;
+            --line: #d8ddd8;
+            --brand: #0f766e;
+            --brand-dark: #0b4f4a;
+            --accent: #f59e0b;
+            --buy: #3b82f6;
+            --reno: #ef4444;
+            --loan: #10b981;
+            --repay: #f97316;
+            --shadow: 0 12px 32px rgba(20, 36, 31, 0.12);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 15% 10%, #dce9e6 0%, transparent 45%),
+                radial-gradient(circle at 85% 20%, #fde7c2 0%, transparent 35%),
+                linear-gradient(180deg, #f8f7f2 0%, #edf1ec 100%);
+            font-family: "DM Sans", sans-serif;
+        }
+
+        .page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 16px 48px;
+        }
+
+        .hero {
+            background: linear-gradient(130deg, #134e4a 0%, #0f766e 55%, #0d9488 100%);
+            border-radius: 24px;
+            color: #f4fffc;
+            padding: 28px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-family: "Syne", sans-serif;
+            font-size: clamp(1.9rem, 5vw, 2.7rem);
+            letter-spacing: 0.02em;
+        }
+
+        .hero p {
+            margin: 10px 0 0;
+            color: #d5fff4;
+            max-width: 720px;
+        }
+
+        .top-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin: 16px 0 24px;
+        }
+
+        .metric {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 14px;
+            box-shadow: var(--shadow);
+        }
+
+        .metric .label {
+            font-size: 0.82rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        .metric .value {
+            font-size: 1.25rem;
+            margin-top: 6px;
+            font-weight: 700;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+
+        .btn-brand { background: var(--brand); color: #fff; }
+        .btn-brand:hover { background: var(--brand-dark); }
+        .btn-light { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+        .btn-danger { background: #fee2e2; color: #7f1d1d; }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .card h2 {
+            margin: 0 0 12px;
+            font-family: "Syne", sans-serif;
+            font-size: 1.3rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .fields {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        input, select {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            padding: 10px;
+            font: inherit;
+            color: var(--ink);
+            background: #fff;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 620px;
+            background: #fff;
+        }
+
+        th, td {
+            border-bottom: 1px solid var(--line);
+            padding: 10px;
+            text-align: left;
+            font-size: 0.93rem;
+        }
+
+        th { background: #f6f9f7; color: #3d4f49; }
+
+        .empty {
+            color: var(--muted);
+            padding: 10px 2px 2px;
+            font-size: 0.92rem;
+        }
+
+        .chart-area {
+            height: 360px;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #7f1d1d;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
+        @media (max-width: 980px) {
+            .top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .grid-2 { grid-template-columns: 1fr; }
+            .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 620px) {
+            .hero { padding: 20px; }
+            .fields { grid-template-columns: 1fr; }
+            .top-grid { grid-template-columns: 1fr; }
+            .chart-area { height: 290px; }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <section class="hero">
+            <h1>Home13</h1>
+            <p>Traccia acquisto casa, ristrutturazione, prestiti ricevuti e rimborsi. Tutto aggiornato in un unico cruscotto con export in PDF ed Excel.</p>
+        </section>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <section class="top-grid">
+            <article class="metric">
+                <div class="label">Spese Totali</div>
+                <div class="value">{{ summary.spese_total|euro }} EUR</div>
+            </article>
+            <article class="metric">
+                <div class="label">Prestiti Ricevuti</div>
+                <div class="value">{{ summary.loans_total|euro }} EUR</div>
+            </article>
+            <article class="metric">
+                <div class="label">Rimborsi Effettuati</div>
+                <div class="value">{{ summary.repayments_total|euro }} EUR</div>
+            </article>
+            <article class="metric">
+                <div class="label">Debito Residuo</div>
+                <div class="value">{{ summary.debito_residuo|euro }} EUR</div>
+            </article>
+        </section>
+
+        <section class="actions">
+            <a class="btn btn-brand" href="{{ url_for('export_excel') }}">Export Excel</a>
+            <a class="btn btn-light" href="{{ url_for('export_pdf') }}">Export PDF</a>
+        </section>
+
+        <section class="card">
+            <h2>Andamento Mensile</h2>
+            <div class="chart-area">
+                <canvas id="speseChart"></canvas>
+            </div>
+        </section>
+
+        <section class="grid-2">
+            <article class="card">
+                <h2>Acquisto Casa</h2>
+                <form method="post" action="{{ url_for('add_expense') }}">
+                    <input type="hidden" name="category" value="acquisto_casa">
+                    <div class="fields">
+                        <input type="date" name="date" value="{{ today }}" required>
+                        <input type="text" name="description" placeholder="Notaio, agenzia, mediatore" required>
+                        <input type="text" name="amount" placeholder="Importo EUR" required>
+                        <input type="text" name="notes" placeholder="Note opzionali">
+                    </div>
+                    <button class="btn btn-brand" type="submit">Aggiungi spesa acquisto</button>
+                </form>
+                {% if data.expenses.acquisto_casa %}
+                <div class="table-wrap" style="margin-top: 12px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Voce</th>
+                                <th>Importo</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data.expenses.acquisto_casa %}
+                            <tr>
+                                <td>{{ row.date }}</td>
+                                <td>{{ row.description }}</td>
+                                <td>{{ row.amount|euro }} EUR</td>
+                                <td>
+                                    <form method="post" action="{{ url_for('delete_item') }}">
+                                        <input type="hidden" name="section" value="acquisto_casa">
+                                        <input type="hidden" name="item_id" value="{{ row.id }}">
+                                        <button class="btn btn-danger" type="submit">Elimina</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty">Nessuna spesa acquisto inserita.</div>
+                {% endif %}
+            </article>
+
+            <article class="card">
+                <h2>Ristrutturazione</h2>
+                <form method="post" action="{{ url_for('add_expense') }}">
+                    <input type="hidden" name="category" value="ristrutturazione">
+                    <div class="fields">
+                        <input type="date" name="date" value="{{ today }}" required>
+                        <input type="text" name="description" placeholder="Infissi, impianto, cucina" required>
+                        <input type="text" name="amount" placeholder="Importo EUR" required>
+                        <input type="text" name="notes" placeholder="Note opzionali">
+                    </div>
+                    <button class="btn btn-brand" type="submit">Aggiungi spesa ristrutturazione</button>
+                </form>
+                {% if data.expenses.ristrutturazione %}
+                <div class="table-wrap" style="margin-top: 12px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Voce</th>
+                                <th>Importo</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data.expenses.ristrutturazione %}
+                            <tr>
+                                <td>{{ row.date }}</td>
+                                <td>{{ row.description }}</td>
+                                <td>{{ row.amount|euro }} EUR</td>
+                                <td>
+                                    <form method="post" action="{{ url_for('delete_item') }}">
+                                        <input type="hidden" name="section" value="ristrutturazione">
+                                        <input type="hidden" name="item_id" value="{{ row.id }}">
+                                        <button class="btn btn-danger" type="submit">Elimina</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty">Nessuna spesa ristrutturazione inserita.</div>
+                {% endif %}
+            </article>
+        </section>
+
+        <section class="card">
+            <h2>Prestiti e Rimborsi</h2>
+            <div class="grid-2">
+                <div>
+                    <h3>Nuovo prestito ricevuto</h3>
+                    <form method="post" action="{{ url_for('add_loan') }}">
+                        <div class="fields">
+                            <input type="date" name="date" value="{{ today }}" required>
+                            <input type="text" name="lender" placeholder="Padre, madre, altro" required>
+                            <input type="text" name="amount" placeholder="Importo EUR" required>
+                            <input type="text" name="notes" placeholder="Note opzionali">
+                        </div>
+                        <button class="btn btn-brand" type="submit">Aggiungi prestito</button>
+                    </form>
+                </div>
+                <div>
+                    <h3>Nuovo rimborso effettuato</h3>
+                    <form method="post" action="{{ url_for('add_repayment') }}">
+                        <div class="fields">
+                            <input type="date" name="date" value="{{ today }}" required>
+                            <input type="text" name="lender" placeholder="A chi hai rimborsato" required>
+                            <input type="text" name="amount" placeholder="Importo EUR" required>
+                            <input type="text" name="notes" placeholder="Note opzionali">
+                        </div>
+                        <button class="btn btn-brand" type="submit">Aggiungi rimborso</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top: 14px;">
+                <div>
+                    <h3>Prestiti ricevuti</h3>
+                    {% if data.loans %}
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Prestatore</th>
+                                    <th>Importo</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in data.loans %}
+                                <tr>
+                                    <td>{{ row.date }}</td>
+                                    <td>{{ row.lender }}</td>
+                                    <td>{{ row.amount|euro }} EUR</td>
+                                    <td>
+                                        <form method="post" action="{{ url_for('delete_item') }}">
+                                            <input type="hidden" name="section" value="loans">
+                                            <input type="hidden" name="item_id" value="{{ row.id }}">
+                                            <button class="btn btn-danger" type="submit">Elimina</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty">Nessun prestito inserito.</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <h3>Rimborsi</h3>
+                    {% if data.repayments %}
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Prestatore</th>
+                                    <th>Importo</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in data.repayments %}
+                                <tr>
+                                    <td>{{ row.date }}</td>
+                                    <td>{{ row.lender }}</td>
+                                    <td>{{ row.amount|euro }} EUR</td>
+                                    <td>
+                                        <form method="post" action="{{ url_for('delete_item') }}">
+                                            <input type="hidden" name="section" value="repayments">
+                                            <input type="hidden" name="item_id" value="{{ row.id }}">
+                                            <button class="btn btn-danger" type="submit">Elimina</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty">Nessun rimborso inserito.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <h3 style="margin-top: 16px;">Saldo Residuo per Prestatore</h3>
+            {% if summary.lender_balance %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Prestatore</th>
+                            <th>Saldo residuo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in summary.lender_balance %}
+                        <tr>
+                            <td>{{ row.lender }}</td>
+                            <td>{{ row.balance|euro }} EUR</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty">Nessun saldo da mostrare.</div>
+            {% endif %}
+        </section>
+    </main>
+
+    <script id="chart-data" type="application/json">{{ chart_data | tojson }}</script>
+    <script>
+        const payload = JSON.parse(document.getElementById("chart-data").textContent);
+        const ctx = document.getElementById("speseChart");
+
+        new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: payload.labels,
+                datasets: [
+                    { label: "Acquisto casa", data: payload.acquistoCasa, backgroundColor: "rgba(59,130,246,0.8)", borderColor: "#3b82f6", borderWidth: 1 },
+                    { label: "Ristrutturazione", data: payload.ristrutturazione, backgroundColor: "rgba(239,68,68,0.8)", borderColor: "#ef4444", borderWidth: 1 },
+                    { label: "Prestiti ricevuti", data: payload.prestiti, backgroundColor: "rgba(16,185,129,0.8)", borderColor: "#10b981", borderWidth: 1 },
+                    { label: "Rimborsi", data: payload.rimborsi, backgroundColor: "rgba(249,115,22,0.8)", borderColor: "#f97316", borderWidth: 1 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true, beginAtZero: true }
+                },
+                plugins: {
+                    legend: { position: "bottom" },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y || 0;
+                                return `${context.dataset.label}: ${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

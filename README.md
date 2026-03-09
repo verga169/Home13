@@ -1,0 +1,49 @@
+# Home13
+
+Applicazione Flask per tracciare:
+- spese di acquisto casa (notaio, agenzia, mediatore, ecc.);
+- spese di ristrutturazione;
+- prestiti ricevuti e rimborsi effettuati.
+
+Include:
+- dashboard con grafico mensile aggregato;
+- riepilogo economico completo;
+- export in Excel e PDF di tutte le voci registrate;
+- saldo residuo per prestatore.
+
+## Avvio locale (Windows)
+
+1. Installare dipendenze:
+
+```bash
+py -m pip install -r requirements.txt
+```
+
+2. Avviare l'app:
+
+```bash
+py app.py
+```
+
+Oppure:
+
+```bat
+start_app.bat
+```
+
+3. Aprire il browser su:
+
+```text
+http://127.0.0.1:5000/
+```
+
+Se usi `start_app.bat`, la porta impostata e `5001`.
+
+## Dati
+
+I dati sono salvati in locale nel file `data_store.json`.
+
+## Export
+
+- `GET /export/excel` genera un file `.xlsx` con fogli separati per sezione.
+- `GET /export/pdf` genera un report PDF con riepilogo e dettaglio voci.
