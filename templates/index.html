@@ -144,7 +144,7 @@
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
 
         .filter-bar {
@@ -382,10 +382,45 @@
             margin-bottom: 12px;
         }
 
+        .install-panel {
+            margin: 0 0 20px;
+            padding: 12px 14px;
+            border: 1px solid rgba(15, 118, 110, 0.18);
+            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(225, 243, 239, 0.8) 0%, rgba(237, 247, 244, 0.92) 100%);
+        }
+
+        .install-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 6px;
+            font-family: "Syne", sans-serif;
+            font-size: 0.98rem;
+            letter-spacing: 0.01em;
+            color: #0f4f49;
+        }
+
+        .install-icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 999px;
+            background: rgba(15, 118, 110, 0.16);
+            border: 1px solid rgba(15, 118, 110, 0.3);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #0b4f4a;
+            line-height: 1;
+        }
+
         .install-hint {
-            margin: 8px 0 0;
-            color: var(--muted);
-            font-size: 0.9rem;
+            margin: 0;
+            color: #2f4a44;
+            font-size: 0.95rem;
+            line-height: 1.45;
         }
 
         .hidden {
@@ -439,6 +474,16 @@
             .actions .btn {
                 flex: 1 1 calc(50% - 6px);
                 text-align: center;
+            }
+            .install-panel {
+                margin-bottom: 16px;
+                padding: 10px 12px;
+            }
+            .install-title {
+                font-size: 0.92rem;
+            }
+            .install-hint {
+                font-size: 0.9rem;
             }
             .filter-bar {
                 align-items: stretch;
@@ -498,7 +543,10 @@
             <a class="btn btn-light" href="{{ url_for('export_pdf') }}">Export PDF</a>
             <button class="btn btn-light hidden" id="install-app-btn" type="button">Installa app</button>
         </section>
-        <p id="install-hint" class="install-hint hidden"></p>
+        <div id="install-panel" class="install-panel hidden">
+            <p class="install-title"><span class="install-icon">A</span>Installazione app</p>
+            <p id="install-hint" class="install-hint"></p>
+        </div>
 
         <section class="chart-grid">
             <article class="card chart-card">
@@ -1173,12 +1221,13 @@
         document.getElementById("timeline-1m").addEventListener("click", () => setTimelineWindow(31));
 
         const installButton = document.getElementById("install-app-btn");
+        const installPanel = document.getElementById("install-panel");
         const installHint = document.getElementById("install-hint");
         let deferredInstallPrompt = null;
 
         function showInstallHint(message) {
             installHint.textContent = message;
-            installHint.classList.remove("hidden");
+            installPanel.classList.remove("hidden");
         }
 
         window.addEventListener("beforeinstallprompt", (event) => {
