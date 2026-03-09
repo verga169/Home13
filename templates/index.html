@@ -382,6 +382,16 @@
             margin-bottom: 12px;
         }
 
+        .install-hint {
+            margin: 8px 0 0;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
         @keyframes riseIn {
             from {
                 opacity: 0;
@@ -486,7 +496,9 @@
         <section class="actions">
             <a class="btn btn-brand" href="{{ url_for('export_excel') }}">Export Excel</a>
             <a class="btn btn-light" href="{{ url_for('export_pdf') }}">Export PDF</a>
+            <button class="btn btn-light hidden" id="install-app-btn" type="button">Installa app</button>
         </section>
+        <p id="install-hint" class="install-hint hidden"></p>
 
         <section class="chart-grid">
             <article class="card chart-card">
@@ -1154,6 +1166,47 @@
         document.getElementById("timeline-6m").addEventListener("click", () => setTimelineWindow(182));
         document.getElementById("timeline-3m").addEventListener("click", () => setTimelineWindow(92));
         document.getElementById("timeline-1m").addEventListener("click", () => setTimelineWindow(31));
+
+        const installButton = document.getElementById("install-app-btn");
+        const installHint = document.getElementById("install-hint");
+        let deferredInstallPrompt = null;
+
+        function showInstallHint(message) {
+            installHint.textContent = message;
+            installHint.classList.remove("hidden");
+        }
+
+        window.addEventListener("beforeinstallprompt", (event) => {
+            event.preventDefault();
+            deferredInstallPrompt = event;
+            installButton.classList.remove("hidden");
+        });
+
+        installButton.addEventListener("click", async () => {
+            if (!deferredInstallPrompt) {
+                return;
+            }
+
+            deferredInstallPrompt.prompt();
+            const choiceResult = await deferredInstallPrompt.userChoice;
+            deferredInstallPrompt = null;
+            installButton.classList.add("hidden");
+
+            if (choiceResult && choiceResult.outcome === "dismissed") {
+                showInstallHint("Installazione annullata. Puoi riprovare dal pulsante quando disponibile.");
+            }
+        });
+
+        window.addEventListener("appinstalled", () => {
+            installButton.classList.add("hidden");
+            showInstallHint("Home13 installata correttamente sul dispositivo.");
+        });
+
+        const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        const inStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+        if (isiOS && !inStandalone) {
+            showInstallHint("Su iPhone: apri Condividi in Safari e scegli 'Aggiungi alla schermata Home'.");
+        }
 
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", () => {
