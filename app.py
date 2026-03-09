@@ -779,9 +779,17 @@ def edit_item():
 
 def build_excel_workbook(data: dict):
     from openpyxl import Workbook
-    from openpyxl.styles import Font
+    from openpyxl.styles import Alignment, Font
 
     summary = build_summary(data)
+    amount_format = "#,##0.00"
+
+    def apply_amount_style(sheet, column_index: int, start_row: int = 2) -> None:
+        for row_index in range(start_row, sheet.max_row + 1):
+            cell = sheet.cell(row=row_index, column=column_index)
+            if isinstance(cell.value, (int, float)):
+                cell.number_format = amount_format
+                cell.alignment = Alignment(horizontal="right")
 
     wb = Workbook()
     ws = wb.active
@@ -801,6 +809,7 @@ def build_excel_workbook(data: dict):
 
     for col in ("A", "B"):
         ws.column_dimensions[col].width = 28
+    apply_amount_style(ws, column_index=2)
 
     ws_lender = wb.create_sheet("Saldo per prestatore")
     ws_lender.append(["Prestatore", "Saldo residuo"])
@@ -810,6 +819,7 @@ def build_excel_workbook(data: dict):
         cell.font = Font(bold=True)
     ws_lender.column_dimensions["A"].width = 24
     ws_lender.column_dimensions["B"].width = 20
+    apply_amount_style(ws_lender, column_index=2)
 
     def append_sheet(title: str, entries: list[dict], include_lender: bool = False):
         sheet = wb.create_sheet(title)
@@ -830,6 +840,7 @@ def build_excel_workbook(data: dict):
         sheet.column_dimensions["A"].width = 14
         sheet.column_dimensions["B"].width = 30
         sheet.column_dimensions["C"].width = 14
+        apply_amount_style(sheet, column_index=3)
 
     append_sheet("Acquisto casa", data["expenses"]["acquisto_casa"])
     append_sheet("Ristrutturazione", data["expenses"]["ristrutturazione"])

@@ -47,6 +47,7 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
 - `GET /export/excel`
 	- export `.xlsx` con fogli separati per sezione e riepilogo.
+	- colonne importi formattate come numeri monetari (`#,##0.00`) per visualizzazione con separatori locali (es. `1.234,56` in locale italiano).
 - `GET /export/pdf`
 	- report PDF con layout premium/minimal: header/footer paginati, metric cards, sintesi categorie e tabelle dettagliate.
 
