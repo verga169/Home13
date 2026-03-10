@@ -399,6 +399,8 @@
         .repayments-table th:nth-child(1),
         .repayments-table td:nth-child(1) {
             width: 16%;
+            white-space: nowrap;
+            padding-right: 14px;
         }
 
         .loans-table th:nth-child(2),
@@ -406,6 +408,7 @@
         .repayments-table th:nth-child(2),
         .repayments-table td:nth-child(2) {
             width: 25%;
+            padding-left: 14px;
         }
 
         .loans-table th:nth-child(3),
@@ -472,6 +475,38 @@
             color: transparent;
         }
 
+        .expense-table {
+            table-layout: fixed;
+        }
+
+        .expense-table th:nth-child(1),
+        .expense-table td:nth-child(1) {
+            width: 24%;
+        }
+
+        .expense-table th:nth-child(2),
+        .expense-table td:nth-child(2) {
+            width: 32%;
+        }
+
+        .expense-table th:nth-child(3),
+        .expense-table td:nth-child(3) {
+            width: 29%;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .expense-table th:nth-child(4),
+        .expense-table td:nth-child(4) {
+            width: 15%;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .expense-table .actions-cell {
+            justify-content: flex-end;
+        }
+
         th { background: #f6f9f7; color: #3d4f49; }
 
         .empty {
@@ -487,6 +522,10 @@
 
         .chart-area canvas {
             touch-action: pan-x pan-y;
+        }
+
+        #totalsChart {
+            touch-action: none;
         }
 
         .chart-grid {
@@ -678,7 +717,19 @@
             .btn-danger { min-width: 72px; }
             .actions-cell {
                 flex-direction: column;
-                align-items: stretch;
+                align-items: flex-end;
+            }
+            .actions-cell form {
+                width: auto;
+            }
+            .actions-cell .btn-edit,
+            .actions-cell .btn-danger {
+                width: 34px;
+                min-width: 34px;
+                height: 34px;
+                min-height: 34px;
+                padding: 0;
+                font-size: 0.78rem;
             }
             .inline-edit-form {
                 grid-template-columns: 1fr;
@@ -787,9 +838,6 @@
             <article class="card chart-card">
                 <div class="chart-head">
                     <h2>Totali per Categoria</h2>
-                    <div class="chart-tools">
-                        <button class="btn-ghost" type="button" id="totals-reset-zoom">Reset zoom</button>
-                    </div>
                 </div>
                 <div class="chart-area">
                     <canvas id="totalsChart"></canvas>
@@ -827,7 +875,7 @@
                 </form>
                 {% if data.expenses.acquisto_casa %}
                 <div class="table-wrap" style="margin-top: 12px;">
-                    <table>
+                    <table class="expense-table">
                         <thead>
                             <tr>
                                 <th>Data</th>
@@ -887,7 +935,7 @@
                 </form>
                 {% if data.expenses.ristrutturazione %}
                 <div class="table-wrap" style="margin-top: 12px;">
-                    <table>
+                    <table class="expense-table">
                         <thead>
                             <tr>
                                 <th>Data</th>
@@ -1327,16 +1375,11 @@
             return { min: minIdx, max: labels.length - 1 };
         }
 
-        const TOTALS_ZOOM_SPEED = 0.004;
         const TIMELINE_ZOOM_SPEED = 0.015;
         const totalsValues = (payload.totals.values || []).map((value) => Number(value) || 0);
         const hasNegativeTotals = totalsValues.some((value) => value < 0);
         const totalsMinValue = totalsValues.length ? Math.min(...totalsValues) : 0;
-        const totalsMaxValue = totalsValues.length ? Math.max(...totalsValues) : 0;
         const totalsYAxisMin = hasNegativeTotals ? totalsMinValue : 0;
-        const totalsYAxisRange = Math.max(totalsMaxValue - totalsYAxisMin, 1);
-        const totalsYAxisPadding = totalsYAxisRange * 0.1;
-        const totalsMinRange = Math.max(totalsYAxisRange * 0.75, 1);
 
         const totalsCanvas = document.getElementById("totalsChart");
         const totalsCtx = totalsCanvas.getContext("2d");
@@ -1376,25 +1419,6 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    zoom: {
-                        limits: {
-                            y: {
-                                min: hasNegativeTotals ? totalsMinValue - totalsYAxisPadding : 0,
-                                max: totalsMaxValue + totalsYAxisPadding,
-                                minRange: totalsMinRange,
-                            },
-                        },
-                        zoom: {
-                            wheel: { enabled: true, speed: TOTALS_ZOOM_SPEED },
-                            pinch: { enabled: true },
-                            drag: { enabled: true, threshold: 14 },
-                            mode: "y",
-                        },
-                        pan: {
-                            enabled: true,
-                            mode: "y",
-                        },
-                    },
                     tooltip: {
                         callbacks: {
                             label: (context) => `Totale: ${asMoney(context.parsed.y)}`,
@@ -1514,13 +1538,13 @@
                             x: { min: 0, max: Math.max(timelineLabels.length - 1, 0) },
                         },
                         pan: {
-                            enabled: true,
+                            enabled: false,
                             mode: "x",
                         },
                         zoom: {
                             wheel: { enabled: true, speed: TIMELINE_ZOOM_SPEED },
                             pinch: { enabled: true },
-                            drag: { enabled: true },
+                            drag: { enabled: false },
                             mode: "x",
                         },
                     },
@@ -1551,9 +1575,6 @@
             timelineChart.update("none");
         }
 
-        document.getElementById("totals-reset-zoom").addEventListener("click", () => {
-            totalsChart.resetZoom();
-        });
         document.getElementById("timeline-reset-zoom").addEventListener("click", () => {
             timelineChart.resetZoom();
             setTimelineWindow(365);

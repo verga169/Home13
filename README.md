@@ -10,14 +10,40 @@ Home13 e una web app Flask per monitorare i costi legati a casa e ristrutturazio
 	- `Prestiti ricevuti`
 	- `Rimborsi`
 - Dashboard con 2 grafici:
-	- `Totali per categoria`
-	- `Andamento operazioni` (zoom/pan, timeframe 1Y/6M/3M/1M)
+	- `Totali per categoria` (zoom disabilitato)
+	- `Andamento operazioni` (zoom pinch a 2 dita su touch, timeframe 1Y/6M/3M/1M)
 - Filtri rimborsi per prestatore con sezione dedicata `Storico Rimborsi`.
 - Formattazione numeri italiana (migliaia `.` e decimali `,`).
 - Date mostrate in formato italiano (`gg/mm/aaaa`).
 - UI responsive desktop/mobile con attenzione a overflow e touch interactions.
+- Dopo submit form (aggiunta/modifica/eliminazione) la pagina mantiene la posizione di scroll.
 - Favicon da `static/favicon.ico`.
 - Installabile come PWA su smartphone (manifest + service worker).
+
+## Test List (Eseguita il 10/03/2026)
+
+### Controlli automatici
+
+- `python -m pytest -q`: nessun test presente nel repository.
+- `python -m compileall -q app.py`: OK (nessun errore di sintassi).
+- Analisi editor (`Problems`): nessun errore rilevato.
+- Verifica import inutilizzati su `app.py` (`source.unusedImports`): nessuna rimozione necessaria.
+
+### Smoke test funzionali (Flask test client)
+
+- `GET /login` -> `200`
+- `GET /` senza autenticazione -> `302` redirect login
+- `GET /` con sessione autenticata -> `200`
+- `GET /health` -> `200`
+- `GET /export/excel` -> `200` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`)
+- `GET /export/pdf` -> `200` (`application/pdf`)
+
+### Verifiche UI/manuali eseguite
+
+- Tabelle prestiti/rimborsi riallineate (colonne e azioni coerenti).
+- Bottoni modifica/elimina mobile resi quadrati e con dimensioni uniformi.
+- Grafico `Totali per categoria`: reset zoom rimosso e interazioni zoom/pan disabilitate.
+- Grafico `Andamento operazioni`: zoom touch consentito solo con gesto pinch a due dita.
 
 ## Persistenza Dati
 
