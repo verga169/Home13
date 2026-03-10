@@ -361,6 +361,30 @@ def build_chart_data(data: dict) -> dict:
         daily[item.get("date", "sconosciuto")[:10]]["rimborsi"] += float(item.get("amount", 0.0) or 0.0)
 
     labels = sorted(daily.keys())
+    label_to_idx = {label: idx for idx, label in enumerate(labels)}
+
+    def build_timeline_points(entries: list[dict], label_key: str) -> list[dict]:
+        points = []
+        for item in entries:
+            amount = float(item.get("amount", 0.0) or 0.0)
+            if amount <= 0:
+                continue
+
+            day_label = (item.get("date", "sconosciuto") or "sconosciuto")[:10]
+            if day_label not in label_to_idx:
+                continue
+
+            voce = sanitize_text(item.get(label_key, ""))
+            points.append(
+                {
+                    "x": label_to_idx[day_label],
+                    "y": round(amount, 2),
+                    "voce": voce,
+                }
+            )
+
+        points.sort(key=lambda row: row["x"])
+        return points
 
     totals = {
         "labels": ["Acquisto casa", "Ristrutturazione", "Prestiti ricevuti", "Rimborsi"],
@@ -374,10 +398,10 @@ def build_chart_data(data: dict) -> dict:
 
     timeline = {
         "labels": labels,
-        "acquistoCasa": [round(daily[label]["acquisto_casa"], 2) for label in labels],
-        "ristrutturazione": [round(daily[label]["ristrutturazione"], 2) for label in labels],
-        "prestiti": [round(daily[label]["prestiti"], 2) for label in labels],
-        "rimborsi": [round(daily[label]["rimborsi"], 2) for label in labels],
+        "acquistoCasa": build_timeline_points(data["expenses"]["acquisto_casa"], "description"),
+        "ristrutturazione": build_timeline_points(data["expenses"]["ristrutturazione"], "description"),
+        "prestiti": build_timeline_points(data["loans"], "lender"),
+        "rimborsi": build_timeline_points(data["repayments"], "lender"),
     }
 
     return {

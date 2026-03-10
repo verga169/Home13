@@ -1021,17 +1021,6 @@
             return { min: minIdx, max: labels.length - 1 };
         }
 
-        function buildEventPoints(values) {
-            const points = [];
-            values.forEach((value, idx) => {
-                const amount = Number(value) || 0;
-                if (amount > 0) {
-                    points.push({ x: idx, y: amount });
-                }
-            });
-            return points;
-        }
-
         const TOTALS_ZOOM_SPEED = 0.004;
         const TIMELINE_ZOOM_SPEED = 0.015;
         const totalsValues = (payload.totals.values || []).map((value) => Number(value) || 0);
@@ -1130,7 +1119,7 @@
                 datasets: [
                     {
                         label: "Acquisto casa",
-                        data: buildEventPoints(payload.timeline.acquistoCasa),
+                        data: payload.timeline.acquistoCasa,
                         borderColor: "#3b82f6",
                         backgroundColor: "rgba(59,130,246,0.75)",
                         pointRadius: isMobile ? 4 : 5,
@@ -1141,7 +1130,7 @@
                     },
                     {
                         label: "Ristrutturazione",
-                        data: buildEventPoints(payload.timeline.ristrutturazione),
+                        data: payload.timeline.ristrutturazione,
                         borderColor: "#ef4444",
                         backgroundColor: "rgba(239,68,68,0.75)",
                         pointRadius: isMobile ? 4 : 5,
@@ -1152,7 +1141,7 @@
                     },
                     {
                         label: "Prestiti ricevuti",
-                        data: buildEventPoints(payload.timeline.prestiti),
+                        data: payload.timeline.prestiti,
                         borderColor: "#10b981",
                         backgroundColor: "rgba(16,185,129,0.75)",
                         pointRadius: isMobile ? 4 : 5,
@@ -1163,7 +1152,7 @@
                     },
                     {
                         label: "Rimborsi",
-                        data: buildEventPoints(payload.timeline.rimborsi),
+                        data: payload.timeline.rimborsi,
                         borderColor: "#f97316",
                         backgroundColor: "rgba(249,115,22,0.75)",
                         pointRadius: isMobile ? 4 : 5,
@@ -1239,7 +1228,10 @@
                                     ? d.toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })
                                     : raw;
                             },
-                            label: (context) => `${context.dataset.label}: ${asMoney(context.parsed.y)}`,
+                            label: (context) => {
+                                const voce = (context.raw && context.raw.voce) ? context.raw.voce : context.dataset.label;
+                                return `${voce}: ${asMoney(context.parsed.y)}`;
+                            },
                         },
                     },
                 },
