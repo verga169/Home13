@@ -265,6 +265,9 @@
 
         input, select {
             width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            display: block;
             border-radius: 10px;
             border: 1px solid var(--line);
             padding: 10px;
@@ -272,6 +275,23 @@
             color: var(--ink);
             background: #fff;
             min-height: 42px;
+        }
+
+        input[type="date"] {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            -webkit-appearance: none;
+            appearance: none;
+            padding-right: 10px;
+        }
+
+        input[type="date"]::-webkit-date-and-time-value {
+            text-align: left;
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            margin: 0;
         }
 
         input:focus,
