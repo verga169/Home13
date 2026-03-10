@@ -48,7 +48,7 @@ load_local_env()
 DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
 USE_DATABASE = bool(DATABASE_URL)
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
-GEMINI_MODEL = (os.environ.get("GEMINI_MODEL") or "gemini-2.0-flash").strip()
+GEMINI_MODEL = (os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash").strip()
 
 DEFAULT_DATA = {
     "expenses": {
@@ -68,7 +68,7 @@ def get_gemini_api_key() -> str:
 
 def get_gemini_model() -> str:
     load_local_env()
-    return (os.environ.get("GEMINI_MODEL") or GEMINI_MODEL or "gemini-2.0-flash").strip()
+    return (os.environ.get("GEMINI_MODEL") or GEMINI_MODEL or "gemini-2.5-flash").strip()
 
 
 def format_euro(value: float) -> str:
