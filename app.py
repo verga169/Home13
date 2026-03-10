@@ -980,6 +980,10 @@ def local_smalltalk_reply(text: str, pending: dict | None) -> str | None:
     if not normalized:
         return None
 
+    summary_reply = local_summary_reply(text)
+    if summary_reply:
+        return summary_reply
+
     if normalized in {"annulla", "stop", "cancel", "esci", "lascia perdere"}:
         if pending:
             return "Operazione annullata."
@@ -997,8 +1001,54 @@ def local_smalltalk_reply(text: str, pending: dict | None) -> str | None:
     if re.search(r"\b(modifica|aggiorna|edit)\b", normalized):
         return "Posso aggiungere o rimuovere movimenti via chat. Per modificare una voce esistente usa il tasto modifica nella tabella."
 
-    if re.search(r"\b(mostra|elenca|lista|riepilogo|totale|saldo)\b", normalized):
+    if re.search(r"\b(mostra|elenca|lista|riepilogo)\b", normalized):
         return "Per ora i riepiloghi si leggono nella dashboard e nelle tabelle qui sotto. Via chat gestisco soprattutto inserimenti e rimozioni."
+
+    return None
+
+
+def local_summary_reply(text: str) -> str | None:
+    normalized = normalize_text(text)
+    if not normalized:
+        return None
+
+    wants_total = bool(re.search(r"\b(totale|totali|somma|quanto|ammonta|importo|saldo|debito|residuo)\b", normalized))
+    if not wants_total:
+        return None
+
+    # If user is explicitly asking to perform an action, don't treat it as a summary question.
+    if re.search(r"\b(aggiungi|inserisci|registra|rimuovi|elimina|cancella|togli)\b", normalized):
+        return None
+
+    summary = build_summary(load_data())
+
+    if "ristruttur" in normalized:
+        return f"Il totale della ristrutturazione e {format_euro(summary['ristr_total'])} EUR."
+
+    if re.search(r"\b(acquisto|casa|immobile|rogito|notaio|agenzia)\b", normalized):
+        return f"Il totale dell'acquisto casa e {format_euro(summary['acquisto_total'])} EUR."
+
+    if "spese" in normalized:
+        return f"Le spese totali sono {format_euro(summary['spese_total'])} EUR."
+
+    if "prestiti" in normalized:
+        return f"Il totale dei prestiti ricevuti e {format_euro(summary['loans_total'])} EUR."
+
+    if "rimbors" in normalized:
+        return f"Il totale dei rimborsi e {format_euro(summary['repayments_total'])} EUR."
+
+    if "debito" in normalized or "residuo" in normalized:
+        return f"Il debito residuo e {format_euro(summary['debito_residuo'])} EUR."
+
+    if "saldo" in normalized:
+        lender = parse_lender_from_text(text)
+        if lender:
+            lender_norm = normalize_text(lender)
+            for row in summary["lender_balance"]:
+                if normalize_text(row.get("lender", "")) == lender_norm:
+                    return f"Il saldo residuo verso {row['lender']} e {format_euro(row['balance'])} EUR."
+            return f"Non trovo un prestatore chiamato {lender} nello storico."
+        return f"Il debito residuo complessivo e {format_euro(summary['debito_residuo'])} EUR."
 
     return None
 
