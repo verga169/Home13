@@ -78,6 +78,7 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 - Route pubbliche senza login: `GET /health`, asset statici, `GET /sw.js`.
 - Endpoint login: `GET/POST /login`
 - Logout: `POST /logout`
+- Pagina gestione utenti (solo superadmin): `GET /admin/users`
 - Ruoli:
 	- `superadmin`:
 		- in locale: username `admin` (bootstrap), puo gestire utenze applicative.
@@ -96,7 +97,7 @@ Note:
 
 - Se non imposti la password, fallback locale: `admin` (da usare solo per bootstrap).
 - In produzione imposta sempre `FLASK_SECRET_KEY` e credenziali dedicate.
-- Con database attivo, il superadmin puo creare/aggiornare/eliminare utenze dalla sezione `Gestione Utenze` dentro l'app.
+- Con database attivo, il superadmin puo creare/aggiornare/eliminare utenze dalla pagina dedicata `Gestione Utenze`.
 - Le password degli utenti DB sono salvate hashate (Werkzeug PBKDF2).
 
 ## Avvio Locale (Windows)

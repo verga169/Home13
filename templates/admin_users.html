@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Gestione Utenze - Home13</title>
+    <style>
+        :root {
+            --bg: #f3f5f4;
+            --card: #ffffff;
+            --ink: #1f2c28;
+            --muted: #5f6b66;
+            --line: #d8ddd8;
+            --brand: #0f766e;
+            --brand-dark: #0b4f4a;
+            --shadow: 0 12px 30px rgba(20, 36, 31, 0.10);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            font-family: "DM Sans", "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at 12% 8%, rgba(136, 182, 174, 0.22) 0%, transparent 42%),
+                radial-gradient(circle at 88% 16%, rgba(173, 194, 191, 0.16) 0%, transparent 34%),
+                linear-gradient(180deg, #f7f8f7 0%, #edf2f0 52%, #eaf0ee 100%);
+        }
+
+        .page {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px 16px 40px;
+        }
+
+        .header {
+            background: linear-gradient(130deg, #134e4a 0%, #0f766e 55%, #0d9488 100%);
+            border-radius: 20px;
+            color: #f4fffc;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: clamp(1.3rem, 4vw, 2rem);
+        }
+
+        .header p {
+            margin: 6px 0 0;
+            color: #d5fff4;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .btn-brand { background: var(--brand); color: #fff; }
+        .btn-brand:hover { background: var(--brand-dark); }
+        .btn-light { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+        .btn-danger { background: #fee2e2; color: #7f1d1d; }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 14px;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #7f1d1d;
+            border: 1px solid #fecaca;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
+        .notice {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
+        .users-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: end;
+            margin-bottom: 12px;
+        }
+
+        input {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            padding: 10px;
+            font: inherit;
+            min-height: 42px;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+            background: #fff;
+        }
+
+        th, td {
+            border-bottom: 1px solid var(--line);
+            padding: 10px;
+            text-align: left;
+            font-size: 0.92rem;
+        }
+
+        th { background: #f6f9f7; color: #3d4f49; }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 3px 8px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            background: #e6f5f2;
+            color: #0f4f49;
+            border: 1px solid #b7dfd7;
+        }
+
+        .empty {
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .inline-form { margin: 0; }
+
+        @media (max-width: 700px) {
+            .users-form { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <section class="header">
+            <div>
+                <h1>Gestione Utenze</h1>
+                <p>Crea, aggiorna o rimuovi utenti applicativi.</p>
+            </div>
+            <div class="actions">
+                <a class="btn btn-light" href="{{ url_for('index') }}">Torna alla home</a>
+            </div>
+        </section>
+
+        <section class="card">
+            {% if not user_management_available %}
+            <div class="error">Gestione utenti non disponibile: database non attivo.</div>
+            {% endif %}
+
+            {% if notice %}
+            <div class="notice">{{ notice }}</div>
+            {% endif %}
+
+            {% if error %}
+            <div class="error">{{ error }}</div>
+            {% endif %}
+
+            <form class="users-form" method="post" action="{{ url_for('admin_upsert_user') }}">
+                <input type="text" name="username" placeholder="Username" autocomplete="off" required>
+                <input type="password" name="password" placeholder="Password (min 8)" autocomplete="new-password" required>
+                <button class="btn btn-brand" type="submit">Salva utente</button>
+            </form>
+
+            {% if users %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Stato</th>
+                            <th>Creato il</th>
+                            <th>Aggiornato il</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.username }}</td>
+                            <td><span class="pill">{{ 'Attivo' if user.is_active else 'Disattivo' }}</span></td>
+                            <td>{{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else '-' }}</td>
+                            <td>{{ user.updated_at.strftime('%d/%m/%Y %H:%M') if user.updated_at else '-' }}</td>
+                            <td>
+                                <form class="inline-form" method="post" action="{{ url_for('admin_delete_user') }}" onsubmit="return confirm('Eliminare questo utente?');">
+                                    <input type="hidden" name="username" value="{{ user.username }}">
+                                    <button class="btn btn-danger" type="submit">Elimina</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty">Nessun utente DB configurato.</div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

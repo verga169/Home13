@@ -1854,21 +1854,9 @@ def delete_managed_user(username: str) -> bool:
 
 @app.context_processor
 def inject_auth_context() -> dict:
-    can_manage = is_superadmin_session()
-    users: list[dict] = []
-    if can_manage and USE_DATABASE:
-        try:
-            users = list_managed_users()
-        except Exception:
-            users = []
-
     return {
         "current_username": sanitize_text(session.get("username")),
-        "can_manage_users": can_manage,
-        "managed_users": users,
-        "admin_users_notice": sanitize_text(session.pop("admin_users_notice", "")),
-        "admin_users_error": sanitize_text(session.pop("admin_users_error", "")),
-        "user_management_available": can_manage and USE_DATABASE,
+        "can_manage_users": is_superadmin_session(),
     }
 
 
@@ -1932,6 +1920,27 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/admin/users", methods=["GET"])
+def admin_users_page():
+    if not is_superadmin_session():
+        return Response("Forbidden", status=403)
+
+    users: list[dict] = []
+    if USE_DATABASE:
+        try:
+            users = list_managed_users()
+        except Exception as exc:
+            session["admin_users_error"] = f"Errore caricamento utenti: {exc}"
+
+    return render_template(
+        "admin_users.html",
+        users=users,
+        user_management_available=USE_DATABASE,
+        notice=sanitize_text(session.pop("admin_users_notice", "")),
+        error=sanitize_text(session.pop("admin_users_error", "")),
+    )
+
+
 @app.route("/admin/users", methods=["POST"])
 def admin_upsert_user():
     if not is_superadmin_session():
@@ -1939,7 +1948,7 @@ def admin_upsert_user():
 
     if not USE_DATABASE:
         session["admin_users_error"] = "Gestione utenti disponibile solo con database attivo."
-        return redirect(url_for("index"))
+        return redirect(url_for("admin_users_page"))
 
     username = sanitize_text(request.form.get("username"))
     password = request.form.get("password") or ""
@@ -1950,7 +1959,7 @@ def admin_upsert_user():
     except Exception as exc:
         session["admin_users_error"] = str(exc)
 
-    return redirect(url_for("index"))
+    return redirect(url_for("admin_users_page"))
 
 
 @app.route("/admin/users/delete", methods=["POST"])
@@ -1961,11 +1970,11 @@ def admin_delete_user():
     username = sanitize_text(request.form.get("username"))
     if not username:
         session["admin_users_error"] = "Username mancante."
-        return redirect(url_for("index"))
+        return redirect(url_for("admin_users_page"))
 
     if normalize_username(username) == normalize_username(get_superadmin_username()):
         session["admin_users_error"] = "L'utente amministratore da ambiente non puo essere rimosso."
-        return redirect(url_for("index"))
+        return redirect(url_for("admin_users_page"))
 
     try:
         deleted = delete_managed_user(username)
@@ -1976,7 +1985,7 @@ def admin_delete_user():
     except Exception as exc:
         session["admin_users_error"] = str(exc)
 
-    return redirect(url_for("index"))
+    return redirect(url_for("admin_users_page"))
 
 
 @app.route("/", methods=["GET"])

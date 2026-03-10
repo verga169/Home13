@@ -446,39 +446,6 @@
             margin-bottom: 12px;
         }
 
-        .notice {
-            background: #dcfce7;
-            color: #166534;
-            border: 1px solid #bbf7d0;
-            padding: 10px 12px;
-            border-radius: 10px;
-            margin-bottom: 12px;
-        }
-
-        .users-form {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-            gap: 8px;
-            align-items: end;
-            margin-bottom: 10px;
-        }
-
-        .users-form .btn {
-            min-height: 42px;
-        }
-
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            border-radius: 999px;
-            padding: 3px 8px;
-            font-size: 0.76rem;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-            background: #e6f5f2;
-            color: #0f4f49;
-            border: 1px solid #b7dfd7;
-        }
 
         .ai-assistant-form {
             display: grid;
@@ -647,9 +614,6 @@
             .ai-assistant-form {
                 grid-template-columns: 1fr;
             }
-            .users-form {
-                grid-template-columns: 1fr;
-            }
         }
 
         @media (max-width: 420px) {
@@ -706,6 +670,9 @@
         <section class="actions">
             <a class="btn btn-brand" href="{{ url_for('export_excel') }}">Export Excel</a>
             <a class="btn btn-light" href="{{ url_for('export_pdf') }}">Export PDF</a>
+            {% if can_manage_users %}
+            <a class="btn btn-light" href="{{ url_for('admin_users_page') }}">Gestione utenze</a>
+            {% endif %}
             <button class="btn btn-light hidden" id="install-app-btn" type="button">Installa app</button>
         </section>
 
@@ -717,64 +684,6 @@
                 <button class="btn btn-brand" type="submit">Invia</button>
             </form>
         </section>
-
-        {% if can_manage_users %}
-        <section class="card">
-            <h2>Gestione Utenze</h2>
-
-            {% if not user_management_available %}
-            <div class="error">Gestione utenti non disponibile: database non attivo.</div>
-            {% endif %}
-
-            {% if admin_users_notice %}
-            <div class="notice">{{ admin_users_notice }}</div>
-            {% endif %}
-
-            {% if admin_users_error %}
-            <div class="error">{{ admin_users_error }}</div>
-            {% endif %}
-
-            <form class="users-form" method="post" action="{{ url_for('admin_upsert_user') }}">
-                <input type="text" name="username" placeholder="Username" autocomplete="off" required>
-                <input type="password" name="password" placeholder="Password (min 8)" autocomplete="new-password" required>
-                <button class="btn btn-brand" type="submit">Salva utente</button>
-            </form>
-
-            {% if managed_users %}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Stato</th>
-                            <th>Creato il</th>
-                            <th>Aggiornato il</th>
-                            <th>Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in managed_users %}
-                        <tr>
-                            <td>{{ user.username }}</td>
-                            <td><span class="pill">{{ 'Attivo' if user.is_active else 'Disattivo' }}</span></td>
-                            <td>{{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else '-' }}</td>
-                            <td>{{ user.updated_at.strftime('%d/%m/%Y %H:%M') if user.updated_at else '-' }}</td>
-                            <td>
-                                <form class="inline-form" method="post" action="{{ url_for('admin_delete_user') }}" onsubmit="return confirm('Eliminare questo utente?');">
-                                    <input type="hidden" name="username" value="{{ user.username }}">
-                                    <button class="btn btn-danger btn-small" type="submit">Elimina</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="empty">Nessun utente DB configurato.</div>
-            {% endif %}
-        </section>
-        {% endif %}
 
         <section class="chart-grid">
             <article class="card chart-card">
