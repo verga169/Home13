@@ -64,11 +64,9 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 - Configurazione via env:
 	- `GEMINI_API_KEY=<chiave_api_gemini>`
 	- `GEMINI_MODEL=gemini-2.0-flash` (opzionale)
-	- `AI_LOCAL_FALLBACK=1` (opzionale: abilita fallback parser locale)
 - Comportamento:
-	- con `GEMINI_API_KEY` impostata usa Gemini come parser principale
-	- se vuoi fallback locale esplicito, imposta `AI_LOCAL_FALLBACK=1`
-	- senza `GEMINI_API_KEY`, usa parser locale
+	- usa sempre Gemini per interpretare i comandi
+	- se Gemini non e disponibile, il bot risponde con errore temporaneo (nessun fallback locale)
 
 ## Avvio Locale (Windows)
 

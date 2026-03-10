@@ -49,7 +49,6 @@ DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
 USE_DATABASE = bool(DATABASE_URL)
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 GEMINI_MODEL = (os.environ.get("GEMINI_MODEL") or "gemini-2.0-flash").strip()
-AI_LOCAL_FALLBACK = (os.environ.get("AI_LOCAL_FALLBACK") or "").strip() == "1"
 
 DEFAULT_DATA = {
     "expenses": {
@@ -533,8 +532,9 @@ def parse_with_gemini(message: str, pending: dict | None) -> dict | None:
         "Interpreta il comando utente per un'app di finanza domestica. "
         "Rispondi SOLO con JSON valido (nessun testo extra). "
         "Schema: "
-        "{\"intent\":string|null,\"slots\":{\"lender\":string|null,\"description\":string|null,\"amount\":number|string|null,\"date\":string|null}}. "
+        "{\"intent\":string|null,\"reply\":string,\"slots\":{\"lender\":string|null,\"description\":string|null,\"amount\":number|string|null,\"date\":string|null}}. "
         "Intent consentiti: add_repayment, add_loan, add_expense_acquisto_casa, add_expense_ristrutturazione. "
+        "Se il messaggio non richiede una registrazione di movimento, metti intent=null e fornisci reply utile e concisa in italiano. "
         "Date ammesse in output: ISO yyyy-mm-dd se certa, altrimenti stringa originale da cui dedurre. "
         f"Stato pending corrente: {json.dumps(pending_payload, ensure_ascii=False)}. "
         f"Messaggio utente: {message}"
@@ -581,7 +581,8 @@ def parse_with_gemini(message: str, pending: dict | None) -> dict | None:
 
     intent = normalize_ai_intent(llm_obj.get("intent"))
     slots = parse_slots_from_gemini(intent, llm_obj.get("slots", {})) if intent else {}
-    return {"intent": intent, "slots": slots}
+    reply = sanitize_text(llm_obj.get("reply"))
+    return {"intent": intent, "slots": slots, "reply": reply}
 
 
 def required_slots_for_intent(intent: str) -> list[str]:
@@ -728,71 +729,39 @@ def process_ai_command(message: str, pending: dict | None) -> dict:
         intent = sanitize_text(pending.get("intent"))
         slots = pending.get("slots") if isinstance(pending.get("slots"), dict) else {}
 
+    if not GEMINI_API_KEY:
+        return {
+            "status": "error",
+            "reply": "GEMINI_API_KEY non configurata. Imposta la variabile ambiente (locale o Render) e riavvia l'app.",
+            "pending": pending if isinstance(pending, dict) else None,
+        }
+
     llm_result = parse_with_gemini(text, pending)
+    llm_reply = ""
+    if not llm_result:
+        return {
+            "status": "error",
+            "reply": "Gemini non disponibile in questo momento. Riprova tra poco.",
+            "pending": pending if isinstance(pending, dict) else None,
+        }
+
     if llm_result:
         llm_intent = llm_result.get("intent")
         llm_slots = llm_result.get("slots") if isinstance(llm_result.get("slots"), dict) else {}
+        llm_reply = sanitize_text(llm_result.get("reply"))
         if not intent and llm_intent:
             intent = llm_intent
         slots.update(llm_slots)
 
-    use_gemini = bool(GEMINI_API_KEY)
-    allow_local_fallback = (not use_gemini) or AI_LOCAL_FALLBACK
-
-    if not intent and allow_local_fallback:
-        intent = normalize_ai_intent(detect_ai_intent(text))
-
     if not intent:
-        if use_gemini:
-            return {
-                "status": "needs_input",
-                "reply": "Non ho riconosciuto il comando. Riformulalo in modo piu diretto (azione, importo, soggetto, data).",
-                "pending": pending if isinstance(pending, dict) else None,
-            }
         return {
             "status": "needs_input",
-            "reply": (
-                "Posso aiutarti con: spesa acquisto casa, spesa ristrutturazione, "
-                "prestito ricevuto, rimborso. Dimmi una frase tipo 'aggiungi rimborso a Sandro di 1000 euro'."
-            ),
-            "pending": None,
+            "reply": llm_reply or "Non ho riconosciuto il comando. Riformulalo in modo piu diretto (azione, importo, soggetto, data).",
+            "pending": pending if isinstance(pending, dict) else None,
         }
-
-    if allow_local_fallback:
-        parsed_slots = parse_slots_for_intent(intent, text)
-        slots.update(parsed_slots)
 
     required = required_slots_for_intent(intent)
     missing = [field for field in required if not slots.get(field)]
-
-    # In follow-up turns, users often answer with just the missing value
-    # (e.g. "Sandro"). Accept direct replies to avoid clarification loops.
-    if pending and text and missing:
-        target = missing[0]
-        if target == "lender":
-            slots["lender"] = sanitize_text(text)
-        elif target == "description":
-            slots["description"] = sanitize_text(text)
-        elif target == "amount":
-            direct_amount = parse_amount_from_text(text)
-            if direct_amount is None:
-                try:
-                    direct_amount = parse_amount(text)
-                except ValueError:
-                    direct_amount = None
-            if direct_amount is not None:
-                slots["amount"] = direct_amount
-        elif target == "date":
-            direct_date = parse_date_from_text(text)
-            if direct_date is None:
-                try:
-                    direct_date = parse_iso_date(text).isoformat()
-                except ValueError:
-                    direct_date = None
-            if direct_date:
-                slots["date"] = direct_date
-
-        missing = [field for field in required if not slots.get(field)]
 
     if missing:
         return {
