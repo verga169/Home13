@@ -50,6 +50,12 @@
         "date": "2026-03-10",
         "description": "TV",
         "amount": 1000.0
+      },
+      {
+        "id": "74120504ef",
+        "date": "2026-03-10",
+        "description": "tv",
+        "amount": 1000.0
       }
     ]
   },

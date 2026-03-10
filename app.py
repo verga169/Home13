@@ -10,7 +10,8 @@ from datetime import date, datetime, timedelta
 import unicodedata
 from uuid import uuid4
 
-from flask import Flask, Response, jsonify, redirect, render_template, request, send_from_directory, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, request, send_from_directory, session, url_for
+from werkzeug.security import check_password_hash
 
 try:
     import psycopg
@@ -50,6 +51,16 @@ USE_DATABASE = bool(DATABASE_URL)
 GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
 GEMINI_MODEL = (os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash").strip()
 
+AUTH_USERNAME = (os.environ.get("HOME13_AUTH_USERNAME") or "admin").strip()
+AUTH_PASSWORD = os.environ.get("HOME13_AUTH_PASSWORD")
+AUTH_PASSWORD_HASH = (os.environ.get("HOME13_AUTH_PASSWORD_HASH") or "").strip()
+
+app.secret_key = (
+    (os.environ.get("FLASK_SECRET_KEY") or "").strip()
+    or (os.environ.get("SECRET_KEY") or "").strip()
+    or "home13-dev-secret-change-me"
+)
+
 DEFAULT_DATA = {
     "expenses": {
         "acquisto_casa": [],
@@ -69,6 +80,34 @@ def get_gemini_api_key() -> str:
 def get_gemini_model() -> str:
     load_local_env()
     return (os.environ.get("GEMINI_MODEL") or GEMINI_MODEL or "gemini-2.5-flash").strip()
+
+
+def is_authenticated() -> bool:
+    return bool(session.get("authenticated"))
+
+
+def _is_safe_next_path(next_path: str) -> bool:
+    target = sanitize_text(next_path)
+    return bool(target) and target.startswith("/") and not target.startswith("//")
+
+
+def verify_login_credentials(username: str, password: str) -> bool:
+    if sanitize_text(username) != AUTH_USERNAME:
+        return False
+
+    raw_password = password or ""
+
+    if AUTH_PASSWORD_HASH:
+        try:
+            return check_password_hash(AUTH_PASSWORD_HASH, raw_password)
+        except Exception:
+            return False
+
+    if AUTH_PASSWORD is not None:
+        return raw_password == AUTH_PASSWORD
+
+    # Last-resort local default for first bootstrap. Override via env in production.
+    return raw_password == "admin"
 
 
 def format_euro(value: float) -> str:
@@ -1642,6 +1681,51 @@ def bootstrap_database_if_needed():
     ensure_database_ready()
     _db_bootstrap_done = True
     return None
+
+
+@app.before_request
+def require_login_for_app_routes():
+    endpoint = request.endpoint or ""
+    public_endpoints = {"login", "health_check", "static", "service_worker"}
+
+    if endpoint in public_endpoints or endpoint.startswith("static"):
+        return None
+    if is_authenticated():
+        return None
+
+    next_path = request.full_path if request.query_string else request.path
+    return redirect(url_for("login", next=next_path))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if is_authenticated():
+        return redirect(url_for("index"))
+
+    error = None
+    next_path = sanitize_text(request.args.get("next"))
+
+    if request.method == "POST":
+        username = sanitize_text(request.form.get("username"))
+        password = request.form.get("password") or ""
+        form_next = sanitize_text(request.form.get("next"))
+
+        if verify_login_credentials(username, password):
+            session.clear()
+            session["authenticated"] = True
+            session["username"] = AUTH_USERNAME
+            target = form_next if _is_safe_next_path(form_next) else next_path
+            return redirect(target if _is_safe_next_path(target) else url_for("index"))
+
+        error = "Credenziali non valide."
+
+    return render_template("login.html", error=error, next_path=next_path, default_username=AUTH_USERNAME)
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 
 @app.route("/", methods=["GET"])

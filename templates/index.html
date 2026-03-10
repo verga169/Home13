@@ -150,6 +150,10 @@
             margin-bottom: 10px;
         }
 
+        .inline-form {
+            margin: 0;
+        }
+
         .filter-bar {
             display: flex;
             gap: 8px;
@@ -629,6 +633,9 @@
         <section class="actions">
             <a class="btn btn-brand" href="{{ url_for('export_excel') }}">Export Excel</a>
             <a class="btn btn-light" href="{{ url_for('export_pdf') }}">Export PDF</a>
+            <form class="inline-form" method="post" action="{{ url_for('logout') }}">
+                <button class="btn btn-light" type="submit">Logout</button>
+            </form>
             <button class="btn btn-light hidden" id="install-app-btn" type="button">Installa app</button>
         </section>
 

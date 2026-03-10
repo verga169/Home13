@@ -72,6 +72,26 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 	- in UI mostra stato di elaborazione (busy indicator) dopo invio comando
 	- errori API Gemini mostrati in modo esplicito (es. quota 429, key/permessi 401/403, timeout rete)
 
+## Login e Sicurezza
+
+- L'app richiede autenticazione per tutte le route applicative.
+- Route pubbliche senza login: `GET /health`, asset statici, `GET /sw.js`.
+- Endpoint login: `GET/POST /login`
+- Logout: `POST /logout`
+
+Variabili ambiente consigliate:
+
+- `FLASK_SECRET_KEY=<chiave_random_lunga>`
+- `HOME13_AUTH_USERNAME=<username_login>`
+- una delle due password:
+	- `HOME13_AUTH_PASSWORD=<password_plaintext>`
+	- `HOME13_AUTH_PASSWORD_HASH=<hash_werkzeug_pbkdf2>`
+
+Note:
+
+- Se non imposti la password, fallback locale: `admin` (da usare solo per bootstrap).
+- In produzione imposta sempre `FLASK_SECRET_KEY` e credenziali dedicate.
+
 ## Avvio Locale (Windows)
 
 1. Installa dipendenze:
@@ -104,6 +124,9 @@ start_app.bat
 - Start command: `bash render-start.sh`
 - Variabili ambiente minime consigliate:
 	- `DATABASE_URL=<url_neon>`
+	- `FLASK_SECRET_KEY=<chiave_random_lunga>`
+	- `HOME13_AUTH_USERNAME=<username_login>`
+	- `HOME13_AUTH_PASSWORD=<password_login>`
 
 Repository include anche:
 - `Procfile` con entry web su Gunicorn
