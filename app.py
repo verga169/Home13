@@ -265,6 +265,11 @@ def parse_date_from_text(raw_value: str) -> str | None:
         except ValueError:
             return None
 
+    year_first_match = re.search(r"\b(\d{4})[./-](\d{1,2})[./-](\d{1,2})\b", text)
+    if year_first_match:
+        year_part, month_part, day_part = year_first_match.groups()
+        return safe_date(int(year_part), int(month_part), int(day_part))
+
     it_match = re.search(r"\b(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})\b", text)
     if it_match:
         day_part, month_part, year_part = it_match.groups()
@@ -793,6 +798,10 @@ def describe_item_for_delete(intent: str, item: dict) -> str:
 def parse_slots_for_intent(intent: str, raw_value: str) -> dict:
     slots: dict = {}
 
+    date_validation_error = detect_date_validation_error(raw_value)
+    if date_validation_error:
+        slots["date_error"] = date_validation_error
+
     parsed_date = parse_date_from_text(raw_value)
     if parsed_date:
         slots["date"] = parsed_date
@@ -801,7 +810,7 @@ def parse_slots_for_intent(intent: str, raw_value: str) -> dict:
     if parsed_amount is not None:
         slots["amount"] = parsed_amount
 
-    if intent in {"add_repayment", "add_loan"}:
+    if intent in {"add_repayment", "add_loan", "delete_repayment", "delete_loan"}:
         lender = parse_lender_from_text(raw_value)
         if lender:
             slots["lender"] = lender
@@ -815,7 +824,7 @@ def parse_slots_for_intent(intent: str, raw_value: str) -> dict:
 
 def ask_for_missing_slot(intent: str, missing_slot: str) -> str:
     if missing_slot == "date":
-        return "Per quale data vuoi registrarlo? (es: 2026-03-10 o 10/03/2026)"
+        return "Per quale data vuoi registrarlo? (es: 10/03/2026; accetto anche 2026-03-10)"
     if missing_slot == "amount":
         return "Qual e l'importo esatto in euro?"
     if missing_slot == "lender":
@@ -940,6 +949,60 @@ def is_capabilities_question(text: str) -> bool:
     return any(trigger in normalized for trigger in triggers)
 
 
+def detect_date_validation_error(raw_value: str) -> str | None:
+    text = normalize_text(raw_value)
+    if not text:
+        return None
+
+    year_first_match = re.search(r"\b(\d{4})[./-](\d{1,2})[./-](\d{1,2})\b", text)
+    if not year_first_match:
+        return None
+
+    year_part, month_part, day_part = year_first_match.groups()
+    year_value = int(year_part)
+    month_value = int(month_part)
+    day_value = int(day_part)
+
+    if month_value < 1 or month_value > 12:
+        return "Data non valida: nel formato con anno iniziale (YYYY-MM-DD) il mese deve essere tra 1 e 12."
+    if day_value < 1 or day_value > 31:
+        return "Data non valida: il giorno deve essere tra 1 e 31."
+    try:
+        date(year_value, month_value, day_value)
+    except ValueError:
+        return "Data non valida: combinazione anno/mese/giorno inesatta."
+
+    return None
+
+
+def local_smalltalk_reply(text: str, pending: dict | None) -> str | None:
+    normalized = normalize_text(text)
+    if not normalized:
+        return None
+
+    if normalized in {"annulla", "stop", "cancel", "esci", "lascia perdere"}:
+        if pending:
+            return "Operazione annullata."
+        return "Non c'e nessuna operazione in corso da annullare."
+
+    if normalized in {"ciao", "salve", "buongiorno", "buonasera", "hey", "ehi"}:
+        return "Ciao. Posso aiutarti ad aggiungere o rimuovere movimenti di spese, prestiti e rimborsi."
+
+    if normalized in {"grazie", "ti ringrazio", "thanks", "thank you"}:
+        return "Di nulla. Se vuoi, possiamo inserire o rimuovere un'altra operazione."
+
+    if "cosa puoi fare" in normalized or "come funzioni" in normalized:
+        return ai_capabilities_reply()
+
+    if re.search(r"\b(modifica|aggiorna|edit)\b", normalized):
+        return "Posso aggiungere o rimuovere movimenti via chat. Per modificare una voce esistente usa il tasto modifica nella tabella."
+
+    if re.search(r"\b(mostra|elenca|lista|riepilogo|totale|saldo)\b", normalized):
+        return "Per ora i riepiloghi si leggono nella dashboard e nelle tabelle qui sotto. Via chat gestisco soprattutto inserimenti e rimozioni."
+
+    return None
+
+
 def process_ai_command(message: str, pending: dict | None) -> dict:
     text = sanitize_text(message)
     if not text and not pending:
@@ -981,35 +1044,56 @@ def process_ai_command(message: str, pending: dict | None) -> dict:
             "pending": pending,
         }
 
+    quick_reply = local_smalltalk_reply(text, pending if isinstance(pending, dict) else None)
+    if quick_reply:
+        return {
+            "status": "needs_input",
+            "reply": quick_reply,
+            "pending": None if normalize_text(text) in {"annulla", "stop", "cancel", "esci", "lascia perdere"} else (pending if isinstance(pending, dict) else None),
+        }
+
     intent = None
     slots: dict = {}
     if isinstance(pending, dict):
         intent = sanitize_text(pending.get("intent"))
         slots = pending.get("slots") if isinstance(pending.get("slots"), dict) else {}
 
-    if not get_gemini_api_key():
-        return {
-            "status": "error",
-            "reply": "GEMINI_API_KEY non configurata. Imposta la variabile ambiente (locale o Render) e riavvia l'app.",
-            "pending": pending if isinstance(pending, dict) else None,
-        }
+    local_intent = normalize_ai_intent(intent) or detect_ai_intent(text)
+    if local_intent:
+        parsed_slots = parse_slots_for_intent(local_intent, text)
+        if parsed_slots.get("date_error"):
+            return {
+                "status": "needs_input",
+                "reply": parsed_slots["date_error"],
+                "pending": {"intent": local_intent, "slots": {k: v for k, v in slots.items() if k != "date_error"}},
+            }
+        intent = local_intent
+        slots.update({k: v for k, v in parsed_slots.items() if k != "date_error"})
 
-    llm_result = parse_with_gemini(text, pending)
     llm_reply = ""
-    if not llm_result.get("ok"):
-        return {
-            "status": "error",
-            "reply": sanitize_text(llm_result.get("reply")) or "Gemini non disponibile in questo momento. Riprova tra poco.",
-            "pending": pending if isinstance(pending, dict) else None,
-        }
+    if not intent:
+        if not get_gemini_api_key():
+            return {
+                "status": "error",
+                "reply": "GEMINI_API_KEY non configurata. Imposta la variabile ambiente (locale o Render) e riavvia l'app.",
+                "pending": pending if isinstance(pending, dict) else None,
+            }
 
-    if llm_result:
-        llm_intent = llm_result.get("intent")
-        llm_slots = llm_result.get("slots") if isinstance(llm_result.get("slots"), dict) else {}
-        llm_reply = sanitize_text(llm_result.get("reply"))
-        if not intent and llm_intent:
-            intent = llm_intent
-        slots.update(llm_slots)
+        llm_result = parse_with_gemini(text, pending)
+        if not llm_result.get("ok"):
+            return {
+                "status": "error",
+                "reply": sanitize_text(llm_result.get("reply")) or "Gemini non disponibile in questo momento. Riprova tra poco.",
+                "pending": pending if isinstance(pending, dict) else None,
+            }
+
+        if llm_result:
+            llm_intent = llm_result.get("intent")
+            llm_slots = llm_result.get("slots") if isinstance(llm_result.get("slots"), dict) else {}
+            llm_reply = sanitize_text(llm_result.get("reply"))
+            if llm_intent:
+                intent = llm_intent
+            slots.update(llm_slots)
 
     if not intent:
         return {
