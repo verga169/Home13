@@ -108,6 +108,8 @@ def inject_asset_urls() -> dict:
     favicon_v = _asset_mtime(os.path.join("static", "favicon.ico"))
     favicon16_v = _asset_mtime(os.path.join("static", "favicon-16x16.png"))
     favicon32_v = _asset_mtime(os.path.join("static", "favicon-32x32.png"))
+    android192_v = _asset_mtime(os.path.join("static", "android-chrome-192x192.png"))
+    android512_v = _asset_mtime(os.path.join("static", "android-chrome-512x512.png"))
     apple_touch_v = _asset_mtime(os.path.join("static", "apple-touch-icon.png"))
     manifest_v = _asset_mtime(os.path.join("static", "site.webmanifest"))
     sw_v = _asset_mtime(os.path.join("static", "sw.js"))
@@ -115,6 +117,8 @@ def inject_asset_urls() -> dict:
         "favicon_ico_url": url_for("static", filename="favicon.ico", v=favicon_v),
         "favicon_16_url": url_for("static", filename="favicon-16x16.png", v=favicon16_v),
         "favicon_32_url": url_for("static", filename="favicon-32x32.png", v=favicon32_v),
+        "android_192_url": url_for("static", filename="android-chrome-192x192.png", v=android192_v),
+        "android_512_url": url_for("static", filename="android-chrome-512x512.png", v=android512_v),
         "apple_touch_icon_url": url_for("static", filename="apple-touch-icon.png", v=apple_touch_v),
         "manifest_url": url_for("static", filename="site.webmanifest", v=manifest_v),
         "sw_url": url_for("service_worker", v=sw_v),
