@@ -1108,5 +1108,7 @@ def export_pdf():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    raw_port = (os.environ.get("PORT") or "").strip()
+    port = int(raw_port) if raw_port.isdigit() else 5000
+    debug_mode = (os.environ.get("FLASK_DEBUG") or "").strip() == "1"
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
