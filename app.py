@@ -769,7 +769,6 @@ def build_excel_workbook(data: dict):
     ws.append(["Prestiti ricevuti", summary["loans_total"]])
     ws.append(["Rimborsi effettuati", summary["repayments_total"]])
     ws.append(["Debito residuo prestiti", summary["debito_residuo"]])
-    ws.append(["Cash netto", summary["cash_netto"]])
 
     for cell in ws[1]:
         cell.font = Font(bold=True)
