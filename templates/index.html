@@ -1439,16 +1439,25 @@
 
         installButton.addEventListener("click", async () => {
             if (!deferredInstallPrompt) {
+                showInstallHint("Installazione non disponibile in questo momento. Apri la pagina dal browser principale (Chrome/Safari) e riprova.");
                 return;
             }
 
-            deferredInstallPrompt.prompt();
-            const choiceResult = await deferredInstallPrompt.userChoice;
-            deferredInstallPrompt = null;
-            installButton.classList.add("hidden");
+            try {
+                deferredInstallPrompt.prompt();
+                const choiceResult = await deferredInstallPrompt.userChoice;
 
-            if (choiceResult && choiceResult.outcome === "dismissed") {
-                showInstallHint("Installazione annullata. Puoi riprovare dal pulsante quando disponibile.");
+                if (choiceResult && choiceResult.outcome === "dismissed") {
+                    showInstallHint("Installazione annullata. Puoi riprovare dal pulsante quando disponibile.");
+                    return;
+                }
+
+                showInstallHint("Richiesta di installazione inviata. Se non si completa, usa il menu del browser > 'Installa app' o 'Aggiungi a schermata Home'.");
+            } catch (error) {
+                showInstallHint("Impossibile completare l'installazione automatica. Prova dal menu del browser.");
+            } finally {
+                // Keep the button visible until the browser confirms installation.
+                deferredInstallPrompt = null;
             }
         });
 

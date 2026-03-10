@@ -1,6 +1,7 @@
 {
 	"name": "Home13",
 	"short_name": "Home13",
+	"id": "/",
 	"description": "Tracciamento spese casa, ristrutturazione, prestiti e rimborsi.",
 	"start_url": "/",
 	"scope": "/",

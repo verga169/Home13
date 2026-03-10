@@ -154,6 +154,15 @@ Se vedi `No open HTTP ports detected on 0.0.0.0`, verifica:
 
 Il repository include anche un `Procfile` con start command web esplicito per evitare configurazioni ambigue.
 
+### Troubleshooting Installazione PWA su Mobile
+
+Se il popup di installazione compare ma l'app non viene installata:
+
+- apri il sito nel browser principale del dispositivo (Chrome su Android, Safari su iOS), non dentro app come Instagram/Facebook/Teams
+- verifica che il dominio sia HTTPS (su Render lo e)
+- su Android prova anche da menu browser `Installa app`
+- su iOS usa `Condividi -> Aggiungi alla schermata Home`
+
 ## Dipendenze Principali
 
 - `flask`
