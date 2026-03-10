@@ -105,6 +105,10 @@ start_app.bat
 - Variabili ambiente minime consigliate:
 	- `DATABASE_URL=<url_neon>`
 
+Repository include anche:
+- `Procfile` con entry web su Gunicorn
+- `runtime.txt` (`python-3.11.10`) per fissare una versione Python compatibile
+
 L'app include `gunicorn.conf.py` per bind su `0.0.0.0:$PORT`.
 
 ### Troubleshooting Porta su Render
@@ -112,7 +116,8 @@ L'app include `gunicorn.conf.py` per bind su `0.0.0.0:$PORT`.
 Se vedi `No open HTTP ports detected on 0.0.0.0`, verifica:
 
 - Tipo servizio: `Web Service` (non `Background Worker`)
-- Start command effettivo: `gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 app:app`
+- Start command effettivo: `gunicorn --config gunicorn.conf.py app:app`
+- Python runtime: `3.11.x` (coerente con `runtime.txt`)
 - Health check path: `/health`
 
 Il repository include anche un `Procfile` con start command web esplicito per evitare configurazioni ambigue.
