@@ -90,10 +90,17 @@ def _asset_mtime(relative_path: str) -> str:
 @app.context_processor
 def inject_asset_urls() -> dict:
     favicon_v = _asset_mtime(os.path.join("static", "favicon.ico"))
+    favicon16_v = _asset_mtime(os.path.join("static", "favicon-16x16.png"))
+    favicon32_v = _asset_mtime(os.path.join("static", "favicon-32x32.png"))
+    apple_touch_v = _asset_mtime(os.path.join("static", "apple-touch-icon.png"))
+    manifest_v = _asset_mtime(os.path.join("static", "site.webmanifest"))
     sw_v = _asset_mtime(os.path.join("static", "sw.js"))
     return {
-        "favicon_url": url_for("static", filename="favicon.ico", v=favicon_v),
-        "manifest_url": url_for("web_manifest", v=favicon_v),
+        "favicon_ico_url": url_for("static", filename="favicon.ico", v=favicon_v),
+        "favicon_16_url": url_for("static", filename="favicon-16x16.png", v=favicon16_v),
+        "favicon_32_url": url_for("static", filename="favicon-32x32.png", v=favicon32_v),
+        "apple_touch_icon_url": url_for("static", filename="apple-touch-icon.png", v=apple_touch_v),
+        "manifest_url": url_for("static", filename="site.webmanifest", v=manifest_v),
         "sw_url": url_for("service_worker", v=sw_v),
     }
 
@@ -476,31 +483,6 @@ def health_check():
 @app.route("/sw.js", methods=["GET"])
 def service_worker():
     response = send_from_directory(os.path.join(BASE_DIR, "static"), "sw.js")
-    response.headers["Cache-Control"] = "no-cache"
-    return response
-
-
-@app.route("/manifest.webmanifest", methods=["GET"])
-def web_manifest():
-    favicon_v = _asset_mtime(os.path.join("static", "favicon.ico"))
-    payload = {
-        "name": "Home13",
-        "short_name": "Home13",
-        "description": "Tracciamento spese casa, ristrutturazione, prestiti e rimborsi.",
-        "start_url": "/",
-        "scope": "/",
-        "display": "standalone",
-        "background_color": "#f3f5f4",
-        "theme_color": "#0f766e",
-        "icons": [
-            {
-                "src": url_for("static", filename="favicon.ico", v=favicon_v),
-                "sizes": "any",
-                "type": "image/x-icon",
-            }
-        ],
-    }
-    response = Response(json.dumps(payload), mimetype="application/manifest+json")
     response.headers["Cache-Control"] = "no-cache"
     return response
 

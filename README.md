@@ -53,7 +53,7 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
 ## PWA (Installazione Smartphone)
 
-- Manifest dinamico: `GET /manifest.webmanifest`
+- Manifest statico: `GET /static/site.webmanifest`
 - Service worker: `static/sw.js` registrato su scope `/`
 - Endpoint service worker: `GET /sw.js`
 - Health check: `GET /health`

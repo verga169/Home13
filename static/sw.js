@@ -2,7 +2,7 @@ const VERSION = new URL(self.location.href).searchParams.get("v") || "v1";
 const CACHE_NAME = `home13-pwa-${VERSION}`;
 const APP_SHELL = [
   "/",
-  "/manifest.webmanifest"
+  "/static/site.webmanifest"
 ];
 
 self.addEventListener("install", (event) => {
@@ -51,7 +51,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.endsWith("/favicon.ico") || url.pathname.endsWith("/manifest.webmanifest")) {
+  if (
+    url.pathname.endsWith("/favicon.ico")
+    || url.pathname.endsWith("/site.webmanifest")
+    || url.pathname.endsWith("/favicon-16x16.png")
+    || url.pathname.endsWith("/favicon-32x32.png")
+    || url.pathname.endsWith("/apple-touch-icon.png")
+    || url.pathname.endsWith("/android-chrome-192x192.png")
+    || url.pathname.endsWith("/android-chrome-512x512.png")
+  ) {
     event.respondWith(
       fetch(request)
         .then((networkResponse) => {
