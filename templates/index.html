@@ -410,6 +410,27 @@
             margin-bottom: 12px;
         }
 
+        .ai-assistant-form {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .ai-bot-output {
+            margin: 0 0 10px;
+            border: 1px solid #b7dfd7;
+            background: linear-gradient(180deg, #f3fbf9 0%, #ecf7f4 100%);
+            color: #18443f;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 0.94rem;
+            line-height: 1.45;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+        }
+
         .install-panel {
             margin: 0 0 20px;
             padding: 12px 14px;
@@ -524,6 +545,9 @@
                 justify-content: center;
                 align-items: center;
             }
+            .ai-assistant-form {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 420px) {
@@ -576,6 +600,15 @@
             <a class="btn btn-brand" href="{{ url_for('export_excel') }}">Export Excel</a>
             <a class="btn btn-light" href="{{ url_for('export_pdf') }}">Export PDF</a>
             <button class="btn btn-light hidden" id="install-app-btn" type="button">Installa app</button>
+        </section>
+
+        <section class="card">
+            <h2>Assistente AI</h2>
+            <div id="ai-bot-output" class="ai-bot-output" aria-live="polite">Cosa posso fare per te?</div>
+            <form id="ai-assistant-form" class="ai-assistant-form">
+                <input id="ai-assistant-input" type="text" placeholder="Scrivi qui il comando" autocomplete="off" required>
+                <button class="btn btn-brand" type="submit">Invia</button>
+            </form>
         </section>
 
         <section class="chart-grid">
@@ -980,6 +1013,48 @@
                 input.value = input.value.replace(/[^\d.,\s]/g, "");
             });
         });
+
+        const aiAssistantForm = document.getElementById("ai-assistant-form");
+        const aiAssistantInput = document.getElementById("ai-assistant-input");
+        const aiBotOutput = document.getElementById("ai-bot-output");
+        let aiPending = null;
+
+        if (aiAssistantForm && aiAssistantInput) {
+            aiAssistantForm.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const message = (aiAssistantInput.value || "").trim();
+                if (!message) return;
+
+                aiAssistantInput.value = "";
+                aiAssistantInput.disabled = true;
+
+                try {
+                    const response = await fetch("/ai-command", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ message, pending: aiPending }),
+                    });
+
+                    const result = await response.json();
+                    const reply = (result && result.reply) ? result.reply : "Non sono riuscito a interpretare il comando.";
+                    if (aiBotOutput) {
+                        aiBotOutput.textContent = reply;
+                    }
+                    aiPending = result && result.pending ? result.pending : null;
+
+                    if (result && result.refresh) {
+                        window.setTimeout(() => window.location.reload(), 600);
+                    }
+                } catch (error) {
+                    if (aiBotOutput) {
+                        aiBotOutput.textContent = "Errore di connessione con l'assistente. Riprova.";
+                    }
+                } finally {
+                    aiAssistantInput.disabled = false;
+                    aiAssistantInput.focus();
+                }
+            });
+        }
 
         const payload = JSON.parse(document.getElementById("chart-data").textContent);
         const isMobile = window.matchMedia("(max-width: 620px)").matches;
