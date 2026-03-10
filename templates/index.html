@@ -389,12 +389,10 @@
 
         .loans-table {
             table-layout: fixed;
-            min-width: 760px;
         }
 
         .repayments-table {
             table-layout: fixed;
-            min-width: 760px;
         }
 
         .loans-table th:nth-child(1),
@@ -1235,11 +1233,30 @@
 
         restoreScrollPosition();
 
+        function closeAllEditRows(exceptRowId = null) {
+            document.querySelectorAll(".inline-edit-row.open").forEach((row) => {
+                if (exceptRowId && row.id === exceptRowId) return;
+                row.classList.remove("open");
+            });
+        }
+
         function toggleEditRow(rowId) {
             const target = document.getElementById(rowId);
             if (!target) return;
-            target.classList.toggle("open");
+
+            const isOpen = target.classList.contains("open");
+            closeAllEditRows(isOpen ? null : rowId);
+            if (!isOpen) {
+                target.classList.add("open");
+            }
         }
+
+        document.addEventListener("pointerdown", (event) => {
+            const insideEditRow = event.target.closest(".inline-edit-row");
+            const isEditToggle = event.target.closest(".btn-edit");
+            if (insideEditRow || isEditToggle) return;
+            closeAllEditRows();
+        });
 
         function normalizeItalianNumber(rawValue) {
             const raw = (rawValue || "").trim().replace(/\s+/g, "");
