@@ -431,6 +431,25 @@
             align-items: center;
         }
 
+        .ai-bot-output.is-loading {
+            color: #0f4f49;
+            border-color: #8bcfc2;
+            background: linear-gradient(180deg, #e9f7f3 0%, #e2f2ed 100%);
+            font-style: italic;
+        }
+
+        .ai-bot-output.is-loading::after {
+            content: "";
+            width: 12px;
+            height: 12px;
+            margin-left: 10px;
+            border-radius: 50%;
+            border: 2px solid rgba(15, 79, 73, 0.25);
+            border-top-color: #0f4f49;
+            animation: aiSpin 0.85s linear infinite;
+            flex: 0 0 auto;
+        }
+
         .install-panel {
             margin: 0 0 20px;
             padding: 12px 14px;
@@ -485,6 +504,15 @@
             to {
                 opacity: 1;
                 transform: translateY(0);
+            }
+        }
+
+        @keyframes aiSpin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
             }
         }
 
@@ -1017,6 +1045,7 @@
         const aiAssistantForm = document.getElementById("ai-assistant-form");
         const aiAssistantInput = document.getElementById("ai-assistant-input");
         const aiBotOutput = document.getElementById("ai-bot-output");
+        const aiAssistantSubmit = aiAssistantForm ? aiAssistantForm.querySelector('button[type="submit"]') : null;
         let aiPending = null;
 
         if (aiAssistantForm && aiAssistantInput) {
@@ -1027,6 +1056,14 @@
 
                 aiAssistantInput.value = "";
                 aiAssistantInput.disabled = true;
+                if (aiAssistantSubmit) {
+                    aiAssistantSubmit.disabled = true;
+                    aiAssistantSubmit.textContent = "Elaboro...";
+                }
+                if (aiBotOutput) {
+                    aiBotOutput.textContent = "Attendi, sto elaborando la richiesta...";
+                    aiBotOutput.classList.add("is-loading");
+                }
 
                 try {
                     const response = await fetch("/ai-command", {
@@ -1039,6 +1076,7 @@
                     const reply = (result && result.reply) ? result.reply : "Non sono riuscito a interpretare il comando.";
                     if (aiBotOutput) {
                         aiBotOutput.textContent = reply;
+                        aiBotOutput.classList.remove("is-loading");
                     }
                     aiPending = result && result.pending ? result.pending : null;
 
@@ -1048,9 +1086,14 @@
                 } catch (error) {
                     if (aiBotOutput) {
                         aiBotOutput.textContent = "Errore di connessione con l'assistente. Riprova.";
+                        aiBotOutput.classList.remove("is-loading");
                     }
                 } finally {
                     aiAssistantInput.disabled = false;
+                    if (aiAssistantSubmit) {
+                        aiAssistantSubmit.disabled = false;
+                        aiAssistantSubmit.textContent = "Invia";
+                    }
                     aiAssistantInput.focus();
                 }
             });

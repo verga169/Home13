@@ -430,6 +430,14 @@ def detect_ai_intent(raw_value: str) -> str | None:
     text = normalize_text(raw_value)
     if not text:
         return None
+    if re.search(r"\b(rimuovi|elimina|cancella|delete|togli)\b", text):
+        if re.search(r"\b(rimborso|rimborsi)\b", text):
+            return "delete_repayment"
+        if re.search(r"\b(prestito|prestiti)\b", text):
+            return "delete_loan"
+        if re.search(r"\b(ristrutturazione|ristrutturare|ristruttura)\b", text):
+            return "delete_expense_ristrutturazione"
+        return "delete_expense_acquisto_casa"
     if re.search(r"\b(rimborso|rimborsa|rimborsare|restituisco|restituzione)\b", text):
         return "add_repayment"
     if re.search(r"\b(prestito|prestare|ricevuto da|mi ha prestato)\b", text):
@@ -448,17 +456,25 @@ def normalize_ai_intent(raw_intent: str | None) -> str | None:
 
     aliases = {
         "add_repayment": "add_repayment",
+        "delete_repayment": "delete_repayment",
         "rimborso": "add_repayment",
         "repayment": "add_repayment",
+        "remove_repayment": "delete_repayment",
         "add_loan": "add_loan",
+        "delete_loan": "delete_loan",
         "prestito": "add_loan",
         "loan": "add_loan",
+        "remove_loan": "delete_loan",
         "add_expense_acquisto_casa": "add_expense_acquisto_casa",
+        "delete_expense_acquisto_casa": "delete_expense_acquisto_casa",
         "acquisto_casa": "add_expense_acquisto_casa",
         "expense_acquisto": "add_expense_acquisto_casa",
+        "remove_expense_acquisto": "delete_expense_acquisto_casa",
         "add_expense_ristrutturazione": "add_expense_ristrutturazione",
+        "delete_expense_ristrutturazione": "delete_expense_ristrutturazione",
         "ristrutturazione": "add_expense_ristrutturazione",
         "expense_ristrutturazione": "add_expense_ristrutturazione",
+        "remove_expense_ristrutturazione": "delete_expense_ristrutturazione",
     }
     return aliases.get(intent)
 
@@ -502,7 +518,7 @@ def parse_slots_from_gemini(intent: str, llm_slots: dict) -> dict:
     if not isinstance(llm_slots, dict):
         return slots
 
-    if intent in {"add_repayment", "add_loan"}:
+    if intent in {"add_repayment", "add_loan", "delete_repayment", "delete_loan"}:
         lender = sanitize_text(llm_slots.get("lender"))
         if lender:
             slots["lender"] = lender
@@ -531,6 +547,22 @@ def parse_slots_from_gemini(intent: str, llm_slots: dict) -> dict:
             except ValueError:
                 pass
 
+    item_id_raw = llm_slots.get("id")
+    if isinstance(item_id_raw, str):
+        item_id = sanitize_text(item_id_raw)
+        if item_id:
+            slots["id"] = item_id
+
+    confirm_raw = llm_slots.get("confirm")
+    if isinstance(confirm_raw, bool):
+        slots["confirm"] = confirm_raw
+    elif isinstance(confirm_raw, str):
+        normalized_confirm = normalize_text(confirm_raw)
+        if normalized_confirm in {"si", "s", "ok", "confermo", "yes", "y"}:
+            slots["confirm"] = True
+        elif normalized_confirm in {"no", "n", "annulla", "stop", "cancel"}:
+            slots["confirm"] = False
+
     return slots
 
 
@@ -546,8 +578,9 @@ def parse_with_gemini(message: str, pending: dict | None) -> dict:
         "Interpreta il comando utente per un'app di finanza domestica. "
         "Rispondi SOLO con JSON valido (nessun testo extra). "
         "Schema: "
-        "{\"intent\":string|null,\"reply\":string,\"slots\":{\"lender\":string|null,\"description\":string|null,\"amount\":number|string|null,\"date\":string|null}}. "
-        "Intent consentiti: add_repayment, add_loan, add_expense_acquisto_casa, add_expense_ristrutturazione. "
+        "{\"intent\":string|null,\"reply\":string,\"slots\":{\"lender\":string|null,\"description\":string|null,\"amount\":number|string|null,\"date\":string|null,\"id\":string|null,\"confirm\":boolean|null}}. "
+        "Intent consentiti: add_repayment, add_loan, add_expense_acquisto_casa, add_expense_ristrutturazione, delete_repayment, delete_loan, delete_expense_acquisto_casa, delete_expense_ristrutturazione. "
+        "Nel campo reply non usare mai i nomi tecnici degli intent (es: add_repayment), usa italiano naturale. "
         "Se il messaggio non richiede una registrazione di movimento, metti intent=null e fornisci reply utile e concisa in italiano. "
         "Date ammesse in output: ISO yyyy-mm-dd se certa, altrimenti stringa originale da cui dedurre. "
         f"Stato pending corrente: {json.dumps(pending_payload, ensure_ascii=False)}. "
@@ -632,9 +665,129 @@ def parse_with_gemini(message: str, pending: dict | None) -> dict:
 
 
 def required_slots_for_intent(intent: str) -> list[str]:
+    if intent in {
+        "delete_repayment",
+        "delete_loan",
+        "delete_expense_acquisto_casa",
+        "delete_expense_ristrutturazione",
+    }:
+        return []
     if intent in {"add_repayment", "add_loan"}:
         return ["lender", "amount", "date"]
     return ["description", "amount", "date"]
+
+
+def is_delete_intent(intent: str | None) -> bool:
+    return intent in {
+        "delete_repayment",
+        "delete_loan",
+        "delete_expense_acquisto_casa",
+        "delete_expense_ristrutturazione",
+    }
+
+
+def is_yes_reply(text: str) -> bool:
+    normalized = normalize_text(text)
+    return normalized in {"si", "s", "ok", "confermo", "yes", "y", "procedi"}
+
+
+def is_no_reply(text: str) -> bool:
+    normalized = normalize_text(text)
+    return normalized in {"no", "n", "annulla", "stop", "cancel", "non confermo"}
+
+
+def _amount_matches(entry_amount: float, slot_amount: float) -> bool:
+    return abs(float(entry_amount) - float(slot_amount)) < 0.01
+
+
+def find_delete_candidates(intent: str, slots: dict) -> list[dict]:
+    data = load_data()
+
+    if intent == "delete_repayment":
+        entries = data["repayments"]
+        text_key = "lender"
+        section = "repayments"
+    elif intent == "delete_loan":
+        entries = data["loans"]
+        text_key = "lender"
+        section = "loans"
+    elif intent == "delete_expense_ristrutturazione":
+        entries = data["expenses"]["ristrutturazione"]
+        text_key = "description"
+        section = "ristrutturazione"
+    else:
+        entries = data["expenses"]["acquisto_casa"]
+        text_key = "description"
+        section = "acquisto_casa"
+
+    slot_id = sanitize_text(slots.get("id"))
+    if slot_id:
+        for item in entries:
+            if sanitize_text(item.get("id")) == slot_id:
+                return [{"section": section, "item": item}]
+        return []
+
+    slot_amount = slots.get("amount")
+    slot_date = sanitize_text(slots.get("date"))
+    slot_text = sanitize_text(slots.get("lender") or slots.get("description"))
+
+    candidates = []
+    for item in entries:
+        if slot_amount is not None and not _amount_matches(item.get("amount", 0.0), slot_amount):
+            continue
+        if slot_date and sanitize_text(item.get("date")) != slot_date:
+            continue
+        if slot_text and normalize_text(item.get(text_key, "")) != normalize_text(slot_text):
+            continue
+        candidates.append({"section": section, "item": item})
+
+    return candidates
+
+
+def delete_ai_operation(intent: str, item_id: str) -> bool:
+    if intent == "delete_repayment":
+        section = "repayments"
+    elif intent == "delete_loan":
+        section = "loans"
+    elif intent == "delete_expense_ristrutturazione":
+        section = "ristrutturazione"
+    else:
+        section = "acquisto_casa"
+
+    if USE_DATABASE:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                if section in {"acquisto_casa", "ristrutturazione"}:
+                    cur.execute("DELETE FROM expenses WHERE id = %s AND category = %s", (item_id, section))
+                elif section == "loans":
+                    cur.execute("DELETE FROM loans WHERE id = %s", (item_id,))
+                else:
+                    cur.execute("DELETE FROM repayments WHERE id = %s", (item_id,))
+                deleted = cur.rowcount > 0
+            if deleted:
+                conn.commit()
+        return deleted
+
+    data = load_data()
+    if section in {"acquisto_casa", "ristrutturazione"}:
+        deleted = remove_by_id(data["expenses"][section], item_id)
+    elif section == "loans":
+        deleted = remove_by_id(data["loans"], item_id)
+    else:
+        deleted = remove_by_id(data["repayments"], item_id)
+    if deleted:
+        save_data(data)
+    return deleted
+
+
+def describe_item_for_delete(intent: str, item: dict) -> str:
+    amount = format_euro(item.get("amount", 0.0))
+    item_date = format_date_it(item.get("date", ""))
+    if intent in {"delete_repayment", "delete_loan"}:
+        who = item.get("lender", "Sconosciuto")
+        kind = "rimborso" if intent == "delete_repayment" else "prestito"
+        return f"{kind} di {amount} EUR ({who}, {item_date})"
+    return f"spesa '{item.get('description', '')}' di {amount} EUR ({item_date})"
 
 
 def parse_slots_for_intent(intent: str, raw_value: str) -> dict:
@@ -764,10 +917,69 @@ def ai_intent_confirmation(intent: str, item: dict) -> str:
     )
 
 
+def ai_capabilities_reply() -> str:
+    return (
+        "Posso aiutarti a registrare e rimuovere movimenti: rimborsi, prestiti ricevuti, "
+        "spese di acquisto casa e spese di ristrutturazione. "
+        "Se vuoi, scrivimi direttamente una frase come: "
+        "'Aggiungi rimborso di 120 euro a Marco oggi' oppure 'Rimuovi il rimborso da 120 euro a Marco'."
+    )
+
+
+def is_capabilities_question(text: str) -> bool:
+    normalized = normalize_text(text)
+    triggers = [
+        "cosa puoi fare",
+        "cosa sai fare",
+        "che cosa puoi fare",
+        "che cosa sai fare",
+        "come puoi aiutarmi",
+        "in cosa puoi aiutarmi",
+        "quali operazioni puoi registrare",
+    ]
+    return any(trigger in normalized for trigger in triggers)
+
+
 def process_ai_command(message: str, pending: dict | None) -> dict:
     text = sanitize_text(message)
     if not text and not pending:
         raise ValueError("Inserisci un comando testuale.")
+
+    if is_capabilities_question(text):
+        return {
+            "status": "needs_input",
+            "reply": ai_capabilities_reply(),
+            "pending": pending if isinstance(pending, dict) else None,
+        }
+
+    if isinstance(pending, dict) and pending.get("action") == "confirm_delete":
+        pending_intent = sanitize_text(pending.get("intent"))
+        pending_item_id = sanitize_text(pending.get("item_id"))
+        if is_yes_reply(text):
+            deleted = delete_ai_operation(pending_intent, pending_item_id)
+            if deleted:
+                return {
+                    "status": "completed",
+                    "reply": "Operazione rimossa correttamente.",
+                    "pending": None,
+                    "refresh": True,
+                }
+            return {
+                "status": "error",
+                "reply": "Non ho trovato l'operazione da eliminare. Potrebbe essere gia stata rimossa.",
+                "pending": None,
+            }
+        if is_no_reply(text):
+            return {
+                "status": "needs_input",
+                "reply": "Ok, eliminazione annullata.",
+                "pending": None,
+            }
+        return {
+            "status": "needs_input",
+            "reply": "Confermi l'eliminazione? Rispondi con 'si' o 'no'.",
+            "pending": pending,
+        }
 
     intent = None
     slots: dict = {}
@@ -804,6 +1016,34 @@ def process_ai_command(message: str, pending: dict | None) -> dict:
             "status": "needs_input",
             "reply": llm_reply or "Non ho riconosciuto il comando. Riformulalo in modo piu diretto (azione, importo, soggetto, data).",
             "pending": pending if isinstance(pending, dict) else None,
+        }
+
+    if is_delete_intent(intent):
+        candidates = find_delete_candidates(intent, slots)
+        if not candidates:
+            return {
+                "status": "needs_input",
+                "reply": "Non trovo una voce da eliminare con questi dettagli. Indicami almeno importo e tipo operazione (rimborso, prestito, acquisto casa, ristrutturazione).",
+                "pending": {"intent": intent, "slots": slots},
+            }
+
+        if len(candidates) > 1:
+            preview = "; ".join(describe_item_for_delete(intent, row["item"]) for row in candidates[:3])
+            return {
+                "status": "needs_input",
+                "reply": f"Ho trovato piu voci possibili: {preview}. Aggiungi data o soggetto/voce per identificare quella corretta.",
+                "pending": {"intent": intent, "slots": slots},
+            }
+
+        target_item = candidates[0]["item"]
+        return {
+            "status": "needs_input",
+            "reply": f"Confermi di voler eliminare {describe_item_for_delete(intent, target_item)}?",
+            "pending": {
+                "action": "confirm_delete",
+                "intent": intent,
+                "item_id": target_item.get("id"),
+            },
         }
 
     required = required_slots_for_intent(intent)

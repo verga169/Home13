@@ -63,10 +63,14 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 - Endpoint: `POST /ai-command`
 - Configurazione via env:
 	- `GEMINI_API_KEY=<chiave_api_gemini>`
-	- `GEMINI_MODEL=gemini-2.0-flash` (opzionale)
+	- `GEMINI_MODEL=gemini-2.5-flash` (opzionale, default)
 - Comportamento:
-	- usa sempre Gemini per interpretare i comandi
-	- se Gemini non e disponibile, il bot risponde con errore temporaneo (nessun fallback locale)
+	- usa sempre Gemini per interpretare i comandi (nessun fallback locale)
+	- supporta inserimento e rimozione movimenti per: rimborsi, prestiti, acquisto casa, ristrutturazione
+	- per le rimozioni richiede conferma esplicita (`si`/`no`) prima di eliminare
+	- in caso di ambiguita chiede dettagli aggiuntivi (es. importo/data/soggetto)
+	- in UI mostra stato di elaborazione (busy indicator) dopo invio comando
+	- errori API Gemini mostrati in modo esplicito (es. quota 429, key/permessi 401/403, timeout rete)
 
 ## Avvio Locale (Windows)
 
