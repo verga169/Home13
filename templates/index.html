@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Home13 - Spese Casa e Ristrutturazione</title>
     <meta name="theme-color" content="#0f766e">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -512,6 +512,11 @@
             <p>Gestisci spese casa, prestiti e rimborsi in un unico cruscotto.</p>
         </section>
 
+        <div id="install-panel" class="install-panel hidden">
+            <p class="install-title"><span class="install-icon" aria-hidden="true">i</span>Installazione app</p>
+            <p id="install-hint" class="install-hint"></p>
+        </div>
+
         {% if error %}
         <div class="error">{{ error }}</div>
         {% endif %}
@@ -544,10 +549,6 @@
             <a class="btn btn-light" href="{{ url_for('export_pdf') }}">Export PDF</a>
             <button class="btn btn-light hidden" id="install-app-btn" type="button">Installa app</button>
         </section>
-        <div id="install-panel" class="install-panel hidden">
-            <p class="install-title"><span class="install-icon" aria-hidden="true">i</span>Installazione app</p>
-            <p id="install-hint" class="install-hint"></p>
-        </div>
 
         <section class="chart-grid">
             <article class="card chart-card">
@@ -1047,9 +1048,10 @@
                     legend: { display: false },
                     zoom: {
                         zoom: {
-                            wheel: { enabled: true },
-                            pinch: { enabled: true },
+                            wheel: { enabled: true, speed: 0.04 },
+                            pinch: { enabled: true, threshold: 0.18 },
                             drag: { enabled: true },
+                            speed: 0.04,
                             mode: "xy",
                         },
                         pan: {
@@ -1179,9 +1181,10 @@
                             mode: "x",
                         },
                         zoom: {
-                            wheel: { enabled: true },
-                            pinch: { enabled: true },
+                            wheel: { enabled: true, speed: 0.04 },
+                            pinch: { enabled: true, threshold: 0.18 },
                             drag: { enabled: true },
+                            speed: 0.04,
                             mode: "x",
                         },
                     },
