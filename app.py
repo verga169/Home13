@@ -521,6 +521,15 @@ def detect_ai_intent(raw_value: str) -> str | None:
     text = normalize_text(raw_value)
     if not text:
         return None
+
+    house_purchase_pattern = (
+        r"\b("
+        r"acquisto\s+casa|acquisto\s+immobile|compr[a-z]*\s+casa|compr[a-z]*\s+immobile|"
+        r"rogito|notaio|agenzia\s+immobiliare|compromesso|caparra|mutuo|atto\s+di\s+vendita|"
+        r"venditore|compravendita|imposta\s+di\s+registro"
+        r")\b"
+    )
+
     if re.search(r"\b(rimuovi|elimina|cancella|delete|togli)\b", text):
         if re.search(r"\b(rimborso|rimborsi)\b", text):
             return "delete_repayment"
@@ -528,15 +537,21 @@ def detect_ai_intent(raw_value: str) -> str | None:
             return "delete_loan"
         if re.search(r"\b(ristrutturazione|ristrutturare|ristruttura)\b", text):
             return "delete_expense_ristrutturazione"
+        if re.search(house_purchase_pattern, text):
+            return "delete_expense_acquisto_casa"
+        if re.search(r"\b(acquisto|acquistat[oaie]|comprat[oaie]|ho\s+comprato|ho\s+acquistato)\b", text):
+            return "delete_expense_ristrutturazione"
         return "delete_expense_acquisto_casa"
     if re.search(r"\b(rimborso|rimborsa|rimborsare|restituisco|restituzione)\b", text):
         return "add_repayment"
     if re.search(r"\b(prestito|prestare|ricevuto da|mi ha prestato)\b", text):
         return "add_loan"
+    if re.search(house_purchase_pattern, text):
+        return "add_expense_acquisto_casa"
     if re.search(r"\b(ristrutturazione|ristrutturare|ristruttura)\b", text):
         return "add_expense_ristrutturazione"
-    if re.search(r"\b(acquisto|acquistato|casa|immobile|rogito|notaio|agenzia)\b", text):
-        return "add_expense_acquisto_casa"
+    if re.search(r"\b(acquisto|acquistat[oaie]|comprat[oaie]|ho\s+comprato|ho\s+acquistato)\b", text):
+        return "add_expense_ristrutturazione"
     return None
 
 
@@ -671,6 +686,8 @@ def parse_with_gemini(message: str, pending: dict | None) -> dict:
         "Schema: "
         "{\"intent\":string|null,\"reply\":string,\"slots\":{\"lender\":string|null,\"description\":string|null,\"amount\":number|string|null,\"date\":string|null,\"id\":string|null,\"confirm\":boolean|null}}. "
         "Intent consentiti: add_repayment, add_loan, add_expense_acquisto_casa, add_expense_ristrutturazione, delete_repayment, delete_loan, delete_expense_acquisto_casa, delete_expense_ristrutturazione. "
+        "Classificazione categorie spesa: add_expense_acquisto_casa SOLO per costi di compravendita immobile (rogito, notaio, agenzia immobiliare, imposte, caparra, mutuo). "
+        "Per acquisti di oggetti/materiali/lavori (es. TV, parquet, mobili, idraulico) usa add_expense_ristrutturazione. "
         "Nel campo reply non usare mai i nomi tecnici degli intent (es: add_repayment), usa italiano naturale. "
         "Per le spese: se la voce/oggetto non e chiaramente identificabile, imposta slots.description=null (non inventare descrizioni e non usare frasi tipo 'alla categoria ...'). "
         "Se il messaggio non richiede una registrazione di movimento, metti intent=null e fornisci reply utile e concisa in italiano. "
