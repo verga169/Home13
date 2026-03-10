@@ -79,6 +79,25 @@ def format_date_it(value: str) -> str:
 app.jinja_env.filters["date_it"] = format_date_it
 
 
+def _asset_mtime(relative_path: str) -> str:
+    file_path = os.path.join(BASE_DIR, relative_path)
+    try:
+        return str(int(os.path.getmtime(file_path)))
+    except OSError:
+        return "1"
+
+
+@app.context_processor
+def inject_asset_urls() -> dict:
+    favicon_v = _asset_mtime(os.path.join("static", "favicon.ico"))
+    sw_v = _asset_mtime(os.path.join("static", "sw.js"))
+    return {
+        "favicon_url": url_for("static", filename="favicon.ico", v=favicon_v),
+        "manifest_url": url_for("web_manifest", v=favicon_v),
+        "sw_url": url_for("service_worker", v=sw_v),
+    }
+
+
 def parse_amount(raw_value: str) -> float:
     raw = (raw_value or "").strip().replace(" ", "")
     if not raw:
@@ -463,6 +482,7 @@ def service_worker():
 
 @app.route("/manifest.webmanifest", methods=["GET"])
 def web_manifest():
+    favicon_v = _asset_mtime(os.path.join("static", "favicon.ico"))
     payload = {
         "name": "Home13",
         "short_name": "Home13",
@@ -474,7 +494,7 @@ def web_manifest():
         "theme_color": "#0f766e",
         "icons": [
             {
-                "src": "/static/favicon.ico",
+                "src": url_for("static", filename="favicon.ico", v=favicon_v),
                 "sizes": "any",
                 "type": "image/x-icon",
             }

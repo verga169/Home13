@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Home13">
-    <link rel="manifest" href="{{ url_for('web_manifest') }}">
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="manifest" href="{{ manifest_url }}">
+    <link rel="icon" href="{{ favicon_url }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ favicon_url }}" type="image/x-icon">
+    <link rel="apple-touch-icon" href="{{ favicon_url }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
@@ -1308,7 +1308,7 @@
 
         if ("serviceWorker" in navigator) {
             window.addEventListener("load", () => {
-                navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
+                navigator.serviceWorker.register("{{ sw_url }}", { scope: "/" }).catch(() => {
                     // SW registration failure should not block app usage.
                 });
             });

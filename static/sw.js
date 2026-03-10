@@ -2,7 +2,6 @@ const VERSION = new URL(self.location.href).searchParams.get("v") || "v1";
 const CACHE_NAME = `home13-pwa-${VERSION}`;
 const APP_SHELL = [
   "/",
-  "/static/favicon.ico",
   "/manifest.webmanifest"
 ];
 
@@ -48,6 +47,21 @@ self.addEventListener("fetch", (event) => {
           return networkResponse;
         })
         .catch(() => caches.match("/") || caches.match(request))
+    );
+    return;
+  }
+
+  if (url.pathname.endsWith("/favicon.ico") || url.pathname.endsWith("/manifest.webmanifest")) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
+          return networkResponse;
+        })
+        .catch(() => caches.match(request) || caches.match("/"))
     );
     return;
   }
