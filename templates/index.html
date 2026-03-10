@@ -798,23 +798,23 @@
         <section class="top-grid">
             <article class="metric">
                 <div class="label">Spese Totali</div>
-                <div class="value">{{ summary.spese_total|euro }} EUR</div>
+                <div class="value">{{ summary.spese_total|euro }} €</div>
             </article>
             <article class="metric">
                 <div class="label">Prestiti Ricevuti</div>
-                <div class="value">{{ summary.loans_total|euro }} EUR</div>
+                <div class="value">{{ summary.loans_total|euro }} €</div>
             </article>
             <article class="metric">
                 <div class="label">Rimborsi Effettuati</div>
-                <div class="value">{{ summary.repayments_total|euro }} EUR</div>
+                <div class="value">{{ summary.repayments_total|euro }} €</div>
             </article>
             <article class="metric">
                 <div class="label">Spese Ristrutturazione</div>
-                <div class="value">{{ summary.ristr_total|euro }} EUR</div>
+                <div class="value">{{ summary.ristr_total|euro }} €</div>
             </article>
             <article class="metric">
                 <div class="label">Debito Residuo</div>
-                <div class="value">{{ summary.debito_residuo|euro }} EUR</div>
+                <div class="value">{{ summary.debito_residuo|euro }} €</div>
             </article>
         </section>
 
@@ -891,7 +891,7 @@
                             <tr>
                                 <td>{{ row.date|date_it }}</td>
                                 <td>{{ row.description }}</td>
-                                <td>{{ row.amount|euro }} EUR</td>
+                                <td>{{ row.amount|euro }} €</td>
                                 <td>
                                     <div class="actions-cell">
                                         <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-acquisto-{{ row.id }}')">&#9998;</button>
@@ -951,7 +951,7 @@
                             <tr>
                                 <td>{{ row.date|date_it }}</td>
                                 <td>{{ row.description }}</td>
-                                <td>{{ row.amount|euro }} EUR</td>
+                                <td>{{ row.amount|euro }} €</td>
                                 <td>
                                     <div class="actions-cell">
                                         <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-ristr-{{ row.id }}')">&#9998;</button>
@@ -1039,7 +1039,7 @@
                                     <td>{{ row.date|date_it }}</td>
                                     <td>{{ row.lender }}</td>
                                     <td>{{ row.note }}</td>
-                                    <td>{{ row.amount|euro }} EUR</td>
+                                    <td>{{ row.amount|euro }} €</td>
                                     <td>
                                         <div class="actions-cell">
                                             <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-loan-{{ row.id }}')">&#9998;</button>
@@ -1092,7 +1092,7 @@
                                     <td>{{ row.date|date_it }}</td>
                                     <td>{{ row.lender }}</td>
                                     <td class="repayments-note-gap" aria-hidden="true"></td>
-                                    <td>{{ row.amount|euro }} EUR</td>
+                                    <td>{{ row.amount|euro }} €</td>
                                     <td>
                                         <div class="actions-cell">
                                             <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-repay-{{ row.id }}')">&#9998;</button>
@@ -1140,7 +1140,7 @@
                         {% for row in summary.lender_balance %}
                         <tr>
                             <td>{{ row.lender }}</td>
-                            <td>{{ row.balance|euro }} EUR</td>
+                            <td>{{ row.balance|euro }} €</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -1179,7 +1179,7 @@
                         <tr>
                             <td>{{ row.date|date_it }}</td>
                             <td>{{ row.lender }}</td>
-                            <td>{{ row.amount|euro }} EUR</td>
+                            <td>{{ row.amount|euro }} €</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -1364,7 +1364,7 @@
         });
 
         function asMoney(value) {
-            return `${moneyFormatter.format(Number(value) || 0)} EUR`;
+            return `${moneyFormatter.format(Number(value) || 0)} €`;
         }
 
         function gradient(ctx, chartArea, startColor, endColor) {

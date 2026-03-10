@@ -1027,8 +1027,8 @@ def describe_item_for_delete(intent: str, item: dict) -> str:
     if intent in {"delete_repayment", "delete_loan"}:
         who = item.get("lender", "Sconosciuto")
         kind = "rimborso" if intent == "delete_repayment" else "prestito"
-        return f"{kind} di {amount} EUR ({who}, {item_date})"
-    return f"spesa '{item.get('description', '')}' di {amount} EUR ({item_date})"
+        return f"{kind} di {amount} € ({who}, {item_date})"
+    return f"spesa '{item.get('description', '')}' di {amount} € ({item_date})"
 
 
 def parse_slots_for_intent(intent: str, raw_value: str) -> dict:
@@ -1153,16 +1153,16 @@ def save_ai_operation(intent: str, slots: dict) -> dict:
 def ai_intent_confirmation(intent: str, item: dict) -> str:
     if intent == "add_repayment":
         return (
-            f"Rimborso inserito: {format_euro(item['amount'])} EUR a {item['lender']} in data "
+            f"Rimborso inserito: {format_euro(item['amount'])} € a {item['lender']} in data "
             f"{format_date_it(item['date'])}."
         )
     if intent == "add_loan":
         return (
-            f"Prestito inserito: {format_euro(item['amount'])} EUR da {item['lender']} in data "
+            f"Prestito inserito: {format_euro(item['amount'])} € da {item['lender']} in data "
             f"{format_date_it(item['date'])}."
         )
     return (
-        f"Spesa inserita: {item['description']} da {format_euro(item['amount'])} EUR in data "
+        f"Spesa inserita: {item['description']} da {format_euro(item['amount'])} € in data "
         f"{format_date_it(item['date'])}."
     )
 
@@ -1264,22 +1264,22 @@ def local_summary_reply(text: str) -> str | None:
     summary = build_summary(load_data())
 
     if "ristruttur" in normalized:
-        return f"Il totale della ristrutturazione e {format_euro(summary['ristr_total'])} EUR."
+        return f"Il totale della ristrutturazione e {format_euro(summary['ristr_total'])} €."
 
     if re.search(r"\b(acquisto|casa|immobile|rogito|notaio|agenzia)\b", normalized):
-        return f"Il totale dell'acquisto casa e {format_euro(summary['acquisto_total'])} EUR."
+        return f"Il totale dell'acquisto casa e {format_euro(summary['acquisto_total'])} €."
 
     if "spese" in normalized:
-        return f"Le spese totali sono {format_euro(summary['spese_total'])} EUR."
+        return f"Le spese totali sono {format_euro(summary['spese_total'])} €."
 
     if "prestiti" in normalized:
-        return f"Il totale dei prestiti ricevuti e {format_euro(summary['loans_total'])} EUR."
+        return f"Il totale dei prestiti ricevuti e {format_euro(summary['loans_total'])} €."
 
     if "rimbors" in normalized:
-        return f"Il totale dei rimborsi e {format_euro(summary['repayments_total'])} EUR."
+        return f"Il totale dei rimborsi e {format_euro(summary['repayments_total'])} €."
 
     if "debito" in normalized or "residuo" in normalized:
-        return f"Il debito residuo e {format_euro(summary['debito_residuo'])} EUR."
+        return f"Il debito residuo e {format_euro(summary['debito_residuo'])} €."
 
     if "saldo" in normalized:
         lender = parse_lender_from_text(text)
@@ -1287,9 +1287,9 @@ def local_summary_reply(text: str) -> str | None:
             lender_norm = normalize_text(lender)
             for row in summary["lender_balance"]:
                 if normalize_text(row.get("lender", "")) == lender_norm:
-                    return f"Il saldo residuo verso {row['lender']} e {format_euro(row['balance'])} EUR."
+                    return f"Il saldo residuo verso {row['lender']} e {format_euro(row['balance'])} €."
             return f"Non trovo un prestatore chiamato {lender} nello storico."
-        return f"Il debito residuo complessivo e {format_euro(summary['debito_residuo'])} EUR."
+        return f"Il debito residuo complessivo e {format_euro(summary['debito_residuo'])} €."
 
     return None
 
