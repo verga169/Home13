@@ -60,7 +60,7 @@
         }
 
         .page {
-            max-width: 1200px;
+            max-width: 1480px;
             margin: 0 auto;
             padding: 24px 16px 48px;
             width: 100%;
@@ -214,11 +214,13 @@
         .btn-danger {
             background: #fee2e2;
             color: #7f1d1d;
+            border: 1px solid #f0b8b8;
             display: inline-flex;
             justify-content: center;
             align-items: center;
-            min-width: 78px;
+            min-width: 40px;
             padding: 8px 10px;
+            font-weight: 700;
         }
 
         .btn-edit {
@@ -260,6 +262,10 @@
             grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) auto;
             gap: 8px;
             align-items: center;
+        }
+
+        .loan-inline-edit-form {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
         }
 
         .inline-edit-form .btn {
@@ -305,6 +311,10 @@
             gap: 8px;
             margin-bottom: 10px;
             min-width: 0;
+        }
+
+        .loan-fields {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
         }
 
         input, select {
@@ -374,6 +384,92 @@
         td:last-child {
             min-width: 100px;
             white-space: nowrap;
+        }
+
+        .loans-table {
+            table-layout: fixed;
+        }
+
+        .repayments-table {
+            table-layout: fixed;
+        }
+
+        .loans-table th:nth-child(1),
+        .loans-table td:nth-child(1),
+        .repayments-table th:nth-child(1),
+        .repayments-table td:nth-child(1) {
+            width: 16%;
+        }
+
+        .loans-table th:nth-child(2),
+        .loans-table td:nth-child(2),
+        .repayments-table th:nth-child(2),
+        .repayments-table td:nth-child(2) {
+            width: 25%;
+        }
+
+        .loans-table th:nth-child(3),
+        .loans-table td:nth-child(3),
+        .repayments-table th:nth-child(3),
+        .repayments-table td:nth-child(3) {
+            width: 24%;
+        }
+
+        .loans-table th:nth-child(4),
+        .loans-table td:nth-child(4),
+        .repayments-table th:nth-child(4),
+        .repayments-table td:nth-child(4) {
+            width: 20%;
+            white-space: nowrap;
+        }
+
+        .loans-table th:nth-child(4) {
+            text-align: left;
+        }
+
+        .loans-table td:nth-child(4) {
+            text-align: left;
+        }
+
+        .loans-table th:nth-child(5),
+        .loans-table td:nth-child(5),
+        .repayments-table th:nth-child(5),
+        .repayments-table td:nth-child(5) {
+            width: 15%;
+            white-space: nowrap;
+        }
+
+        .loans-table th:nth-child(5) {
+            text-align: left;
+        }
+
+        .loans-table td:nth-child(5) {
+            text-align: left;
+        }
+
+        .loans-table .actions-cell {
+            justify-content: flex-start;
+        }
+
+        .repayments-table th:nth-child(4),
+        .repayments-table td:nth-child(4) {
+            text-align: left;
+        }
+
+        .repayments-table th:nth-child(5) {
+            text-align: left;
+        }
+
+        .repayments-table td:nth-child(5) {
+            text-align: left;
+        }
+
+        .repayments-table .actions-cell {
+            justify-content: flex-start;
+        }
+
+        .repayments-note-gap {
+            color: transparent;
         }
 
         th { background: #f6f9f7; color: #3d4f49; }
@@ -558,6 +654,7 @@
             .grid-2 { grid-template-columns: 1fr; }
             .chart-grid { grid-template-columns: 1fr; }
             .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .loan-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .chart-tools { width: 100%; }
         }
 
@@ -570,6 +667,7 @@
             .filter-bar select { min-width: 100%; max-width: 100%; }
             .filter-bar .btn { flex: 1 1 auto; text-align: center; }
             .fields { grid-template-columns: 1fr; }
+            .loan-fields { grid-template-columns: 1fr; }
             .top-grid { grid-template-columns: 1fr; }
             .chart-area { height: 270px; }
             .chart-head { align-items: flex-start; }
@@ -750,7 +848,7 @@
                                         <form method="post" action="{{ url_for('delete_item') }}">
                                             <input type="hidden" name="section" value="acquisto_casa">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
-                                            <button class="btn btn-danger" type="submit">Elimina</button>
+                                            <button class="btn btn-danger" type="submit" aria-label="Elimina" title="Elimina">&#128465;</button>
                                         </form>
                                     </div>
                                 </td>
@@ -810,7 +908,7 @@
                                         <form method="post" action="{{ url_for('delete_item') }}">
                                             <input type="hidden" name="section" value="ristrutturazione">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
-                                            <button class="btn btn-danger" type="submit">Elimina</button>
+                                            <button class="btn btn-danger" type="submit" aria-label="Elimina" title="Elimina">&#128465;</button>
                                         </form>
                                     </div>
                                 </td>
@@ -843,10 +941,10 @@
                 <div>
                     <h3>Nuovo prestito ricevuto</h3>
                     <form method="post" action="{{ url_for('add_loan') }}">
-                        <div class="fields">
+                        <div class="fields loan-fields">
                             <input type="date" name="date" value="{{ today }}" required>
                             <input type="text" name="lender" placeholder="Prestatore" required>
-                            <input type="text" name="note" placeholder="Note (causale prestito)">
+                            <input type="text" name="note" placeholder="Note">
                             <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
                         </div>
                         <button class="btn btn-brand btn-full" type="submit">Aggiungi prestito</button>
@@ -875,7 +973,7 @@
                     <h3>Prestiti ricevuti</h3>
                     {% if data.loans %}
                     <div class="table-wrap">
-                        <table>
+                        <table class="loans-table">
                             <thead>
                                 <tr>
                                     <th>Data</th>
@@ -898,19 +996,19 @@
                                             <form method="post" action="{{ url_for('delete_item') }}">
                                                 <input type="hidden" name="section" value="loans">
                                                 <input type="hidden" name="item_id" value="{{ row.id }}">
-                                                <button class="btn btn-danger" type="submit">Elimina</button>
+                                                <button class="btn btn-danger" type="submit" aria-label="Elimina" title="Elimina">&#128465;</button>
                                             </form>
                                         </div>
                                     </td>
                                 </tr>
                                 <tr id="edit-loan-{{ row.id }}" class="inline-edit-row">
                                     <td colspan="5">
-                                        <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
+                                        <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form loan-inline-edit-form">
                                             <input type="hidden" name="section" value="loans">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
                                             <input type="date" name="date" value="{{ row.date }}" required>
                                             <input type="text" name="label" value="{{ row.lender }}" placeholder="Prestatore" required>
-                                            <input type="text" name="note" value="{{ row.note }}" placeholder="Note (causale prestito)">
+                                            <input type="text" name="note" value="{{ row.note }}" placeholder="Note">
                                             <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
                                             <button class="btn btn-brand" type="submit">Salva</button>
                                         </form>
@@ -928,11 +1026,12 @@
                     <h3>Rimborsi</h3>
                     {% if data.repayments %}
                     <div class="table-wrap">
-                        <table>
+                        <table class="repayments-table">
                             <thead>
                                 <tr>
                                     <th>Data</th>
                                     <th>Prestatore</th>
+                                    <th class="repayments-note-gap" aria-hidden="true"></th>
                                     <th>Importo</th>
                                     <th>Azioni</th>
                                 </tr>
@@ -942,6 +1041,7 @@
                                 <tr>
                                     <td>{{ row.date|date_it }}</td>
                                     <td>{{ row.lender }}</td>
+                                    <td class="repayments-note-gap" aria-hidden="true"></td>
                                     <td>{{ row.amount|euro }} EUR</td>
                                     <td>
                                         <div class="actions-cell">
@@ -949,13 +1049,13 @@
                                             <form method="post" action="{{ url_for('delete_item') }}">
                                                 <input type="hidden" name="section" value="repayments">
                                                 <input type="hidden" name="item_id" value="{{ row.id }}">
-                                                <button class="btn btn-danger" type="submit">Elimina</button>
+                                                <button class="btn btn-danger" type="submit" aria-label="Elimina" title="Elimina">&#128465;</button>
                                             </form>
                                         </div>
                                     </td>
                                 </tr>
                                 <tr id="edit-repay-{{ row.id }}" class="inline-edit-row">
-                                    <td colspan="4">
+                                    <td colspan="5">
                                         <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
                                             <input type="hidden" name="section" value="repayments">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
