@@ -60,6 +60,17 @@ DEFAULT_DATA = {
 }
 
 
+def get_gemini_api_key() -> str:
+    # Re-read local env files so updates to .env.local are picked up immediately.
+    load_local_env()
+    return (os.environ.get("GEMINI_API_KEY") or "").strip()
+
+
+def get_gemini_model() -> str:
+    load_local_env()
+    return (os.environ.get("GEMINI_MODEL") or GEMINI_MODEL or "gemini-2.0-flash").strip()
+
+
 def format_euro(value: float) -> str:
     formatted = f"{float(value):,.2f}"
     integer, decimal = formatted.split(".")
@@ -523,9 +534,12 @@ def parse_slots_from_gemini(intent: str, llm_slots: dict) -> dict:
     return slots
 
 
-def parse_with_gemini(message: str, pending: dict | None) -> dict | None:
-    if not GEMINI_API_KEY:
-        return None
+def parse_with_gemini(message: str, pending: dict | None) -> dict:
+    api_key = get_gemini_api_key()
+    if not api_key:
+        return {"ok": False, "reply": "GEMINI_API_KEY non configurata."}
+
+    model = get_gemini_model()
 
     pending_payload = pending if isinstance(pending, dict) else {}
     prompt = (
@@ -540,7 +554,7 @@ def parse_with_gemini(message: str, pending: dict | None) -> dict | None:
         f"Messaggio utente: {message}"
     )
 
-    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     body = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -557,15 +571,47 @@ def parse_with_gemini(message: str, pending: dict | None) -> dict | None:
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=20) as response:
             raw = response.read().decode("utf-8", errors="replace")
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError):
-        return None
+    except urllib.error.HTTPError as exc:
+        status_code = exc.code
+        body = exc.read().decode("utf-8", errors="replace")
+        status_text = ""
+        message_text = ""
+        try:
+            payload = json.loads(body)
+            error_obj = payload.get("error", {}) if isinstance(payload, dict) else {}
+            status_text = sanitize_text(error_obj.get("status"))
+            message_text = sanitize_text(error_obj.get("message"))
+        except Exception:
+            pass
+
+        if status_code == 429:
+            return {
+                "ok": False,
+                "reply": "Quota Gemini esaurita (HTTP 429). Verifica billing e limiti API nel progetto Google AI Studio/Google Cloud, poi riprova.",
+            }
+        if status_code in {401, 403}:
+            return {
+                "ok": False,
+                "reply": "Accesso Gemini negato (API key non valida o senza permessi). Controlla GEMINI_API_KEY e abilitazione API.",
+            }
+
+        extra = f" ({status_text})" if status_text else ""
+        return {
+            "ok": False,
+            "reply": f"Errore Gemini HTTP {status_code}{extra}. {message_text or 'Riprova tra poco.'}",
+        }
+    except (urllib.error.URLError, TimeoutError):
+        return {
+            "ok": False,
+            "reply": "Connessione a Gemini non riuscita (rete/timeout). Riprova tra poco.",
+        }
 
     try:
         payload = json.loads(raw)
     except Exception:
-        return None
+        return {"ok": False, "reply": "Risposta Gemini non valida (JSON non parsabile)."}
 
     text_parts: list[str] = []
     for candidate in payload.get("candidates", []):
@@ -577,12 +623,12 @@ def parse_with_gemini(message: str, pending: dict | None) -> dict | None:
 
     llm_obj = extract_json_object("\n".join(text_parts))
     if not llm_obj:
-        return None
+        return {"ok": False, "reply": "Risposta Gemini non interpretabile. Riprova con una frase piu diretta."}
 
     intent = normalize_ai_intent(llm_obj.get("intent"))
     slots = parse_slots_from_gemini(intent, llm_obj.get("slots", {})) if intent else {}
     reply = sanitize_text(llm_obj.get("reply"))
-    return {"intent": intent, "slots": slots, "reply": reply}
+    return {"ok": True, "intent": intent, "slots": slots, "reply": reply}
 
 
 def required_slots_for_intent(intent: str) -> list[str]:
@@ -729,7 +775,7 @@ def process_ai_command(message: str, pending: dict | None) -> dict:
         intent = sanitize_text(pending.get("intent"))
         slots = pending.get("slots") if isinstance(pending.get("slots"), dict) else {}
 
-    if not GEMINI_API_KEY:
+    if not get_gemini_api_key():
         return {
             "status": "error",
             "reply": "GEMINI_API_KEY non configurata. Imposta la variabile ambiente (locale o Render) e riavvia l'app.",
@@ -738,10 +784,10 @@ def process_ai_command(message: str, pending: dict | None) -> dict:
 
     llm_result = parse_with_gemini(text, pending)
     llm_reply = ""
-    if not llm_result:
+    if not llm_result.get("ok"):
         return {
             "status": "error",
-            "reply": "Gemini non disponibile in questo momento. Riprova tra poco.",
+            "reply": sanitize_text(llm_result.get("reply")) or "Gemini non disponibile in questo momento. Riprova tra poco.",
             "pending": pending if isinstance(pending, dict) else None,
         }
 
