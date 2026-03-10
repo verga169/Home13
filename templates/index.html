@@ -1144,6 +1144,44 @@
 
     <script id="chart-data" type="application/json">{{ chart_data | tojson }}</script>
     <script>
+        const SCROLL_RESTORE_KEY = "home13:scrollY";
+
+        function saveScrollPosition() {
+            try {
+                sessionStorage.setItem(SCROLL_RESTORE_KEY, String(window.scrollY || window.pageYOffset || 0));
+            } catch (error) {
+                // Ignore storage errors and keep default navigation behavior.
+            }
+        }
+
+        function restoreScrollPosition() {
+            try {
+                const rawValue = sessionStorage.getItem(SCROLL_RESTORE_KEY);
+                if (rawValue === null) return;
+
+                sessionStorage.removeItem(SCROLL_RESTORE_KEY);
+                const targetY = Number(rawValue);
+                if (!Number.isFinite(targetY) || targetY < 0) return;
+
+                window.requestAnimationFrame(() => {
+                    window.scrollTo(0, targetY);
+                });
+            } catch (error) {
+                // Ignore storage errors and keep default navigation behavior.
+            }
+        }
+
+        document.querySelectorAll('form[method="post"]').forEach((form) => {
+            const action = (form.getAttribute("action") || "").trim();
+            if (action.endsWith("/logout")) return;
+
+            form.addEventListener("submit", () => {
+                saveScrollPosition();
+            });
+        });
+
+        restoreScrollPosition();
+
         function toggleEditRow(rowId) {
             const target = document.getElementById(rowId);
             if (!target) return;
