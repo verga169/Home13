@@ -1719,7 +1719,7 @@ def login():
 
         error = "Credenziali non valide."
 
-    return render_template("login.html", error=error, next_path=next_path, default_username=AUTH_USERNAME)
+    return render_template("login.html", error=error, next_path=next_path)
 
 
 @app.route("/logout", methods=["POST"])
