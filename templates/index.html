@@ -846,6 +846,7 @@
                         <div class="fields">
                             <input type="date" name="date" value="{{ today }}" required>
                             <input type="text" name="lender" placeholder="Prestatore" required>
+                            <input type="text" name="note" placeholder="Note (causale prestito)">
                             <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
                         </div>
                         <button class="btn btn-brand btn-full" type="submit">Aggiungi prestito</button>
@@ -879,6 +880,7 @@
                                 <tr>
                                     <th>Data</th>
                                     <th>Prestatore</th>
+                                    <th>Note</th>
                                     <th>Importo</th>
                                     <th>Azioni</th>
                                 </tr>
@@ -888,6 +890,7 @@
                                 <tr>
                                     <td>{{ row.date|date_it }}</td>
                                     <td>{{ row.lender }}</td>
+                                    <td>{{ row.note }}</td>
                                     <td>{{ row.amount|euro }} EUR</td>
                                     <td>
                                         <div class="actions-cell">
@@ -901,12 +904,13 @@
                                     </td>
                                 </tr>
                                 <tr id="edit-loan-{{ row.id }}" class="inline-edit-row">
-                                    <td colspan="4">
+                                    <td colspan="5">
                                         <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
                                             <input type="hidden" name="section" value="loans">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
                                             <input type="date" name="date" value="{{ row.date }}" required>
                                             <input type="text" name="label" value="{{ row.lender }}" placeholder="Prestatore" required>
+                                            <input type="text" name="note" value="{{ row.note }}" placeholder="Note (causale prestito)">
                                             <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
                                             <button class="btn btn-brand" type="submit">Salva</button>
                                         </form>

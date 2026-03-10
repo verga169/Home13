@@ -1105,6 +1105,7 @@ def save_ai_operation(intent: str, slots: dict) -> dict:
             "id": new_id(),
             "date": slots["date"],
             "lender": slots["lender"],
+            "note": sanitize_text(slots.get("note")),
             "amount": slots["amount"],
         }
         if USE_DATABASE:
@@ -1112,10 +1113,10 @@ def save_ai_operation(intent: str, slots: dict) -> dict:
                 with conn.cursor() as cur:
                     cur.execute(
                         """
-                        INSERT INTO loans (id, operation_date, lender, amount)
-                        VALUES (%s, %s, %s, %s)
+                        INSERT INTO loans (id, operation_date, lender, note, amount)
+                        VALUES (%s, %s, %s, %s, %s)
                         """,
-                        (item["id"], item["date"], item["lender"], item["amount"]),
+                        (item["id"], item["date"], item["lender"], item["note"], item["amount"]),
                     )
                 conn.commit()
         else:
@@ -1484,10 +1485,12 @@ def ensure_database_ready() -> None:
                         id TEXT PRIMARY KEY,
                         operation_date DATE NOT NULL,
                         lender TEXT NOT NULL,
+                        note TEXT NOT NULL DEFAULT '',
                         amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0)
                     )
                     """
                 )
+                cur.execute("ALTER TABLE loans ADD COLUMN IF NOT EXISTS note TEXT NOT NULL DEFAULT ''")
                 cur.execute(
                     """
                     CREATE TABLE IF NOT EXISTS repayments (
@@ -1537,7 +1540,7 @@ def load_data() -> dict:
 
                     cur.execute(
                         """
-                        SELECT id, operation_date, lender, amount::DOUBLE PRECISION AS amount
+                        SELECT id, operation_date, lender, note, amount::DOUBLE PRECISION AS amount
                         FROM loans
                         """
                     )
@@ -1547,6 +1550,7 @@ def load_data() -> dict:
                                 "id": row["id"],
                                 "date": row["operation_date"].isoformat(),
                                 "lender": row["lender"],
+                                "note": sanitize_text(row.get("note")),
                                 "amount": float(row["amount"]),
                             }
                         )
@@ -1582,6 +1586,8 @@ def load_data() -> dict:
     data["expenses"]["acquisto_casa"] = loaded.get("expenses", {}).get("acquisto_casa", [])
     data["expenses"]["ristrutturazione"] = loaded.get("expenses", {}).get("ristrutturazione", [])
     data["loans"] = loaded.get("loans", [])
+    for loan in data["loans"]:
+        loan["note"] = sanitize_text(loan.get("note"))
     data["repayments"] = loaded.get("repayments", [])
     return data
 
@@ -2098,6 +2104,7 @@ def add_loan():
             "id": new_id(),
             "date": parse_iso_date(request.form.get("date") or "").isoformat(),
             "lender": sanitize_text(request.form.get("lender")) or "Familiare",
+            "note": sanitize_text(request.form.get("note")),
             "amount": parse_amount(request.form.get("amount")),
         }
 
@@ -2106,10 +2113,10 @@ def add_loan():
                 with conn.cursor() as cur:
                     cur.execute(
                         """
-                        INSERT INTO loans (id, operation_date, lender, amount)
-                        VALUES (%s, %s, %s, %s)
+                        INSERT INTO loans (id, operation_date, lender, note, amount)
+                        VALUES (%s, %s, %s, %s, %s)
                         """,
-                        (item["id"], item["date"], item["lender"], item["amount"]),
+                        (item["id"], item["date"], item["lender"], item["note"], item["amount"]),
                     )
                 conn.commit()
         else:
@@ -2214,6 +2221,7 @@ def edit_item():
     section = sanitize_text(request.form.get("section"))
     item_id = sanitize_text(request.form.get("item_id"))
     label = sanitize_text(request.form.get("label"))
+    loan_note = sanitize_text(request.form.get("note"))
     date_raw = request.form.get("date") or ""
 
     try:
@@ -2263,10 +2271,10 @@ def edit_item():
                     cur.execute(
                         """
                         UPDATE loans
-                        SET lender = %s, amount = %s, operation_date = %s
+                        SET lender = %s, note = %s, amount = %s, operation_date = %s
                         WHERE id = %s
                         """,
-                        (label, amount, operation_date, item_id),
+                        (label, loan_note, amount, operation_date, item_id),
                     )
                 elif section == "repayments":
                     cur.execute(
@@ -2296,6 +2304,11 @@ def edit_item():
             )
         elif section == "loans":
             updated = update_local_item(data["loans"], item_id, "lender", label, amount, operation_date)
+            if updated:
+                for item in data["loans"]:
+                    if item.get("id") == item_id:
+                        item["note"] = loan_note
+                        break
         elif section == "repayments":
             updated = update_local_item(data["repayments"], item_id, "lender", label, amount, operation_date)
 
@@ -2348,15 +2361,19 @@ def build_excel_workbook(data: dict):
     ws_lender.column_dimensions["B"].width = 20
     apply_amount_style(ws_lender, column_index=2)
 
-    def append_sheet(title: str, entries: list[dict], include_lender: bool = False):
+    def append_sheet(title: str, entries: list[dict], include_lender: bool = False, include_note: bool = False):
         sheet = wb.create_sheet(title)
-        if include_lender:
+        if include_lender and include_note:
+            sheet.append(["Data", "Prestatore", "Note", "Importo"])
+        elif include_lender:
             sheet.append(["Data", "Prestatore", "Importo"])
         else:
             sheet.append(["Data", "Descrizione", "Importo"])
 
         for item in sort_entries(entries):
-            if include_lender:
+            if include_lender and include_note:
+                sheet.append([item.get("date", ""), item.get("lender", ""), item.get("note", ""), item.get("amount", 0.0)])
+            elif include_lender:
                 sheet.append([item.get("date", ""), item.get("lender", ""), item.get("amount", 0.0)])
             else:
                 sheet.append([item.get("date", ""), item.get("description", ""), item.get("amount", 0.0)])
@@ -2365,13 +2382,18 @@ def build_excel_workbook(data: dict):
             cell.font = Font(bold=True)
 
         sheet.column_dimensions["A"].width = 14
-        sheet.column_dimensions["B"].width = 30
-        sheet.column_dimensions["C"].width = 14
-        apply_amount_style(sheet, column_index=3)
+        sheet.column_dimensions["B"].width = 24
+        if include_lender and include_note:
+            sheet.column_dimensions["C"].width = 36
+            sheet.column_dimensions["D"].width = 14
+            apply_amount_style(sheet, column_index=4)
+        else:
+            sheet.column_dimensions["C"].width = 14
+            apply_amount_style(sheet, column_index=3)
 
     append_sheet("Acquisto casa", data["expenses"]["acquisto_casa"])
     append_sheet("Ristrutturazione", data["expenses"]["ristrutturazione"])
-    append_sheet("Prestiti ricevuti", data["loans"], include_lender=True)
+    append_sheet("Prestiti ricevuti", data["loans"], include_lender=True, include_note=True)
     append_sheet("Rimborsi", data["repayments"], include_lender=True)
 
     return wb
@@ -2641,7 +2663,12 @@ def export_pdf():
         for item in sort_entries(data["expenses"]["ristrutturazione"])
     ]
     prestiti_rows = [
-        [format_date_it(item.get("date", "")), item.get("lender", ""), f"EUR {format_euro(item.get('amount', 0.0))}"]
+        [
+            format_date_it(item.get("date", "")),
+            item.get("lender", ""),
+            item.get("note", ""),
+            f"EUR {format_euro(item.get('amount', 0.0))}",
+        ]
         for item in sort_entries(data["loans"])
     ]
     rimborsi_rows = [
@@ -2652,7 +2679,7 @@ def export_pdf():
 
     y = draw_table("Acquisto casa", ["Data", "Voce", "Importo"], acquisto_rows, [110, 300, 110], y)
     y = draw_table("Ristrutturazione", ["Data", "Voce", "Importo"], ristr_rows, [110, 300, 110], y)
-    y = draw_table("Prestiti ricevuti", ["Data", "Prestatore", "Importo"], prestiti_rows, [110, 300, 110], y)
+    y = draw_table("Prestiti ricevuti", ["Data", "Prestatore", "Note", "Importo"], prestiti_rows, [85, 135, 190, 110], y)
     y = draw_table("Rimborsi", ["Data", "Prestatore", "Importo"], rimborsi_rows, [110, 300, 110], y)
     draw_table("Saldo per prestatore", ["Prestatore", "Saldo residuo"], saldo_rows, [380, 140], y)
 
