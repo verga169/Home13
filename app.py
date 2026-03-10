@@ -2593,8 +2593,28 @@ def export_pdf():
         return y_pos - 12
 
     def draw_table(title: str, headers: list[str], rows: list[list[str]], col_widths: list[float], current_y: float) -> float:
-        current_y = draw_section_header(title, current_y)
+        section_gap_to_table = 14
+        block_gap_after_table = 24
         row_h = 20
+        title_block_h = 13
+
+        def ensure_table_block_fits(y_top: float) -> float:
+            # Keep section title and table header together, plus at least one row (or empty state line).
+            min_body_h = row_h if rows else 16
+            required_h = title_block_h + section_gap_to_table + row_h + min_body_h
+            if y_top - required_h < content_bottom:
+                pdf.showPage()
+                return content_top
+            return y_top
+
+        def draw_table_title(y_top: float) -> float:
+            pdf.setFillColor(palette["brand_dark"])
+            pdf.setFont("Helvetica-Bold", 13)
+            pdf.drawString(left, y_top, title)
+            pdf.setStrokeColor(palette["line_soft"])
+            pdf.setLineWidth(0.8)
+            pdf.line(left, y_top - 3, right, y_top - 3)
+            return y_top - section_gap_to_table
 
         def draw_header_and_frame(y_top: float) -> float:
             pdf.setFillColor(palette["header_bg"])
@@ -2612,13 +2632,15 @@ def export_pdf():
             pdf.rect(left, y_top - row_h, sum(col_widths), row_h, fill=0, stroke=1)
             return y_top - row_h
 
+        current_y = ensure_table_block_fits(current_y)
+        current_y = draw_table_title(current_y)
+
         if not rows:
             pdf.setFillColor(palette["ink_soft"])
             pdf.setFont("Helvetica", 9)
             pdf.drawString(left, current_y, "Nessun dato disponibile")
-            return current_y - 20
+            return current_y - block_gap_after_table
 
-        current_y = new_page(current_y)
         current_y = draw_header_and_frame(current_y)
 
         for idx, row in enumerate(rows):
@@ -2647,7 +2669,7 @@ def export_pdf():
             pdf.line(left, current_y - row_h, left + sum(col_widths), current_y - row_h)
             current_y -= row_h
 
-        return current_y - 18
+        return current_y - block_gap_after_table
 
     y = content_top
     y = draw_title("Report Home13", y)
