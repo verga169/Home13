@@ -99,6 +99,8 @@ Note:
 - In produzione imposta sempre `FLASK_SECRET_KEY` e credenziali dedicate.
 - Con database attivo, il superadmin puo creare/aggiornare/eliminare utenze dalla pagina dedicata `Gestione Utenze`.
 - Le password degli utenti DB sono salvate hashate (Werkzeug PBKDF2).
+- La sessione login e persistente anche dopo chiusura browser (utile su mobile) fino a `POST /logout` oppure scadenza cookie.
+- Scadenza sessione configurabile con `HOME13_SESSION_DAYS` (default `90`).
 
 ## Avvio Locale (Windows)
 

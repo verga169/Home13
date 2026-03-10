@@ -67,6 +67,19 @@ app.secret_key = (
     or "home13-dev-secret-change-me"
 )
 
+SESSION_DAYS_RAW = (os.environ.get("HOME13_SESSION_DAYS") or "90").strip()
+try:
+    SESSION_DAYS = max(1, int(SESSION_DAYS_RAW))
+except ValueError:
+    SESSION_DAYS = 90
+
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=SESSION_DAYS)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = bool(
+    (os.environ.get("SESSION_COOKIE_SECURE") or "").strip() == "1" or IS_RENDER_DEPLOY
+)
+
 DEFAULT_DATA = {
     "expenses": {
         "acquisto_casa": [],
@@ -1903,6 +1916,8 @@ def login():
         auth_result = authenticate_login(username, password)
         if auth_result:
             session.clear()
+            # Keep the auth session across browser restarts until logout or cookie expiry.
+            session.permanent = True
             session["authenticated"] = True
             session["username"] = sanitize_text(auth_result.get("username"))
             session["role"] = sanitize_text(auth_result.get("role"))
