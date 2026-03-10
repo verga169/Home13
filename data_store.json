@@ -44,6 +44,12 @@
         "description": "corrente",
         "amount": 12000.0,
         "notes": ""
+      },
+      {
+        "id": "af6f9c758c",
+        "date": "2026-03-10",
+        "description": "TV",
+        "amount": 1000.0
       }
     ]
   },

@@ -405,6 +405,64 @@ def parse_lender_from_text(raw_value: str) -> str | None:
     return lender or None
 
 
+def normalize_expense_description(raw_value: str) -> str | None:
+    candidate = sanitize_text(raw_value)
+    if not candidate:
+        return None
+
+    candidate = candidate.strip("\"'")
+    candidate = re.sub(r"^[\s,;:\-]+|[\s,;:\-]+$", "", candidate)
+    candidate = re.sub(r"^(?:uno|una|un|il|lo|la|i|gli|le)\b\s+", "", candidate, flags=re.IGNORECASE)
+    candidate = sanitize_text(candidate)
+    normalized = normalize_text(candidate)
+
+    if not normalized or len(normalized) < 2:
+        return None
+    if not re.search(r"[a-zA-ZÀ-ÿ]", candidate):
+        return None
+
+    invalid_exact = {
+        "spesa",
+        "spese",
+        "voce",
+        "descrizione",
+        "ristrutturazione",
+        "acquisto",
+        "acquisto casa",
+        "casa",
+        "categoria",
+        "alla",
+        "al",
+        "a",
+        "di",
+        "da",
+        "per",
+        "in",
+        "nel",
+        "nella",
+    }
+    if normalized in invalid_exact:
+        return None
+
+    if re.match(r"^(?:di|da|per|a|al|alla|in|nel|nella|categoria)\b", normalized):
+        return None
+
+    if re.fullmatch(r"(?:alla|al|in|nella|nel|per\s+la)\s+categoria\s+.+", normalized):
+        return None
+    if normalized.startswith("categoria "):
+        return None
+    if re.search(r"\beuro\b", normalized):
+        return None
+    if re.fullmatch(r"\d+[\d\s\.,]*", normalized):
+        return None
+
+    # Reject command-like fragments that are not real expense object names.
+    if re.search(r"\b(aggiungi|inserisci|registra|segna|spesa|categoria)\b", normalized) and len(normalized.split()) <= 5:
+        return None
+
+    return candidate
+
+
 def parse_expense_description_from_text(raw_value: str) -> str | None:
     text = sanitize_text(raw_value)
     if not text:
@@ -416,12 +474,36 @@ def parse_expense_description_from_text(raw_value: str) -> str | None:
         flags=re.IGNORECASE,
     )
     if explicit:
-        description = sanitize_text(explicit.group(1))
+        description = normalize_expense_description(explicit.group(1))
         return description or None
 
     quoted = re.search(r'"([^\"]{2,80})"', text)
     if quoted:
-        return sanitize_text(quoted.group(1)) or None
+        return normalize_expense_description(quoted.group(1))
+
+    patterns = [
+        # "ho comprato una tv da 1000 euro"
+        r"\b(?:ho\s+)?(?:comprat[oaie]|acquistat[oaie]|pres[oaie]|ordinat[oaie])\s+"
+        r"(?:uno|una|un|il|lo|la|i|gli|le)?\b\s*"
+        r"([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9'\- ]{1,80}?)(?=\s+\b(?:da|di|per|a|in|alla|al|nel|nella|su|con)\b|[\,\.;]|$)",
+        # "ho speso 200 euro per parquet"
+        r"\b(?:ho\s+)?(?:spes[oaie]|pagat[oaie])\b[^\n\r]{0,80}?\bper\s+"
+        r"([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9'\- ]{1,80}?)(?=\s+\b(?:di|in|alla|al|nel|nella|oggi|domani|ieri)\b|[\,\.;]|$)",
+        # "ho pagato 1200 euro al notaio"
+        r"\b(?:ho\s+)?pagat[oaie]\b[^\n\r]{0,40}?\b(?:al|alla|allo|ai|alle|a)\s+"
+        r"([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9'\- ]{1,80}?)(?=\s+\b(?:per|di|in|alla|al|nel|nella|oggi|domani|ieri)\b|[\,\.;]|$)",
+        # "aggiungi spesa parquet di 500"
+        r"\b(?:aggiungi|inserisci|registra|segna)\s+(?:la\s+)?(?:spesa\s+)?(?:voce\s+)?"
+        r"([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9'\- ]{1,80}?)(?=\s+\b(?:di|da|in data|oggi|domani|ieri|alla|al|nel|nella|categoria|euro)\b|[\,\.;]|$)",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if not match:
+            continue
+        description = normalize_expense_description(match.group(1))
+        if description:
+            return description
 
     generic = re.search(
         r"\b(?:spesa|acquisto|ristrutturazione)\b\s+(?:voce\s+)?(.+?)(?=\s+\b(?:di|del|in data|oggi|domani|ieri|euro)\b|$)",
@@ -429,7 +511,7 @@ def parse_expense_description_from_text(raw_value: str) -> str | None:
         flags=re.IGNORECASE,
     )
     if generic:
-        description = sanitize_text(generic.group(1))
+        description = normalize_expense_description(generic.group(1))
         if description:
             return description
     return None
@@ -532,7 +614,7 @@ def parse_slots_from_gemini(intent: str, llm_slots: dict) -> dict:
         if lender:
             slots["lender"] = lender
     else:
-        description = sanitize_text(llm_slots.get("description"))
+        description = normalize_expense_description(llm_slots.get("description"))
         if description:
             slots["description"] = description
 
@@ -590,6 +672,7 @@ def parse_with_gemini(message: str, pending: dict | None) -> dict:
         "{\"intent\":string|null,\"reply\":string,\"slots\":{\"lender\":string|null,\"description\":string|null,\"amount\":number|string|null,\"date\":string|null,\"id\":string|null,\"confirm\":boolean|null}}. "
         "Intent consentiti: add_repayment, add_loan, add_expense_acquisto_casa, add_expense_ristrutturazione, delete_repayment, delete_loan, delete_expense_acquisto_casa, delete_expense_ristrutturazione. "
         "Nel campo reply non usare mai i nomi tecnici degli intent (es: add_repayment), usa italiano naturale. "
+        "Per le spese: se la voce/oggetto non e chiaramente identificabile, imposta slots.description=null (non inventare descrizioni e non usare frasi tipo 'alla categoria ...'). "
         "Se il messaggio non richiede una registrazione di movimento, metti intent=null e fornisci reply utile e concisa in italiano. "
         "Date ammesse in output: ISO yyyy-mm-dd se certa, altrimenti stringa originale da cui dedurre. "
         f"Stato pending corrente: {json.dumps(pending_payload, ensure_ascii=False)}. "
@@ -835,7 +918,11 @@ def ask_for_missing_slot(intent: str, missing_slot: str) -> str:
         label = "rimborso" if intent == "add_repayment" else "prestito"
         return f"A quale prestatore devo associare il {label}?"
     if missing_slot == "description":
-        return "Qual e la voce/descrizione della spesa?"
+        category_label = "ristrutturazione" if intent == "add_expense_ristrutturazione" else "acquisto casa"
+        return (
+            f"Non ho capito bene la voce della spesa ({category_label}). "
+            "Come vuoi chiamarla? Esempi: TV, parquet, idraulico, notaio."
+        )
     return "Mi serve un dettaglio in piu per completare l'operazione."
 
 
