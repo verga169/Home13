@@ -78,6 +78,11 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 - Route pubbliche senza login: `GET /health`, asset statici, `GET /sw.js`.
 - Endpoint login: `GET/POST /login`
 - Logout: `POST /logout`
+- Ruoli:
+	- `superadmin`:
+		- in locale: username `admin` (bootstrap), puo gestire utenze applicative.
+		- su Render deploy: utente definito da variabili ambiente (`HOME13_AUTH_USERNAME` + password/hash), puo gestire utenze applicative.
+	- `user`: utente salvato su tabella DB `users`, puo usare l'app ma non vede la sezione gestione utenze.
 
 Variabili ambiente consigliate:
 
@@ -91,6 +96,8 @@ Note:
 
 - Se non imposti la password, fallback locale: `admin` (da usare solo per bootstrap).
 - In produzione imposta sempre `FLASK_SECRET_KEY` e credenziali dedicate.
+- Con database attivo, il superadmin puo creare/aggiornare/eliminare utenze dalla sezione `Gestione Utenze` dentro l'app.
+- Le password degli utenti DB sono salvate hashate (Werkzeug PBKDF2).
 
 ## Avvio Locale (Windows)
 

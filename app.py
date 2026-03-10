@@ -11,7 +11,7 @@ import unicodedata
 from uuid import uuid4
 
 from flask import Flask, Response, jsonify, redirect, render_template, request, send_from_directory, session, url_for
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 try:
     import psycopg
@@ -55,6 +55,12 @@ AUTH_USERNAME = (os.environ.get("HOME13_AUTH_USERNAME") or "admin").strip()
 AUTH_PASSWORD = os.environ.get("HOME13_AUTH_PASSWORD")
 AUTH_PASSWORD_HASH = (os.environ.get("HOME13_AUTH_PASSWORD_HASH") or "").strip()
 
+ROLE_SUPERADMIN = "superadmin"
+ROLE_USER = "user"
+
+IS_RENDER_DEPLOY = bool((os.environ.get("RENDER") or "").strip() or (os.environ.get("RENDER_EXTERNAL_URL") or "").strip())
+LOCAL_SUPERADMIN_USERNAME = "admin"
+
 app.secret_key = (
     (os.environ.get("FLASK_SECRET_KEY") or "").strip()
     or (os.environ.get("SECRET_KEY") or "").strip()
@@ -86,13 +92,28 @@ def is_authenticated() -> bool:
     return bool(session.get("authenticated"))
 
 
+def is_superadmin_session() -> bool:
+    return session.get("role") == ROLE_SUPERADMIN
+
+
+def normalize_username(raw_value: str) -> str:
+    return sanitize_text(raw_value).casefold()
+
+
+def get_superadmin_username() -> str:
+    if IS_RENDER_DEPLOY:
+        return sanitize_text(AUTH_USERNAME)
+    return LOCAL_SUPERADMIN_USERNAME
+
+
 def _is_safe_next_path(next_path: str) -> bool:
     target = sanitize_text(next_path)
     return bool(target) and target.startswith("/") and not target.startswith("//")
 
 
-def verify_login_credentials(username: str, password: str) -> bool:
-    if sanitize_text(username) != AUTH_USERNAME:
+def verify_superadmin_credentials(username: str, password: str) -> bool:
+    superadmin_username = get_superadmin_username()
+    if normalize_username(username) != normalize_username(superadmin_username):
         return False
 
     raw_password = password or ""
@@ -106,8 +127,67 @@ def verify_login_credentials(username: str, password: str) -> bool:
     if AUTH_PASSWORD is not None:
         return raw_password == AUTH_PASSWORD
 
-    # Last-resort local default for first bootstrap. Override via env in production.
+    # In local mode allow bootstrap admin/admin. On Render require env credentials.
+    if IS_RENDER_DEPLOY:
+        return False
     return raw_password == "admin"
+
+
+def fetch_db_user_by_username(username: str) -> dict | None:
+    if not USE_DATABASE:
+        return None
+
+    candidate = sanitize_text(username)
+    if not candidate:
+        return None
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT username, password_hash, is_active
+                FROM users
+                WHERE LOWER(username) = LOWER(%s)
+                """,
+                (candidate,),
+            )
+            return cur.fetchone()
+
+
+def authenticate_login(username: str, password: str) -> dict | None:
+    candidate_username = sanitize_text(username)
+    raw_password = password or ""
+    if not candidate_username:
+        return None
+
+    superadmin_username = get_superadmin_username()
+    if normalize_username(candidate_username) == normalize_username(superadmin_username):
+        if verify_superadmin_credentials(candidate_username, raw_password):
+            return {"username": superadmin_username, "role": ROLE_SUPERADMIN}
+        return None
+
+    if not USE_DATABASE:
+        return None
+
+    try:
+        db_user = fetch_db_user_by_username(candidate_username)
+    except Exception:
+        return None
+
+    if not db_user or not bool(db_user.get("is_active")):
+        return None
+
+    password_hash = sanitize_text(db_user.get("password_hash"))
+    if not password_hash:
+        return None
+
+    try:
+        if not check_password_hash(password_hash, raw_password):
+            return None
+    except Exception:
+        return None
+
+    return {"username": sanitize_text(db_user.get("username")) or candidate_username, "role": ROLE_USER}
 
 
 def format_euro(value: float) -> str:
@@ -1405,6 +1485,17 @@ def ensure_database_ready() -> None:
                     )
                     """
                 )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS users (
+                        username TEXT PRIMARY KEY,
+                        password_hash TEXT NOT NULL,
+                        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
             conn.commit()
     except Exception as exc:
         disable_database_mode(f"inizializzazione DB fallita ({exc.__class__.__name__}: {exc})")
@@ -1670,6 +1761,117 @@ def build_view_model(selected_repayment_lender: str | None = None) -> dict:
     }
 
 
+def list_managed_users() -> list[dict]:
+    if not USE_DATABASE:
+        return []
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT username, is_active, created_at, updated_at
+                FROM users
+                ORDER BY LOWER(username)
+                """
+            )
+            rows = cur.fetchall()
+
+    users: list[dict] = []
+    for row in rows:
+        users.append(
+            {
+                "username": sanitize_text(row.get("username")),
+                "is_active": bool(row.get("is_active")),
+                "created_at": row.get("created_at"),
+                "updated_at": row.get("updated_at"),
+            }
+        )
+    return users
+
+
+def upsert_managed_user(username: str, password: str) -> str:
+    if not USE_DATABASE:
+        raise RuntimeError("Database non attivo")
+
+    candidate_username = sanitize_text(username)
+    if not candidate_username:
+        raise ValueError("Username obbligatorio")
+    if len(candidate_username) < 3:
+        raise ValueError("Username troppo corto (min 3 caratteri)")
+    if len(candidate_username) > 64:
+        raise ValueError("Username troppo lungo (max 64 caratteri)")
+    if not re.fullmatch(r"[A-Za-z0-9._@\-]+", candidate_username):
+        raise ValueError("Username non valido (usa solo lettere, numeri e . _ @ -)")
+
+    raw_password = password or ""
+    if len(raw_password) < 8:
+        raise ValueError("Password troppo corta (min 8 caratteri)")
+
+    if normalize_username(candidate_username) == normalize_username(get_superadmin_username()):
+        raise ValueError("Questo username e riservato all'utente amministratore da ambiente")
+
+    password_hash = generate_password_hash(raw_password)
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO users (username, password_hash, is_active, updated_at)
+                VALUES (%s, %s, TRUE, CURRENT_TIMESTAMP)
+                ON CONFLICT (username)
+                DO UPDATE SET
+                    password_hash = EXCLUDED.password_hash,
+                    is_active = TRUE,
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING username
+                """,
+                (candidate_username, password_hash),
+            )
+            row = cur.fetchone()
+        conn.commit()
+
+    return sanitize_text(row.get("username")) if isinstance(row, dict) else candidate_username
+
+
+def delete_managed_user(username: str) -> bool:
+    if not USE_DATABASE:
+        return False
+
+    candidate_username = sanitize_text(username)
+    if not candidate_username:
+        return False
+    if normalize_username(candidate_username) == normalize_username(get_superadmin_username()):
+        return False
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM users WHERE LOWER(username) = LOWER(%s)", (candidate_username,))
+            deleted = cur.rowcount > 0
+        if deleted:
+            conn.commit()
+    return deleted
+
+
+@app.context_processor
+def inject_auth_context() -> dict:
+    can_manage = is_superadmin_session()
+    users: list[dict] = []
+    if can_manage and USE_DATABASE:
+        try:
+            users = list_managed_users()
+        except Exception:
+            users = []
+
+    return {
+        "current_username": sanitize_text(session.get("username")),
+        "can_manage_users": can_manage,
+        "managed_users": users,
+        "admin_users_notice": sanitize_text(session.pop("admin_users_notice", "")),
+        "admin_users_error": sanitize_text(session.pop("admin_users_error", "")),
+        "user_management_available": can_manage and USE_DATABASE,
+    }
+
+
 _db_bootstrap_done = False
 
 
@@ -1710,10 +1912,12 @@ def login():
         password = request.form.get("password") or ""
         form_next = sanitize_text(request.form.get("next"))
 
-        if verify_login_credentials(username, password):
+        auth_result = authenticate_login(username, password)
+        if auth_result:
             session.clear()
             session["authenticated"] = True
-            session["username"] = AUTH_USERNAME
+            session["username"] = sanitize_text(auth_result.get("username"))
+            session["role"] = sanitize_text(auth_result.get("role"))
             target = form_next if _is_safe_next_path(form_next) else next_path
             return redirect(target if _is_safe_next_path(target) else url_for("index"))
 
@@ -1726,6 +1930,53 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+@app.route("/admin/users", methods=["POST"])
+def admin_upsert_user():
+    if not is_superadmin_session():
+        return Response("Forbidden", status=403)
+
+    if not USE_DATABASE:
+        session["admin_users_error"] = "Gestione utenti disponibile solo con database attivo."
+        return redirect(url_for("index"))
+
+    username = sanitize_text(request.form.get("username"))
+    password = request.form.get("password") or ""
+
+    try:
+        saved_username = upsert_managed_user(username, password)
+        session["admin_users_notice"] = f"Utente '{saved_username}' salvato correttamente."
+    except Exception as exc:
+        session["admin_users_error"] = str(exc)
+
+    return redirect(url_for("index"))
+
+
+@app.route("/admin/users/delete", methods=["POST"])
+def admin_delete_user():
+    if not is_superadmin_session():
+        return Response("Forbidden", status=403)
+
+    username = sanitize_text(request.form.get("username"))
+    if not username:
+        session["admin_users_error"] = "Username mancante."
+        return redirect(url_for("index"))
+
+    if normalize_username(username) == normalize_username(get_superadmin_username()):
+        session["admin_users_error"] = "L'utente amministratore da ambiente non puo essere rimosso."
+        return redirect(url_for("index"))
+
+    try:
+        deleted = delete_managed_user(username)
+        if deleted:
+            session["admin_users_notice"] = f"Utente '{username}' eliminato."
+        else:
+            session["admin_users_error"] = "Utente non trovato."
+    except Exception as exc:
+        session["admin_users_error"] = str(exc)
+
+    return redirect(url_for("index"))
 
 
 @app.route("/", methods=["GET"])
