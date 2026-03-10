@@ -93,6 +93,16 @@ start_app.bat
 
 L'app include `gunicorn.conf.py` per bind su `0.0.0.0:$PORT`.
 
+### Troubleshooting Porta su Render
+
+Se vedi `No open HTTP ports detected on 0.0.0.0`, verifica:
+
+- Tipo servizio: `Web Service` (non `Background Worker`)
+- Start command effettivo: `gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 app:app`
+- Health check path: `/health`
+
+Il repository include anche un `Procfile` con start command web esplicito per evitare configurazioni ambigue.
+
 ## Dipendenze Principali
 
 - `flask`
