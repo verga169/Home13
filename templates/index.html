@@ -410,6 +410,47 @@
             margin-bottom: 12px;
         }
 
+        .ai-assistant-log {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 10px;
+            background: #f8fbfa;
+            margin-bottom: 10px;
+        }
+
+        .ai-msg {
+            padding: 8px 10px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            font-size: 0.92rem;
+            line-height: 1.4;
+        }
+
+        .ai-msg-user {
+            background: #e8f6f3;
+            border: 1px solid #bfe3db;
+        }
+
+        .ai-msg-assistant {
+            background: #ffffff;
+            border: 1px solid var(--line);
+        }
+
+        .ai-assistant-form {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .ai-assistant-note {
+            margin: 0 0 10px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
         .install-panel {
             margin: 0 0 20px;
             padding: 12px 14px;
@@ -524,6 +565,9 @@
                 justify-content: center;
                 align-items: center;
             }
+            .ai-assistant-form {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 420px) {
@@ -576,6 +620,16 @@
             <a class="btn btn-brand" href="{{ url_for('export_excel') }}">Export Excel</a>
             <a class="btn btn-light" href="{{ url_for('export_pdf') }}">Export PDF</a>
             <button class="btn btn-light hidden" id="install-app-btn" type="button">Installa app</button>
+        </section>
+
+        <section class="card">
+            <h2>Assistente AI</h2>
+            <p class="ai-assistant-note">Scrivi un comando come: "aggiungi un rimborso a Sandro di 1000 euro".</p>
+            <div id="ai-assistant-log" class="ai-assistant-log"></div>
+            <form id="ai-assistant-form" class="ai-assistant-form">
+                <input id="ai-assistant-input" type="text" placeholder="Scrivi qui il comando" autocomplete="off" required>
+                <button class="btn btn-brand" type="submit">Invia</button>
+            </form>
         </section>
 
         <section class="chart-grid">
@@ -980,6 +1034,58 @@
                 input.value = input.value.replace(/[^\d.,\s]/g, "");
             });
         });
+
+        const aiAssistantForm = document.getElementById("ai-assistant-form");
+        const aiAssistantInput = document.getElementById("ai-assistant-input");
+        const aiAssistantLog = document.getElementById("ai-assistant-log");
+        let aiPending = null;
+
+        function pushAiMessage(text, role) {
+            if (!aiAssistantLog) return;
+            const msg = document.createElement("div");
+            msg.className = `ai-msg ${role === "user" ? "ai-msg-user" : "ai-msg-assistant"}`;
+            msg.textContent = text;
+            aiAssistantLog.appendChild(msg);
+            aiAssistantLog.scrollTop = aiAssistantLog.scrollHeight;
+        }
+
+        if (aiAssistantLog) {
+            pushAiMessage("Ciao. Posso registrare spese, prestiti e rimborsi con comandi testuali.", "assistant");
+        }
+
+        if (aiAssistantForm && aiAssistantInput) {
+            aiAssistantForm.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const message = (aiAssistantInput.value || "").trim();
+                if (!message) return;
+
+                pushAiMessage(message, "user");
+                aiAssistantInput.value = "";
+                aiAssistantInput.disabled = true;
+
+                try {
+                    const response = await fetch("/ai-command", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ message, pending: aiPending }),
+                    });
+
+                    const result = await response.json();
+                    const reply = (result && result.reply) ? result.reply : "Non sono riuscito a interpretare il comando.";
+                    pushAiMessage(reply, "assistant");
+                    aiPending = result && result.pending ? result.pending : null;
+
+                    if (result && result.refresh) {
+                        window.setTimeout(() => window.location.reload(), 600);
+                    }
+                } catch (error) {
+                    pushAiMessage("Errore di connessione con l'assistente. Riprova.", "assistant");
+                } finally {
+                    aiAssistantInput.disabled = false;
+                    aiAssistantInput.focus();
+                }
+            });
+        }
 
         const payload = JSON.parse(document.getElementById("chart-data").textContent);
         const isMobile = window.matchMedia("(max-width: 620px)").matches;

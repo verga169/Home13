@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import date, datetime
 from uuid import uuid4
 
-from flask import Flask, Response, redirect, render_template, request, send_from_directory, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, request, send_from_directory, url_for
 
 try:
     import psycopg
@@ -144,6 +144,286 @@ def parse_iso_date(raw_value: str) -> date:
         return datetime.fromisoformat(raw[:10]).date()
     except ValueError as exc:
         raise ValueError("Data non valida") from exc
+
+
+def parse_date_from_text(raw_value: str) -> str | None:
+    text = sanitize_text(raw_value).lower()
+    if not text:
+        return None
+
+    today = date.today()
+    if "oggi" in text:
+        return today.isoformat()
+    if "domani" in text:
+        return (today.fromordinal(today.toordinal() + 1)).isoformat()
+    if "ieri" in text:
+        return (today.fromordinal(today.toordinal() - 1)).isoformat()
+
+    iso_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", text)
+    if iso_match:
+        try:
+            return parse_iso_date(iso_match.group(1)).isoformat()
+        except ValueError:
+            return None
+
+    it_match = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b", text)
+    if it_match:
+        day_part, month_part, year_part = it_match.groups()
+        year_int = int(year_part)
+        if year_int < 100:
+            year_int += 2000
+        try:
+            parsed = date(year_int, int(month_part), int(day_part))
+            return parsed.isoformat()
+        except ValueError:
+            return None
+
+    return None
+
+
+def parse_amount_from_text(raw_value: str) -> float | None:
+    text = sanitize_text(raw_value).lower()
+    if not text:
+        return None
+
+    amount_patterns = [
+        r"(?:di|da)\s+([0-9][0-9\.,\s]*)\s*(?:euro|eur)?\b",
+        r"([0-9][0-9\.,\s]*)\s*(?:euro|eur)\b",
+    ]
+    for pattern in amount_patterns:
+        match = re.search(pattern, text)
+        if not match:
+            continue
+        try:
+            return parse_amount(match.group(1))
+        except ValueError:
+            continue
+    return None
+
+
+def parse_lender_from_text(raw_value: str) -> str | None:
+    text = sanitize_text(raw_value)
+    if not text:
+        return None
+
+    match = re.search(
+        r"\b(?:a|da)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' ]{1,40}?)(?=\s+\b(?:di|del|il|in|per)\b|$)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+    lender = sanitize_text(match.group(1))
+    return lender or None
+
+
+def parse_expense_description_from_text(raw_value: str) -> str | None:
+    text = sanitize_text(raw_value)
+    if not text:
+        return None
+
+    explicit = re.search(
+        r"\b(?:voce|descrizione)\s+(.+?)(?=\s+\b(?:di|del|il|in data|oggi|domani|ieri)\b|$)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if explicit:
+        description = sanitize_text(explicit.group(1))
+        return description or None
+    return None
+
+
+def detect_ai_intent(raw_value: str) -> str | None:
+    text = sanitize_text(raw_value).lower()
+    if not text:
+        return None
+    if "rimbor" in text:
+        return "add_repayment"
+    if "prestit" in text:
+        return "add_loan"
+    if "ristruttur" in text:
+        return "add_expense_ristrutturazione"
+    if "acquisto" in text or "casa" in text:
+        return "add_expense_acquisto_casa"
+    return None
+
+
+def required_slots_for_intent(intent: str) -> list[str]:
+    if intent in {"add_repayment", "add_loan"}:
+        return ["lender", "amount", "date"]
+    return ["description", "amount", "date"]
+
+
+def parse_slots_for_intent(intent: str, raw_value: str) -> dict:
+    slots: dict = {}
+
+    parsed_date = parse_date_from_text(raw_value)
+    if parsed_date:
+        slots["date"] = parsed_date
+
+    parsed_amount = parse_amount_from_text(raw_value)
+    if parsed_amount is not None:
+        slots["amount"] = parsed_amount
+
+    if intent in {"add_repayment", "add_loan"}:
+        lender = parse_lender_from_text(raw_value)
+        if lender:
+            slots["lender"] = lender
+    else:
+        description = parse_expense_description_from_text(raw_value)
+        if description:
+            slots["description"] = description
+
+    return slots
+
+
+def ask_for_missing_slot(intent: str, missing_slot: str) -> str:
+    if missing_slot == "date":
+        return "Per quale data vuoi registrarlo? (es: 2026-03-10 o 10/03/2026)"
+    if missing_slot == "amount":
+        return "Qual e l'importo esatto in euro?"
+    if missing_slot == "lender":
+        label = "rimborso" if intent == "add_repayment" else "prestito"
+        return f"A quale prestatore devo associare il {label}?"
+    if missing_slot == "description":
+        return "Qual e la voce/descrizione della spesa?"
+    return "Mi serve un dettaglio in piu per completare l'operazione."
+
+
+def save_ai_operation(intent: str, slots: dict) -> dict:
+    if intent == "add_repayment":
+        item = {
+            "id": new_id(),
+            "date": slots["date"],
+            "lender": slots["lender"],
+            "amount": slots["amount"],
+        }
+        if USE_DATABASE:
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO repayments (id, operation_date, lender, amount)
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (item["id"], item["date"], item["lender"], item["amount"]),
+                    )
+                conn.commit()
+        else:
+            data = load_data()
+            data["repayments"].append(item)
+            save_data(data)
+        return item
+
+    if intent == "add_loan":
+        item = {
+            "id": new_id(),
+            "date": slots["date"],
+            "lender": slots["lender"],
+            "amount": slots["amount"],
+        }
+        if USE_DATABASE:
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO loans (id, operation_date, lender, amount)
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (item["id"], item["date"], item["lender"], item["amount"]),
+                    )
+                conn.commit()
+        else:
+            data = load_data()
+            data["loans"].append(item)
+            save_data(data)
+        return item
+
+    expense_category = "acquisto_casa" if intent == "add_expense_acquisto_casa" else "ristrutturazione"
+    item = {
+        "id": new_id(),
+        "date": slots["date"],
+        "description": slots["description"],
+        "amount": slots["amount"],
+    }
+    if USE_DATABASE:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO expenses (id, category, operation_date, description, amount)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (item["id"], expense_category, item["date"], item["description"], item["amount"]),
+                )
+            conn.commit()
+    else:
+        data = load_data()
+        data["expenses"][expense_category].append(item)
+        save_data(data)
+    return item
+
+
+def ai_intent_confirmation(intent: str, item: dict) -> str:
+    if intent == "add_repayment":
+        return (
+            f"Rimborso inserito: {format_euro(item['amount'])} EUR a {item['lender']} in data "
+            f"{format_date_it(item['date'])}."
+        )
+    if intent == "add_loan":
+        return (
+            f"Prestito inserito: {format_euro(item['amount'])} EUR da {item['lender']} in data "
+            f"{format_date_it(item['date'])}."
+        )
+    return (
+        f"Spesa inserita: {item['description']} da {format_euro(item['amount'])} EUR in data "
+        f"{format_date_it(item['date'])}."
+    )
+
+
+def process_ai_command(message: str, pending: dict | None) -> dict:
+    text = sanitize_text(message)
+    if not text and not pending:
+        raise ValueError("Inserisci un comando testuale.")
+
+    intent = None
+    slots: dict = {}
+    if isinstance(pending, dict):
+        intent = sanitize_text(pending.get("intent"))
+        slots = pending.get("slots") if isinstance(pending.get("slots"), dict) else {}
+
+    if not intent:
+        intent = detect_ai_intent(text)
+
+    if not intent:
+        return {
+            "status": "needs_input",
+            "reply": (
+                "Posso aiutarti con: spesa acquisto casa, spesa ristrutturazione, "
+                "prestito ricevuto, rimborso. Dimmi una frase tipo 'aggiungi rimborso a Sandro di 1000 euro'."
+            ),
+            "pending": None,
+        }
+
+    parsed_slots = parse_slots_for_intent(intent, text)
+    slots.update(parsed_slots)
+
+    required = required_slots_for_intent(intent)
+    missing = [field for field in required if not slots.get(field)]
+    if missing:
+        return {
+            "status": "needs_input",
+            "reply": ask_for_missing_slot(intent, missing[0]),
+            "pending": {"intent": intent, "slots": slots},
+        }
+
+    item = save_ai_operation(intent, slots)
+    return {
+        "status": "completed",
+        "reply": ai_intent_confirmation(intent, item),
+        "pending": None,
+        "refresh": True,
+    }
 
 
 def get_db_connection():
@@ -502,6 +782,21 @@ def index():
 @app.route("/health", methods=["GET"])
 def health_check():
     return Response("OK", status=200, mimetype="text/plain")
+
+
+@app.route("/ai-command", methods=["POST"])
+def ai_command():
+    payload = request.get_json(silent=True) or {}
+    message = sanitize_text(payload.get("message"))
+    pending = payload.get("pending") if isinstance(payload.get("pending"), dict) else None
+
+    try:
+        response_payload = process_ai_command(message, pending)
+        return jsonify(response_payload)
+    except ValueError as exc:
+        return jsonify({"status": "error", "reply": str(exc), "pending": pending}), 400
+    except Exception as exc:
+        return jsonify({"status": "error", "reply": f"Errore comando AI: {exc}", "pending": pending}), 500
 
 
 @app.route("/sw.js", methods=["GET"])
