@@ -101,12 +101,13 @@ start_app.bat
 
 - Runtime: Python
 - Build command: `pip install -r requirements.txt`
-- Start command: `gunicorn --config gunicorn.conf.py app:app`
+- Start command: `bash render-start.sh`
 - Variabili ambiente minime consigliate:
 	- `DATABASE_URL=<url_neon>`
 
 Repository include anche:
 - `Procfile` con entry web su Gunicorn
+- `render-start.sh` (avvio robusto: prova Gunicorn, fallback automatico a `python app.py`)
 - `runtime.txt` (`python-3.11.10`) per fissare una versione Python compatibile
 
 L'app include `gunicorn.conf.py` per bind su `0.0.0.0:$PORT`.
