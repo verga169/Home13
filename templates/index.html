@@ -246,6 +246,7 @@
             display: flex;
             gap: 6px;
             align-items: center;
+            flex-wrap: nowrap;
         }
 
         .inline-edit-row {
@@ -388,10 +389,12 @@
 
         .loans-table {
             table-layout: fixed;
+            min-width: 760px;
         }
 
         .repayments-table {
             table-layout: fixed;
+            min-width: 760px;
         }
 
         .loans-table th:nth-child(1),
@@ -477,6 +480,7 @@
 
         .expense-table {
             table-layout: fixed;
+            min-width: 700px;
         }
 
         .expense-table th:nth-child(1),
@@ -526,6 +530,10 @@
 
         #totalsChart {
             touch-action: none;
+        }
+
+        #timelineChart {
+            touch-action: pan-y;
         }
 
         .chart-grid {
@@ -716,11 +724,8 @@
             th, td { font-size: 0.86rem; padding: 8px; }
             .btn-danger { min-width: 72px; }
             .actions-cell {
-                flex-direction: column;
-                align-items: flex-end;
-            }
-            .actions-cell form {
-                width: auto;
+                flex-direction: row;
+                align-items: center;
             }
             .actions-cell .btn-edit,
             .actions-cell .btn-danger {
@@ -1570,13 +1575,27 @@
 
         function setTimelineWindow(days) {
             const windowIdx = computeInitialWindow(timelineLabels, days);
-            timelineChart.options.scales.x.min = windowIdx.min;
-            timelineChart.options.scales.x.max = windowIdx.max;
+            const maxIndex = Math.max(timelineLabels.length - 1, 0);
+            let safeMin = Math.max(0, Math.min(windowIdx.min, maxIndex));
+            let safeMax = Math.max(0, Math.min(windowIdx.max, maxIndex));
+
+            // Keep at least a small x-range to avoid rendering glitches on sparse windows.
+            if (safeMax <= safeMin) {
+                if (maxIndex === 0) {
+                    safeMin = 0;
+                    safeMax = 1;
+                } else {
+                    safeMin = Math.max(0, safeMin - 1);
+                    safeMax = Math.min(maxIndex, safeMax + 1);
+                }
+            }
+
+            timelineChart.options.scales.x.min = safeMin;
+            timelineChart.options.scales.x.max = safeMax;
             timelineChart.update("none");
         }
 
         document.getElementById("timeline-reset-zoom").addEventListener("click", () => {
-            timelineChart.resetZoom();
             setTimelineWindow(365);
         });
         document.getElementById("timeline-1y").addEventListener("click", () => setTimelineWindow(365));
