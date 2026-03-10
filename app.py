@@ -465,6 +465,19 @@ def build_view_model(selected_repayment_lender: str | None = None) -> dict:
     }
 
 
+_db_bootstrap_done = False
+
+
+@app.before_request
+def bootstrap_database_if_needed():
+    global _db_bootstrap_done
+    if _db_bootstrap_done:
+        return None
+    ensure_database_ready()
+    _db_bootstrap_done = True
+    return None
+
+
 @app.route("/", methods=["GET"])
 def index():
     vm = build_view_model(request.args.get("repayment_lender"))
@@ -1137,9 +1150,6 @@ def export_pdf():
         mimetype="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
-
-
-ensure_database_ready()
 
 
 if __name__ == "__main__":

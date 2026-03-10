@@ -1028,6 +1028,15 @@
             return points;
         }
 
+        const CHART_ZOOM_SPEED = 0.015;
+        const totalsValues = (payload.totals.values || []).map((value) => Number(value) || 0);
+        const hasNegativeTotals = totalsValues.some((value) => value < 0);
+        const totalsMinValue = totalsValues.length ? Math.min(...totalsValues) : 0;
+        const totalsMaxValue = totalsValues.length ? Math.max(...totalsValues) : 0;
+        const totalsYAxisMin = hasNegativeTotals ? totalsMinValue : 0;
+        const totalsYAxisRange = Math.max(totalsMaxValue - totalsYAxisMin, 1);
+        const totalsYAxisPadding = totalsYAxisRange * 0.1;
+
         const totalsCanvas = document.getElementById("totalsChart");
         const totalsCtx = totalsCanvas.getContext("2d");
 
@@ -1067,11 +1076,16 @@
                 plugins: {
                     legend: { display: false },
                     zoom: {
+                        limits: {
+                            y: {
+                                min: hasNegativeTotals ? totalsMinValue - totalsYAxisPadding : 0,
+                            },
+                        },
                         zoom: {
-                            wheel: { enabled: true, speed: 0.04 },
-                            pinch: { enabled: true, threshold: 0.18 },
+                            wheel: { enabled: true, speed: CHART_ZOOM_SPEED },
+                            pinch: { enabled: true },
                             drag: { enabled: true },
-                            speed: 0.04,
+                            speed: CHART_ZOOM_SPEED,
                             mode: "xy",
                         },
                         pan: {
@@ -1087,6 +1101,7 @@
                 },
                 scales: {
                     y: {
+                        min: totalsYAxisMin,
                         beginAtZero: true,
                         ticks: {
                             maxTicksLimit: isMobile ? 5 : 8,
@@ -1201,10 +1216,10 @@
                             mode: "x",
                         },
                         zoom: {
-                            wheel: { enabled: true, speed: 0.04 },
-                            pinch: { enabled: true, threshold: 0.18 },
+                            wheel: { enabled: true, speed: CHART_ZOOM_SPEED },
+                            pinch: { enabled: true },
                             drag: { enabled: true },
-                            speed: 0.04,
+                            speed: CHART_ZOOM_SPEED,
                             mode: "x",
                         },
                     },
