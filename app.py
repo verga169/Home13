@@ -3,8 +3,11 @@ import json
 import os
 import re
 import sys
+import urllib.error
+import urllib.request
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+import unicodedata
 from uuid import uuid4
 
 from flask import Flask, Response, jsonify, redirect, render_template, request, send_from_directory, url_for
@@ -44,6 +47,9 @@ def load_local_env() -> None:
 load_local_env()
 DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
 USE_DATABASE = bool(DATABASE_URL)
+GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or "").strip()
+GEMINI_MODEL = (os.environ.get("GEMINI_MODEL") or "gemini-2.0-flash").strip()
+AI_LOCAL_FALLBACK = (os.environ.get("AI_LOCAL_FALLBACK") or "").strip() == "1"
 
 DEFAULT_DATA = {
     "expenses": {
@@ -136,6 +142,15 @@ def sanitize_text(raw_value: str) -> str:
     return (raw_value or "").strip()
 
 
+def normalize_text(raw_value: str) -> str:
+    text = sanitize_text(raw_value).lower()
+    if not text:
+        return ""
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def parse_iso_date(raw_value: str) -> date:
     raw = sanitize_text(raw_value)
     if not raw:
@@ -147,17 +162,91 @@ def parse_iso_date(raw_value: str) -> date:
 
 
 def parse_date_from_text(raw_value: str) -> str | None:
-    text = sanitize_text(raw_value).lower()
+    text = normalize_text(raw_value)
     if not text:
         return None
 
     today = date.today()
+    month_map = {
+        "gennaio": 1,
+        "gen": 1,
+        "febbraio": 2,
+        "feb": 2,
+        "marzo": 3,
+        "mar": 3,
+        "aprile": 4,
+        "apr": 4,
+        "maggio": 5,
+        "mag": 5,
+        "giugno": 6,
+        "giu": 6,
+        "luglio": 7,
+        "lug": 7,
+        "agosto": 8,
+        "ago": 8,
+        "settembre": 9,
+        "set": 9,
+        "ottobre": 10,
+        "ott": 10,
+        "novembre": 11,
+        "nov": 11,
+        "dicembre": 12,
+        "dic": 12,
+    }
+    weekday_map = {
+        "lunedi": 0,
+        "martedi": 1,
+        "mercoledi": 2,
+        "giovedi": 3,
+        "venerdi": 4,
+        "sabato": 5,
+        "domenica": 6,
+    }
+
+    def safe_date(year_value: int, month_value: int, day_value: int) -> str | None:
+        try:
+            return date(year_value, month_value, day_value).isoformat()
+        except ValueError:
+            return None
+
+    def next_weekday(target_weekday: int, force_next_week: bool = False) -> str:
+        delta = (target_weekday - today.weekday()) % 7
+        if delta == 0 or force_next_week:
+            delta += 7
+        return (today + timedelta(days=delta)).isoformat()
+
+    if "dopodomani" in text:
+        return (today + timedelta(days=2)).isoformat()
+    if "l altro ieri" in text or "altro ieri" in text:
+        return (today - timedelta(days=2)).isoformat()
     if "oggi" in text:
         return today.isoformat()
     if "domani" in text:
-        return (today.fromordinal(today.toordinal() + 1)).isoformat()
+        return (today + timedelta(days=1)).isoformat()
     if "ieri" in text:
-        return (today.fromordinal(today.toordinal() - 1)).isoformat()
+        return (today - timedelta(days=1)).isoformat()
+
+    relative_match = re.search(r"\b(?:tra|fra)\s+(\d{1,3})\s+(giorni|giorno|settimane|settimana|mesi|mese)\b", text)
+    if relative_match:
+        amount = int(relative_match.group(1))
+        unit = relative_match.group(2)
+        if unit.startswith("giorn"):
+            return (today + timedelta(days=amount)).isoformat()
+        if unit.startswith("settim"):
+            return (today + timedelta(days=amount * 7)).isoformat()
+        if unit.startswith("mes"):
+            return (today + timedelta(days=amount * 30)).isoformat()
+
+    if "settimana prossima" in text:
+        return (today + timedelta(days=7)).isoformat()
+    if "settimana scorsa" in text:
+        return (today - timedelta(days=7)).isoformat()
+
+    weekday_match = re.search(r"\b(lunedi|martedi|mercoledi|giovedi|venerdi|sabato|domenica)\b(?:\s+(prossimo|prossima))?", text)
+    if weekday_match:
+        weekday_name = weekday_match.group(1)
+        is_next = bool(weekday_match.group(2))
+        return next_weekday(weekday_map[weekday_name], force_next_week=is_next)
 
     iso_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", text)
     if iso_match:
@@ -166,25 +255,77 @@ def parse_date_from_text(raw_value: str) -> str | None:
         except ValueError:
             return None
 
-    it_match = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b", text)
+    it_match = re.search(r"\b(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})\b", text)
     if it_match:
         day_part, month_part, year_part = it_match.groups()
         year_int = int(year_part)
         if year_int < 100:
             year_int += 2000
-        try:
-            parsed = date(year_int, int(month_part), int(day_part))
-            return parsed.isoformat()
-        except ValueError:
-            return None
+        return safe_date(year_int, int(month_part), int(day_part))
+
+    short_match = re.search(r"\b(\d{1,2})[./-](\d{1,2})\b", text)
+    if short_match:
+        day_part, month_part = short_match.groups()
+        candidate = safe_date(today.year, int(month_part), int(day_part))
+        if candidate:
+            parsed = datetime.fromisoformat(candidate).date()
+            if parsed < today:
+                candidate_next = safe_date(today.year + 1, int(month_part), int(day_part))
+                if candidate_next:
+                    return candidate_next
+            return candidate
+
+    month_name_match = re.search(
+        r"\b(\d{1,2})\s+([a-z]+)\s*(\d{2,4})?\b",
+        text,
+    )
+    if month_name_match:
+        day_part = int(month_name_match.group(1))
+        month_name = month_name_match.group(2)
+        if month_name in month_map:
+            year_raw = month_name_match.group(3)
+            if year_raw:
+                year_int = int(year_raw)
+                if year_int < 100:
+                    year_int += 2000
+            else:
+                year_int = today.year
+            candidate = safe_date(year_int, month_map[month_name], day_part)
+            if candidate and not year_raw and datetime.fromisoformat(candidate).date() < today:
+                return safe_date(year_int + 1, month_map[month_name], day_part)
+            return candidate
 
     return None
 
 
 def parse_amount_from_text(raw_value: str) -> float | None:
-    text = sanitize_text(raw_value).lower()
+    text = normalize_text(raw_value)
     if not text:
         return None
+
+    textual_amounts = {
+        "mille": 1000.0,
+        "duemila": 2000.0,
+        "tremila": 3000.0,
+        "quattromila": 4000.0,
+        "cinquemila": 5000.0,
+        "seimila": 6000.0,
+        "settemila": 7000.0,
+        "ottomila": 8000.0,
+        "novemila": 9000.0,
+        "diecimila": 10000.0,
+    }
+    for token, value in textual_amounts.items():
+        if re.search(rf"\b{token}\b", text):
+            return value
+
+    k_match = re.search(r"\b(\d+(?:[\.,]\d+)?)\s*k\b", text)
+    if k_match:
+        normalized = k_match.group(1).replace(",", ".")
+        try:
+            return float(normalized) * 1000
+        except ValueError:
+            pass
 
     amount_patterns = [
         r"(?:di|da)\s+([0-9][0-9\.,\s]*)\s*(?:euro|eur)?\b",
@@ -198,6 +339,22 @@ def parse_amount_from_text(raw_value: str) -> float | None:
             return parse_amount(match.group(1))
         except ValueError:
             continue
+
+    # Fallback: plain number without "euro" (e.g. "aggiungi rimborso Sandro 1000")
+    # Use only values > 31 to avoid confusing day/month numbers with an amount.
+    raw_numbers = re.findall(r"\b\d+(?:[\.,]\d+)?\b", text)
+    candidates = []
+    for raw_number in raw_numbers:
+        normalized = raw_number.replace(",", ".")
+        try:
+            value = float(normalized)
+        except ValueError:
+            continue
+        if value > 31:
+            candidates.append(value)
+    if candidates:
+        return max(candidates)
+
     return None
 
 
@@ -212,6 +369,18 @@ def parse_lender_from_text(raw_value: str) -> str | None:
         flags=re.IGNORECASE,
     )
     if not match:
+        quoted = re.search(r'"([^\"]{2,40})"', text)
+        if quoted:
+            return sanitize_text(quoted.group(1)) or None
+        # fallback: after common command verbs, keep first meaningful chunk
+        fallback = re.search(
+            r"\b(?:rimborso|rimborsa|rimborsare|prestito|presta|aggiungi)\b\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' ]{1,40})",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if fallback:
+            candidate = sanitize_text(re.split(r"\b(di|del|in|per|oggi|domani|ieri|euro)\b", fallback.group(1), maxsplit=1)[0])
+            return candidate or None
         return None
     lender = sanitize_text(match.group(1))
     return lender or None
@@ -230,22 +399,189 @@ def parse_expense_description_from_text(raw_value: str) -> str | None:
     if explicit:
         description = sanitize_text(explicit.group(1))
         return description or None
+
+    quoted = re.search(r'"([^\"]{2,80})"', text)
+    if quoted:
+        return sanitize_text(quoted.group(1)) or None
+
+    generic = re.search(
+        r"\b(?:spesa|acquisto|ristrutturazione)\b\s+(?:voce\s+)?(.+?)(?=\s+\b(?:di|del|in data|oggi|domani|ieri|euro)\b|$)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if generic:
+        description = sanitize_text(generic.group(1))
+        if description:
+            return description
     return None
 
 
 def detect_ai_intent(raw_value: str) -> str | None:
-    text = sanitize_text(raw_value).lower()
+    text = normalize_text(raw_value)
     if not text:
         return None
-    if "rimbor" in text:
+    if re.search(r"\b(rimborso|rimborsa|rimborsare|restituisco|restituzione)\b", text):
         return "add_repayment"
-    if "prestit" in text:
+    if re.search(r"\b(prestito|prestare|ricevuto da|mi ha prestato)\b", text):
         return "add_loan"
-    if "ristruttur" in text:
+    if re.search(r"\b(ristrutturazione|ristrutturare|ristruttura)\b", text):
         return "add_expense_ristrutturazione"
-    if "acquisto" in text or "casa" in text:
+    if re.search(r"\b(acquisto|acquistato|casa|immobile|rogito|notaio|agenzia)\b", text):
         return "add_expense_acquisto_casa"
     return None
+
+
+def normalize_ai_intent(raw_intent: str | None) -> str | None:
+    intent = normalize_text(raw_intent)
+    if not intent:
+        return None
+
+    aliases = {
+        "add_repayment": "add_repayment",
+        "rimborso": "add_repayment",
+        "repayment": "add_repayment",
+        "add_loan": "add_loan",
+        "prestito": "add_loan",
+        "loan": "add_loan",
+        "add_expense_acquisto_casa": "add_expense_acquisto_casa",
+        "acquisto_casa": "add_expense_acquisto_casa",
+        "expense_acquisto": "add_expense_acquisto_casa",
+        "add_expense_ristrutturazione": "add_expense_ristrutturazione",
+        "ristrutturazione": "add_expense_ristrutturazione",
+        "expense_ristrutturazione": "add_expense_ristrutturazione",
+    }
+    return aliases.get(intent)
+
+
+def extract_json_object(raw_text: str) -> dict | None:
+    text = sanitize_text(raw_text)
+    if not text:
+        return None
+
+    # Direct JSON first.
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, dict) else None
+    except Exception:
+        pass
+
+    # Markdown fenced JSON fallback.
+    fenced = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text, flags=re.IGNORECASE)
+    if fenced:
+        try:
+            parsed = json.loads(fenced.group(1))
+            return parsed if isinstance(parsed, dict) else None
+        except Exception:
+            pass
+
+    # Last-resort: first JSON-like object.
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        candidate = text[start : end + 1]
+        try:
+            parsed = json.loads(candidate)
+            return parsed if isinstance(parsed, dict) else None
+        except Exception:
+            return None
+    return None
+
+
+def parse_slots_from_gemini(intent: str, llm_slots: dict) -> dict:
+    slots: dict = {}
+    if not isinstance(llm_slots, dict):
+        return slots
+
+    if intent in {"add_repayment", "add_loan"}:
+        lender = sanitize_text(llm_slots.get("lender"))
+        if lender:
+            slots["lender"] = lender
+    else:
+        description = sanitize_text(llm_slots.get("description"))
+        if description:
+            slots["description"] = description
+
+    amount_raw = llm_slots.get("amount")
+    if isinstance(amount_raw, (int, float)):
+        if float(amount_raw) > 0:
+            slots["amount"] = float(amount_raw)
+    elif isinstance(amount_raw, str):
+        parsed_amount = parse_amount_from_text(amount_raw)
+        if parsed_amount is not None:
+            slots["amount"] = parsed_amount
+
+    date_raw = llm_slots.get("date")
+    if isinstance(date_raw, str):
+        parsed_date = parse_date_from_text(date_raw)
+        if parsed_date:
+            slots["date"] = parsed_date
+        else:
+            try:
+                slots["date"] = parse_iso_date(date_raw).isoformat()
+            except ValueError:
+                pass
+
+    return slots
+
+
+def parse_with_gemini(message: str, pending: dict | None) -> dict | None:
+    if not GEMINI_API_KEY:
+        return None
+
+    pending_payload = pending if isinstance(pending, dict) else {}
+    prompt = (
+        "Interpreta il comando utente per un'app di finanza domestica. "
+        "Rispondi SOLO con JSON valido (nessun testo extra). "
+        "Schema: "
+        "{\"intent\":string|null,\"slots\":{\"lender\":string|null,\"description\":string|null,\"amount\":number|string|null,\"date\":string|null}}. "
+        "Intent consentiti: add_repayment, add_loan, add_expense_acquisto_casa, add_expense_ristrutturazione. "
+        "Date ammesse in output: ISO yyyy-mm-dd se certa, altrimenti stringa originale da cui dedurre. "
+        f"Stato pending corrente: {json.dumps(pending_payload, ensure_ascii=False)}. "
+        f"Messaggio utente: {message}"
+    )
+
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    body = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.1,
+            "responseMimeType": "application/json",
+        },
+    }
+
+    req = urllib.request.Request(
+        endpoint,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            raw = response.read().decode("utf-8", errors="replace")
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError):
+        return None
+
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return None
+
+    text_parts: list[str] = []
+    for candidate in payload.get("candidates", []):
+        content = candidate.get("content") if isinstance(candidate, dict) else None
+        parts = content.get("parts", []) if isinstance(content, dict) else []
+        for part in parts:
+            if isinstance(part, dict) and isinstance(part.get("text"), str):
+                text_parts.append(part["text"])
+
+    llm_obj = extract_json_object("\n".join(text_parts))
+    if not llm_obj:
+        return None
+
+    intent = normalize_ai_intent(llm_obj.get("intent"))
+    slots = parse_slots_from_gemini(intent, llm_obj.get("slots", {})) if intent else {}
+    return {"intent": intent, "slots": slots}
 
 
 def required_slots_for_intent(intent: str) -> list[str]:
@@ -392,10 +728,27 @@ def process_ai_command(message: str, pending: dict | None) -> dict:
         intent = sanitize_text(pending.get("intent"))
         slots = pending.get("slots") if isinstance(pending.get("slots"), dict) else {}
 
-    if not intent:
-        intent = detect_ai_intent(text)
+    llm_result = parse_with_gemini(text, pending)
+    if llm_result:
+        llm_intent = llm_result.get("intent")
+        llm_slots = llm_result.get("slots") if isinstance(llm_result.get("slots"), dict) else {}
+        if not intent and llm_intent:
+            intent = llm_intent
+        slots.update(llm_slots)
+
+    use_gemini = bool(GEMINI_API_KEY)
+    allow_local_fallback = (not use_gemini) or AI_LOCAL_FALLBACK
+
+    if not intent and allow_local_fallback:
+        intent = normalize_ai_intent(detect_ai_intent(text))
 
     if not intent:
+        if use_gemini:
+            return {
+                "status": "needs_input",
+                "reply": "Non ho riconosciuto il comando. Riformulalo in modo piu diretto (azione, importo, soggetto, data).",
+                "pending": pending if isinstance(pending, dict) else None,
+            }
         return {
             "status": "needs_input",
             "reply": (
@@ -405,11 +758,42 @@ def process_ai_command(message: str, pending: dict | None) -> dict:
             "pending": None,
         }
 
-    parsed_slots = parse_slots_for_intent(intent, text)
-    slots.update(parsed_slots)
+    if allow_local_fallback:
+        parsed_slots = parse_slots_for_intent(intent, text)
+        slots.update(parsed_slots)
 
     required = required_slots_for_intent(intent)
     missing = [field for field in required if not slots.get(field)]
+
+    # In follow-up turns, users often answer with just the missing value
+    # (e.g. "Sandro"). Accept direct replies to avoid clarification loops.
+    if pending and text and missing:
+        target = missing[0]
+        if target == "lender":
+            slots["lender"] = sanitize_text(text)
+        elif target == "description":
+            slots["description"] = sanitize_text(text)
+        elif target == "amount":
+            direct_amount = parse_amount_from_text(text)
+            if direct_amount is None:
+                try:
+                    direct_amount = parse_amount(text)
+                except ValueError:
+                    direct_amount = None
+            if direct_amount is not None:
+                slots["amount"] = direct_amount
+        elif target == "date":
+            direct_date = parse_date_from_text(text)
+            if direct_date is None:
+                try:
+                    direct_date = parse_iso_date(text).isoformat()
+                except ValueError:
+                    direct_date = None
+            if direct_date:
+                slots["date"] = direct_date
+
+        missing = [field for field in required if not slots.get(field)]
+
     if missing:
         return {
             "status": "needs_input",
