@@ -1548,6 +1548,7 @@
                             .filter(p => p.text)
                             .map(p => p.text)
                             .join("\n")
+                            .replace(/\[REFRESH\]/g, "")
                             .trim();
                         if (txt) appendMsg(txt, "bot");
                     }

@@ -2739,7 +2739,13 @@ def call_gemini_agent_chat(history: list[dict]) -> dict:
 
         content = candidates[0].get("content", {})
         parts = content.get("parts", [])
-        history = history + [{"role": "model", "parts": parts}]
+
+        # Strip [REFRESH] from text parts so history stored client-side is clean.
+        clean_parts = [
+            {**p, "text": p["text"].replace("[REFRESH]", "").strip()} if "text" in p else p
+            for p in parts
+        ]
+        history = history + [{"role": "model", "parts": clean_parts}]
 
         function_calls = [p for p in parts if "functionCall" in p]
         if not function_calls:
