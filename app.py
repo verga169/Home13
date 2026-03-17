@@ -288,6 +288,14 @@ def sanitize_text(raw_value: str) -> str:
     return (raw_value or "").strip()
 
 
+def capitalize_first(raw_value: str) -> str:
+    """Return the string with only the very first character uppercased."""
+    text = sanitize_text(raw_value)
+    if not text:
+        return text
+    return text[0].upper() + text[1:]
+
+
 def normalize_text(raw_value: str) -> str:
     text = sanitize_text(raw_value).lower()
     if not text:
@@ -2337,7 +2345,7 @@ def agent_fn_add_expense(args: dict) -> dict:
     category = sanitize_text(args.get("category", ""))
     if category not in {"acquisto_casa", "ristrutturazione"}:
         return {"success": False, "error": "Categoria non valida."}
-    description = sanitize_text(args.get("description", "")) or "Spesa"
+    description = capitalize_first(sanitize_text(args.get("description", ""))) or "Spesa"
     try:
         item_date = parse_iso_date(sanitize_text(args.get("date", ""))).isoformat()
     except ValueError:
@@ -2368,7 +2376,7 @@ def agent_fn_add_expense(args: dict) -> dict:
 
 
 def agent_fn_add_loan(args: dict) -> dict:
-    lender = sanitize_text(args.get("lender", ""))
+    lender = capitalize_first(sanitize_text(args.get("lender", "")))
     if not lender:
         return {"success": False, "error": "Nome prestatore mancante."}
     try:
@@ -2406,7 +2414,7 @@ def agent_fn_add_loan(args: dict) -> dict:
 
 
 def agent_fn_add_repayment(args: dict) -> dict:
-    lender = sanitize_text(args.get("lender", ""))
+    lender = capitalize_first(sanitize_text(args.get("lender", "")))
     if not lender:
         return {"success": False, "error": "Nome prestatore mancante."}
     try:
@@ -2472,7 +2480,7 @@ def agent_fn_delete_repayment(args: dict) -> dict:
 
 def _apply_update_fields(item: dict, args: dict, text_key: str) -> None:
     if args.get(text_key):
-        item[text_key] = sanitize_text(args[text_key])
+        item[text_key] = capitalize_first(sanitize_text(args[text_key]))
     if args.get("date"):
         try:
             item["date"] = parse_iso_date(sanitize_text(args["date"])).isoformat()
@@ -2834,7 +2842,7 @@ def add_expense():
         item = {
             "id": new_id(),
             "date": parse_iso_date(request.form.get("date") or "").isoformat(),
-            "description": sanitize_text(request.form.get("description")) or "Spesa",
+            "description": capitalize_first(sanitize_text(request.form.get("description"))) or "Spesa",
             "amount": parse_amount(request.form.get("amount")),
         }
 
@@ -2875,7 +2883,7 @@ def add_loan():
         item = {
             "id": new_id(),
             "date": parse_iso_date(request.form.get("date") or "").isoformat(),
-            "lender": sanitize_text(request.form.get("lender")) or "Familiare",
+            "lender": capitalize_first(sanitize_text(request.form.get("lender"))) or "Familiare",
             "note": sanitize_text(request.form.get("note")),
             "amount": parse_amount(request.form.get("amount")),
         }
@@ -2917,7 +2925,7 @@ def add_repayment():
         item = {
             "id": new_id(),
             "date": parse_iso_date(request.form.get("date") or "").isoformat(),
-            "lender": sanitize_text(request.form.get("lender")) or "Familiare",
+            "lender": capitalize_first(sanitize_text(request.form.get("lender"))) or "Familiare",
             "amount": parse_amount(request.form.get("amount")),
         }
 
@@ -2992,7 +3000,7 @@ def delete_item():
 def edit_item():
     section = sanitize_text(request.form.get("section"))
     item_id = sanitize_text(request.form.get("item_id"))
-    label = sanitize_text(request.form.get("label"))
+    label = capitalize_first(sanitize_text(request.form.get("label")))
     loan_note = sanitize_text(request.form.get("note"))
     date_raw = request.form.get("date") or ""
 
