@@ -585,48 +585,6 @@
             border-radius: 10px;
             margin-bottom: 12px;
         }
-
-
-        .ai-assistant-form {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .ai-bot-output {
-            margin: 0 0 10px;
-            border: 1px solid #b7dfd7;
-            background: linear-gradient(180deg, #f3fbf9 0%, #ecf7f4 100%);
-            color: #18443f;
-            border-radius: 12px;
-            padding: 12px 14px;
-            font-size: 0.94rem;
-            line-height: 1.45;
-            min-height: 48px;
-            display: flex;
-            align-items: center;
-        }
-
-        .ai-bot-output.is-loading {
-            color: #0f4f49;
-            border-color: #8bcfc2;
-            background: linear-gradient(180deg, #e9f7f3 0%, #e2f2ed 100%);
-            font-style: italic;
-        }
-
-        .ai-bot-output.is-loading::after {
-            content: "";
-            width: 12px;
-            height: 12px;
-            margin-left: 10px;
-            border-radius: 50%;
-            border: 2px solid rgba(15, 79, 73, 0.25);
-            border-top-color: #0f4f49;
-            animation: aiSpin 0.85s linear infinite;
-            flex: 0 0 auto;
-        }
-
         /* ---- AI Agent (test) chat UI ---- */
         .ai-agent-badge {
             display: inline-flex;
@@ -885,9 +843,6 @@
                 justify-content: center;
                 align-items: center;
             }
-            .ai-assistant-form {
-                grid-template-columns: 1fr;
-            }
         }
 
         @media (max-width: 420px) {
@@ -948,15 +903,6 @@
             <a class="btn btn-light" href="{{ url_for('admin_users_page') }}">Gestione utenze</a>
             {% endif %}
             <button class="btn btn-light hidden" id="install-app-btn" type="button">Installa app</button>
-        </section>
-
-        <section class="card">
-            <h2>Assistente AI</h2>
-            <div id="ai-bot-output" class="ai-bot-output" aria-live="polite">Cosa posso fare per te?</div>
-            <form id="ai-assistant-form" class="ai-assistant-form">
-                <input id="ai-assistant-input" type="text" placeholder="Scrivi qui il comando" autocomplete="off" required>
-                <button class="btn btn-brand" type="submit">Invia</button>
-            </form>
         </section>
 
         <section class="card">
@@ -1432,63 +1378,6 @@
                 input.value = input.value.replace(/[^\d.,\s]/g, "");
             });
         });
-
-        const aiAssistantForm = document.getElementById("ai-assistant-form");
-        const aiAssistantInput = document.getElementById("ai-assistant-input");
-        const aiBotOutput = document.getElementById("ai-bot-output");
-        const aiAssistantSubmit = aiAssistantForm ? aiAssistantForm.querySelector('button[type="submit"]') : null;
-        let aiPending = null;
-
-        if (aiAssistantForm && aiAssistantInput) {
-            aiAssistantForm.addEventListener("submit", async (event) => {
-                event.preventDefault();
-                const message = (aiAssistantInput.value || "").trim();
-                if (!message) return;
-
-                aiAssistantInput.value = "";
-                aiAssistantInput.disabled = true;
-                if (aiAssistantSubmit) {
-                    aiAssistantSubmit.disabled = true;
-                    aiAssistantSubmit.textContent = "Elaboro...";
-                }
-                if (aiBotOutput) {
-                    aiBotOutput.textContent = "Attendi, sto elaborando la richiesta...";
-                    aiBotOutput.classList.add("is-loading");
-                }
-
-                try {
-                    const response = await fetch("/ai-command", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ message, pending: aiPending }),
-                    });
-
-                    const result = await response.json();
-                    const reply = (result && result.reply) ? result.reply : "Non sono riuscito a interpretare il comando.";
-                    if (aiBotOutput) {
-                        aiBotOutput.textContent = reply;
-                        aiBotOutput.classList.remove("is-loading");
-                    }
-                    aiPending = result && result.pending ? result.pending : null;
-
-                    if (result && result.refresh) {
-                        window.setTimeout(() => window.location.reload(), 600);
-                    }
-                } catch (error) {
-                    if (aiBotOutput) {
-                        aiBotOutput.textContent = "Errore di connessione con l'assistente. Riprova.";
-                        aiBotOutput.classList.remove("is-loading");
-                    }
-                } finally {
-                    aiAssistantInput.disabled = false;
-                    if (aiAssistantSubmit) {
-                        aiAssistantSubmit.disabled = false;
-                        aiAssistantSubmit.textContent = "Invia";
-                    }
-                    aiAssistantInput.focus();
-                }
-            });
-        }
 
         /* ---- AI Agent (Gemini Function Calling) ---- */
         (function initAiAgent() {
