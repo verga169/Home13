@@ -2065,6 +2065,9 @@ AGENT_SYSTEM_INSTRUCTION = (
     "- Deduce la categoria dal contesto: acquisto immobiliare → acquisto_casa, "
     "tutto il resto → ristrutturazione.\n"
     "- Non inventare dati: se non riesci a trovare una voce, dillo chiaramente.\n"
+    "- Per domande su totali o somme in un intervallo di date, usa search_entries con "
+    "date_from e date_to (formato YYYY-MM-DD) e calcola la somma dal campo total_amount "
+    "restituito dalla funzione. Non dire mai che non puoi calcolare somme per intervallo.\n"
     "- Dopo ogni operazione CRUD di successo di aggiunta, modifica o cancellazione, "
     "aggiungi esattamente il tag [REFRESH] alla fine del tuo messaggio: "
     "il frontend si occuperà di ricaricare la pagina.\n"
@@ -2108,7 +2111,15 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                     "date": {
                         "type": "string",
-                        "description": "Data esatta in formato YYYY-MM-DD.",
+                        "description": "Data esatta in formato YYYY-MM-DD. Non usare insieme a date_from/date_to.",
+                    },
+                    "date_from": {
+                        "type": "string",
+                        "description": "Data iniziale intervallo (inclusa) in formato YYYY-MM-DD.",
+                    },
+                    "date_to": {
+                        "type": "string",
+                        "description": "Data finale intervallo (inclusa) in formato YYYY-MM-DD.",
                     },
                 },
                 "required": ["section"],
@@ -2280,6 +2291,8 @@ def _agent_search_section(
     text_filter: str | None,
     amount_filter: float | None,
     date_filter: str | None,
+    date_from: str | None = None,
+    date_to: str | None = None,
 ) -> list[dict]:
     results = []
     for entry in entries:
@@ -2287,7 +2300,12 @@ def _agent_search_section(
             continue
         if amount_filter is not None and abs(float(entry.get("amount", 0.0)) - amount_filter) > 0.01:
             continue
-        if date_filter and entry.get("date", "") != date_filter:
+        entry_date = entry.get("date", "")
+        if date_filter and entry_date != date_filter:
+            continue
+        if date_from and entry_date < date_from:
+            continue
+        if date_to and entry_date > date_to:
             continue
         results.append({**entry, "section": section_name})
     return results
@@ -2315,6 +2333,8 @@ def agent_fn_search_entries(args: dict) -> dict:
     lender_filter = sanitize_text(args.get("lender")) or None
     amount_filter = float(args["amount"]) if args.get("amount") is not None else None
     date_filter = sanitize_text(args.get("date")) or None
+    date_from = sanitize_text(args.get("date_from")) or None
+    date_to = sanitize_text(args.get("date_to")) or None
 
     data = load_data()
     results: list[dict] = []
@@ -2327,18 +2347,22 @@ def agent_fn_search_entries(args: dict) -> dict:
     for sec in target_sections:
         if sec in ("acquisto_casa", "ristrutturazione"):
             results += _agent_search_section(
-                data["expenses"].get(sec, []), sec, "description", desc_filter, amount_filter, date_filter
+                data["expenses"].get(sec, []), sec, "description",
+                desc_filter, amount_filter, date_filter, date_from, date_to,
             )
         elif sec == "loans":
             results += _agent_search_section(
-                data["loans"], "loans", "lender", lender_filter, amount_filter, date_filter
+                data["loans"], "loans", "lender",
+                lender_filter, amount_filter, date_filter, date_from, date_to,
             )
         elif sec == "repayments":
             results += _agent_search_section(
-                data["repayments"], "repayments", "lender", lender_filter, amount_filter, date_filter
+                data["repayments"], "repayments", "lender",
+                lender_filter, amount_filter, date_filter, date_from, date_to,
             )
 
-    return {"success": True, "count": len(results), "entries": results}
+    total = round(sum(float(e.get("amount", 0.0)) for e in results), 2)
+    return {"success": True, "count": len(results), "total_amount": total, "entries": results}
 
 
 def agent_fn_add_expense(args: dict) -> dict:
