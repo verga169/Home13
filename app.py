@@ -48,7 +48,7 @@ def load_local_env() -> None:
 load_local_env()
 DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
 USE_DATABASE = bool(DATABASE_URL)
-GEMINI_MODEL = (os.environ.get("GEMINI_MODEL") or "gemini-2.0-flash").strip()
+GEMINI_MODEL = (os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash-lite").strip()
 
 AUTH_USERNAME = (os.environ.get("HOME13_AUTH_USERNAME") or "admin").strip()
 AUTH_PASSWORD = os.environ.get("HOME13_AUTH_PASSWORD")
@@ -97,7 +97,7 @@ def get_gemini_api_key() -> str:
 
 def get_gemini_model() -> str:
     load_local_env()
-    return (os.environ.get("GEMINI_MODEL") or GEMINI_MODEL or "gemini-2.0-flash").strip()
+    return (os.environ.get("GEMINI_MODEL") or GEMINI_MODEL or "gemini-2.5-flash-lite").strip()
 
 
 def is_authenticated() -> bool:

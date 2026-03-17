@@ -1393,18 +1393,6 @@
             if (!agentForm || !agentInput || !agentWindow) return;
 
             let agentHistory = [];
-            const STORAGE_KEY = "home13_agent_history_v1";
-
-            function persistHistory() {
-                try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(agentHistory)); } catch (_) {}
-            }
-
-            function loadHistory() {
-                try {
-                    const raw = sessionStorage.getItem(STORAGE_KEY);
-                    if (raw) agentHistory = JSON.parse(raw);
-                } catch (_) { agentHistory = []; }
-            }
 
             function getChatHeightLimits() {
                 const styles = window.getComputedStyle(agentWindow);
@@ -1468,9 +1456,8 @@
                 }
             }
 
-            loadHistory();
-            if (agentHistory.length > 0) renderHistory();
-            else appendMsg("Ciao! Sono l'agente AI. Puoi chiedermi di aggiungere spese, prestiti, rimborsi, cercare voci, modificarle o eliminarle. Come posso aiutarti?", "bot");
+            renderHistory();
+            appendMsg("Ciao! Sono l'agente AI. Puoi chiedermi di aggiungere spese, prestiti, rimborsi, cercare voci, modificarle o eliminarle. Come posso aiutarti?", "bot");
             adjustAgentWindowHeight();
             window.addEventListener("resize", () => adjustAgentWindowHeight());
 
@@ -1501,7 +1488,6 @@
 
                     if (result && Array.isArray(result.history)) {
                         agentHistory = result.history.filter(t => t.role === "user" || t.role === "model");
-                        persistHistory();
                     }
 
                     if (result && result.refresh) {
@@ -1519,7 +1505,6 @@
 
             agentClear && agentClear.addEventListener("click", () => {
                 agentHistory = [];
-                persistHistory();
                 agentWindow.innerHTML = "";
                 appendMsg("Conversazione cancellata. Come posso aiutarti?", "bot");
                 adjustAgentWindowHeight();

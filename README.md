@@ -89,7 +89,7 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 - Endpoint: `POST /ai-command`
 - Configurazione via env:
 	- `GEMINI_API_KEY=<chiave_api_gemini>`
-	- `GEMINI_MODEL=gemini-2.0-flash` (opzionale, default)
+	- `GEMINI_MODEL=gemini-2.5-flash-lite` (opzionale, default)
 - Comportamento:
 	- usa sempre Gemini per interpretare i comandi (nessun fallback locale)
 	- supporta inserimento e rimozione movimenti per: rimborsi, prestiti, acquisto casa, ristrutturazione
