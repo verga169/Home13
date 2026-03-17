@@ -2030,6 +2030,772 @@ def health_check():
     return Response("OK", status=200, mimetype="text/plain")
 
 
+# ---------------------------------------------------------------------------
+# AI Agent – Gemini native Function Calling
+# ---------------------------------------------------------------------------
+
+AGENT_SYSTEM_INSTRUCTION = (
+    "Sei l'assistente AI dell'app Home13, un'applicazione web per la gestione "
+    "delle spese legate all'acquisto e ristrutturazione di una casa.\n\n"
+    "Le categorie di dati che gestisci:\n"
+    "1. Spese di acquisto casa (category=acquisto_casa): notaio, rogito, agenzia, "
+    "imposte, caparra, mutuo, compravendita, ecc.\n"
+    "2. Spese di ristrutturazione (category=ristrutturazione): lavori, materiali, "
+    "mobili, elettrodomestici, impianti, idraulico, ecc.\n"
+    "3. Prestiti ricevuti (section=loans): denaro ricevuto in prestito da persone.\n"
+    "4. Rimborsi (section=repayments): denaro restituito ai prestatori.\n\n"
+    "Regole di comportamento:\n"
+    "- Rispondi sempre in italiano, in modo naturale e conversazionale.\n"
+    "- Quando l'utente vuole eseguire un'operazione usa le funzioni disponibili.\n"
+    "- Se mancano dati obbligatori, chiedi all'utente prima di procedere.\n"
+    "- Prima di eliminare qualsiasi dato, usa search_entries per trovare la voce, "
+    "mostrala all'utente (importo, data, descrizione) e chiedi conferma esplicita.\n"
+    "- Prima di modificare dati, usa search_entries per trovare la voce corretta, "
+    "mostrala e chiedi conferma sui nuovi valori.\n"
+    "- Per le date nei parametri funzione usa il formato ISO YYYY-MM-DD. "
+    "Se l'utente dice 'oggi' usa {today}, 'ieri' usa {yesterday}.\n"
+    "- Deduce la categoria dal contesto: acquisto immobiliare → acquisto_casa, "
+    "tutto il resto → ristrutturazione.\n"
+    "- Non inventare dati: se non riesci a trovare una voce, dillo chiaramente.\n"
+    "- Dopo ogni operazione CRUD di successo di aggiunta, modifica o cancellazione, "
+    "aggiungi esattamente il tag [REFRESH] alla fine del tuo messaggio: "
+    "il frontend si occuperà di ricaricare la pagina.\n"
+)
+
+AGENT_TOOL_DECLARATIONS: dict = {
+    "function_declarations": [
+        {
+            "name": "get_summary",
+            "description": (
+                "Restituisce il riepilogo finanziario: totali per categoria, "
+                "debito residuo e saldo per prestatore."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+        {
+            "name": "search_entries",
+            "description": (
+                "Cerca voci nel database. Usalo prima di eliminare o modificare "
+                "per trovare l'ID corretto, o per rispondere a domande sulle voci presenti."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "section": {
+                        "type": "string",
+                        "enum": ["acquisto_casa", "ristrutturazione", "loans", "repayments", "all"],
+                        "description": "La sezione in cui cercare.",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Testo da cercare nella descrizione (per le spese).",
+                    },
+                    "lender": {
+                        "type": "string",
+                        "description": "Nome del prestatore (per prestiti e rimborsi).",
+                    },
+                    "amount": {
+                        "type": "number",
+                        "description": "Importo esatto da cercare.",
+                    },
+                    "date": {
+                        "type": "string",
+                        "description": "Data esatta in formato YYYY-MM-DD.",
+                    },
+                },
+                "required": ["section"],
+            },
+        },
+        {
+            "name": "add_expense",
+            "description": "Aggiunge una spesa al database.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "enum": ["acquisto_casa", "ristrutturazione"],
+                        "description": "Categoria della spesa.",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Nome/descrizione della spesa (es: parquet, notaio, TV).",
+                    },
+                    "date": {"type": "string", "description": "Data in formato YYYY-MM-DD."},
+                    "amount": {"type": "number", "description": "Importo in euro, numero positivo."},
+                },
+                "required": ["category", "description", "date", "amount"],
+            },
+        },
+        {
+            "name": "add_loan",
+            "description": "Registra un prestito ricevuto da un prestatore.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lender": {"type": "string", "description": "Nome del prestatore."},
+                    "date": {"type": "string", "description": "Data in formato YYYY-MM-DD."},
+                    "amount": {"type": "number", "description": "Importo in euro, numero positivo."},
+                    "note": {"type": "string", "description": "Note opzionali sul prestito."},
+                },
+                "required": ["lender", "date", "amount"],
+            },
+        },
+        {
+            "name": "add_repayment",
+            "description": "Registra un rimborso effettuato a un prestatore.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lender": {
+                        "type": "string",
+                        "description": "Nome del prestatore a cui è stato fatto il rimborso.",
+                    },
+                    "date": {"type": "string", "description": "Data in formato YYYY-MM-DD."},
+                    "amount": {"type": "number", "description": "Importo rimborsato in euro."},
+                },
+                "required": ["lender", "date", "amount"],
+            },
+        },
+        {
+            "name": "delete_expense",
+            "description": (
+                "Elimina una spesa tramite il suo ID univoco. "
+                "Usa search_entries prima per trovare l'ID e chiedere conferma all'utente."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "ID univoco della spesa."},
+                    "category": {
+                        "type": "string",
+                        "enum": ["acquisto_casa", "ristrutturazione"],
+                        "description": "Categoria della spesa.",
+                    },
+                },
+                "required": ["id", "category"],
+            },
+        },
+        {
+            "name": "delete_loan",
+            "description": (
+                "Elimina un prestito tramite il suo ID univoco. "
+                "Usa search_entries prima per trovare l'ID e chiedere conferma all'utente."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "ID univoco del prestito."},
+                },
+                "required": ["id"],
+            },
+        },
+        {
+            "name": "delete_repayment",
+            "description": (
+                "Elimina un rimborso tramite il suo ID univoco. "
+                "Usa search_entries prima per trovare l'ID e chiedere conferma all'utente."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "ID univoco del rimborso."},
+                },
+                "required": ["id"],
+            },
+        },
+        {
+            "name": "update_expense",
+            "description": (
+                "Modifica una spesa esistente. "
+                "Usa search_entries prima per trovare l'ID corretto."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "ID univoco della spesa."},
+                    "category": {
+                        "type": "string",
+                        "enum": ["acquisto_casa", "ristrutturazione"],
+                        "description": "Categoria della spesa.",
+                    },
+                    "description": {"type": "string", "description": "Nuova descrizione."},
+                    "date": {"type": "string", "description": "Nuova data YYYY-MM-DD."},
+                    "amount": {"type": "number", "description": "Nuovo importo in euro."},
+                },
+                "required": ["id", "category"],
+            },
+        },
+        {
+            "name": "update_loan",
+            "description": (
+                "Modifica un prestito esistente. "
+                "Usa search_entries prima per trovare l'ID corretto."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "ID univoco del prestito."},
+                    "lender": {"type": "string", "description": "Nuovo nome del prestatore."},
+                    "date": {"type": "string", "description": "Nuova data YYYY-MM-DD."},
+                    "amount": {"type": "number", "description": "Nuovo importo in euro."},
+                    "note": {"type": "string", "description": "Nuove note."},
+                },
+                "required": ["id"],
+            },
+        },
+        {
+            "name": "update_repayment",
+            "description": (
+                "Modifica un rimborso esistente. "
+                "Usa search_entries prima per trovare l'ID corretto."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "ID univoco del rimborso."},
+                    "lender": {"type": "string", "description": "Nuovo nome del prestatore."},
+                    "date": {"type": "string", "description": "Nuova data YYYY-MM-DD."},
+                    "amount": {"type": "number", "description": "Nuovo importo in euro."},
+                },
+                "required": ["id"],
+            },
+        },
+    ]
+}
+
+
+def _agent_search_section(
+    entries: list[dict],
+    section_name: str,
+    text_key: str,
+    text_filter: str | None,
+    amount_filter: float | None,
+    date_filter: str | None,
+) -> list[dict]:
+    results = []
+    for entry in entries:
+        if text_filter and normalize_text(text_filter) not in normalize_text(entry.get(text_key, "")):
+            continue
+        if amount_filter is not None and abs(float(entry.get("amount", 0.0)) - amount_filter) > 0.01:
+            continue
+        if date_filter and entry.get("date", "") != date_filter:
+            continue
+        results.append({**entry, "section": section_name})
+    return results
+
+
+def agent_fn_get_summary() -> dict:
+    summary = build_summary(load_data())
+    return {
+        "success": True,
+        "summary": {
+            "spese_acquisto_casa": f"{format_euro(summary['acquisto_total'])} €",
+            "spese_ristrutturazione": f"{format_euro(summary['ristr_total'])} €",
+            "spese_totali": f"{format_euro(summary['spese_total'])} €",
+            "prestiti_ricevuti": f"{format_euro(summary['loans_total'])} €",
+            "rimborsi_effettuati": f"{format_euro(summary['repayments_total'])} €",
+            "debito_residuo": f"{format_euro(summary['debito_residuo'])} €",
+            "saldo_per_prestatore": summary["lender_balance"],
+        },
+    }
+
+
+def agent_fn_search_entries(args: dict) -> dict:
+    section = sanitize_text(args.get("section", "all"))
+    desc_filter = sanitize_text(args.get("description")) or None
+    lender_filter = sanitize_text(args.get("lender")) or None
+    amount_filter = float(args["amount"]) if args.get("amount") is not None else None
+    date_filter = sanitize_text(args.get("date")) or None
+
+    data = load_data()
+    results: list[dict] = []
+    target_sections = (
+        ["acquisto_casa", "ristrutturazione", "loans", "repayments"]
+        if section == "all"
+        else [section]
+    )
+
+    for sec in target_sections:
+        if sec in ("acquisto_casa", "ristrutturazione"):
+            results += _agent_search_section(
+                data["expenses"].get(sec, []), sec, "description", desc_filter, amount_filter, date_filter
+            )
+        elif sec == "loans":
+            results += _agent_search_section(
+                data["loans"], "loans", "lender", lender_filter, amount_filter, date_filter
+            )
+        elif sec == "repayments":
+            results += _agent_search_section(
+                data["repayments"], "repayments", "lender", lender_filter, amount_filter, date_filter
+            )
+
+    return {"success": True, "count": len(results), "entries": results}
+
+
+def agent_fn_add_expense(args: dict) -> dict:
+    category = sanitize_text(args.get("category", ""))
+    if category not in {"acquisto_casa", "ristrutturazione"}:
+        return {"success": False, "error": "Categoria non valida."}
+    description = sanitize_text(args.get("description", "")) or "Spesa"
+    try:
+        item_date = parse_iso_date(sanitize_text(args.get("date", ""))).isoformat()
+    except ValueError:
+        return {"success": False, "error": "Data non valida."}
+    amount_raw = args.get("amount")
+    try:
+        amount = float(amount_raw)
+        if amount <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return {"success": False, "error": "Importo non valido."}
+
+    item = {"id": new_id(), "date": item_date, "description": description, "amount": amount}
+    if USE_DATABASE:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO expenses (id, category, operation_date, description, amount) "
+                    "VALUES (%s, %s, %s, %s, %s)",
+                    (item["id"], category, item["date"], item["description"], item["amount"]),
+                )
+            conn.commit()
+    else:
+        data = load_data()
+        data["expenses"][category].append(item)
+        save_data(data)
+    return {"success": True, "refresh": True, "item": item, "category": category}
+
+
+def agent_fn_add_loan(args: dict) -> dict:
+    lender = sanitize_text(args.get("lender", ""))
+    if not lender:
+        return {"success": False, "error": "Nome prestatore mancante."}
+    try:
+        item_date = parse_iso_date(sanitize_text(args.get("date", ""))).isoformat()
+    except ValueError:
+        return {"success": False, "error": "Data non valida."}
+    try:
+        amount = float(args.get("amount", 0))
+        if amount <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return {"success": False, "error": "Importo non valido."}
+
+    item = {
+        "id": new_id(),
+        "date": item_date,
+        "lender": lender,
+        "note": sanitize_text(args.get("note", "")),
+        "amount": amount,
+    }
+    if USE_DATABASE:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO loans (id, operation_date, lender, note, amount) "
+                    "VALUES (%s, %s, %s, %s, %s)",
+                    (item["id"], item["date"], item["lender"], item["note"], item["amount"]),
+                )
+            conn.commit()
+    else:
+        data = load_data()
+        data["loans"].append(item)
+        save_data(data)
+    return {"success": True, "refresh": True, "item": item}
+
+
+def agent_fn_add_repayment(args: dict) -> dict:
+    lender = sanitize_text(args.get("lender", ""))
+    if not lender:
+        return {"success": False, "error": "Nome prestatore mancante."}
+    try:
+        item_date = parse_iso_date(sanitize_text(args.get("date", ""))).isoformat()
+    except ValueError:
+        return {"success": False, "error": "Data non valida."}
+    try:
+        amount = float(args.get("amount", 0))
+        if amount <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return {"success": False, "error": "Importo non valido."}
+
+    item = {"id": new_id(), "date": item_date, "lender": lender, "amount": amount}
+    if USE_DATABASE:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO repayments (id, operation_date, lender, amount) VALUES (%s, %s, %s, %s)",
+                    (item["id"], item["date"], item["lender"], item["amount"]),
+                )
+            conn.commit()
+    else:
+        data = load_data()
+        data["repayments"].append(item)
+        save_data(data)
+    return {"success": True, "refresh": True, "item": item}
+
+
+def agent_fn_delete_expense(args: dict) -> dict:
+    item_id = sanitize_text(args.get("id", ""))
+    category = sanitize_text(args.get("category", ""))
+    if not item_id or category not in {"acquisto_casa", "ristrutturazione"}:
+        return {"success": False, "error": "ID o categoria mancante/non valida."}
+    deleted = delete_ai_operation(
+        "delete_expense_acquisto_casa" if category == "acquisto_casa" else "delete_expense_ristrutturazione",
+        item_id,
+    )
+    if deleted:
+        return {"success": True, "refresh": True}
+    return {"success": False, "error": "Voce non trovata o già eliminata."}
+
+
+def agent_fn_delete_loan(args: dict) -> dict:
+    item_id = sanitize_text(args.get("id", ""))
+    if not item_id:
+        return {"success": False, "error": "ID mancante."}
+    deleted = delete_ai_operation("delete_loan", item_id)
+    if deleted:
+        return {"success": True, "refresh": True}
+    return {"success": False, "error": "Prestito non trovato o già eliminato."}
+
+
+def agent_fn_delete_repayment(args: dict) -> dict:
+    item_id = sanitize_text(args.get("id", ""))
+    if not item_id:
+        return {"success": False, "error": "ID mancante."}
+    deleted = delete_ai_operation("delete_repayment", item_id)
+    if deleted:
+        return {"success": True, "refresh": True}
+    return {"success": False, "error": "Rimborso non trovato o già eliminato."}
+
+
+def _apply_update_fields(item: dict, args: dict, text_key: str) -> None:
+    if args.get(text_key):
+        item[text_key] = sanitize_text(args[text_key])
+    if args.get("date"):
+        try:
+            item["date"] = parse_iso_date(sanitize_text(args["date"])).isoformat()
+        except ValueError:
+            pass
+    if args.get("amount") is not None:
+        try:
+            val = float(args["amount"])
+            if val > 0:
+                item["amount"] = val
+        except (TypeError, ValueError):
+            pass
+
+
+def agent_fn_update_expense(args: dict) -> dict:
+    item_id = sanitize_text(args.get("id", ""))
+    category = sanitize_text(args.get("category", ""))
+    if not item_id or category not in {"acquisto_casa", "ristrutturazione"}:
+        return {"success": False, "error": "ID o categoria mancante/non valida."}
+
+    if USE_DATABASE:
+        sets = []
+        params: list = []
+        if args.get("description"):
+            sets.append("description = %s")
+            params.append(sanitize_text(args["description"]))
+        if args.get("date"):
+            try:
+                sets.append("operation_date = %s")
+                params.append(parse_iso_date(sanitize_text(args["date"])).isoformat())
+            except ValueError:
+                pass
+        if args.get("amount") is not None:
+            try:
+                val = float(args["amount"])
+                if val > 0:
+                    sets.append("amount = %s")
+                    params.append(val)
+            except (TypeError, ValueError):
+                pass
+        if not sets:
+            return {"success": False, "error": "Nessun campo da aggiornare."}
+        params += [item_id, category]
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"UPDATE expenses SET {', '.join(sets)} WHERE id = %s AND category = %s",
+                    params,
+                )
+                updated = cur.rowcount > 0
+            if updated:
+                conn.commit()
+        if updated:
+            return {"success": True, "refresh": True}
+        return {"success": False, "error": "Voce non trovata."}
+
+    data = load_data()
+    for item in data["expenses"][category]:
+        if item.get("id") == item_id:
+            _apply_update_fields(item, args, "description")
+            save_data(data)
+            return {"success": True, "refresh": True}
+    return {"success": False, "error": "Voce non trovata."}
+
+
+def agent_fn_update_loan(args: dict) -> dict:
+    item_id = sanitize_text(args.get("id", ""))
+    if not item_id:
+        return {"success": False, "error": "ID mancante."}
+
+    if USE_DATABASE:
+        sets = []
+        params: list = []
+        if args.get("lender"):
+            sets.append("lender = %s")
+            params.append(sanitize_text(args["lender"]))
+        if args.get("date"):
+            try:
+                sets.append("operation_date = %s")
+                params.append(parse_iso_date(sanitize_text(args["date"])).isoformat())
+            except ValueError:
+                pass
+        if args.get("amount") is not None:
+            try:
+                val = float(args["amount"])
+                if val > 0:
+                    sets.append("amount = %s")
+                    params.append(val)
+            except (TypeError, ValueError):
+                pass
+        if args.get("note") is not None:
+            sets.append("note = %s")
+            params.append(sanitize_text(args["note"]))
+        if not sets:
+            return {"success": False, "error": "Nessun campo da aggiornare."}
+        params.append(item_id)
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"UPDATE loans SET {', '.join(sets)} WHERE id = %s", params)
+                updated = cur.rowcount > 0
+            if updated:
+                conn.commit()
+        if updated:
+            return {"success": True, "refresh": True}
+        return {"success": False, "error": "Prestito non trovato."}
+
+    data = load_data()
+    for item in data["loans"]:
+        if item.get("id") == item_id:
+            _apply_update_fields(item, args, "lender")
+            if args.get("note") is not None:
+                item["note"] = sanitize_text(args["note"])
+            save_data(data)
+            return {"success": True, "refresh": True}
+    return {"success": False, "error": "Prestito non trovato."}
+
+
+def agent_fn_update_repayment(args: dict) -> dict:
+    item_id = sanitize_text(args.get("id", ""))
+    if not item_id:
+        return {"success": False, "error": "ID mancante."}
+
+    if USE_DATABASE:
+        sets = []
+        params: list = []
+        if args.get("lender"):
+            sets.append("lender = %s")
+            params.append(sanitize_text(args["lender"]))
+        if args.get("date"):
+            try:
+                sets.append("operation_date = %s")
+                params.append(parse_iso_date(sanitize_text(args["date"])).isoformat())
+            except ValueError:
+                pass
+        if args.get("amount") is not None:
+            try:
+                val = float(args["amount"])
+                if val > 0:
+                    sets.append("amount = %s")
+                    params.append(val)
+            except (TypeError, ValueError):
+                pass
+        if not sets:
+            return {"success": False, "error": "Nessun campo da aggiornare."}
+        params.append(item_id)
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"UPDATE repayments SET {', '.join(sets)} WHERE id = %s", params)
+                updated = cur.rowcount > 0
+            if updated:
+                conn.commit()
+        if updated:
+            return {"success": True, "refresh": True}
+        return {"success": False, "error": "Rimborso non trovato."}
+
+    data = load_data()
+    for item in data["repayments"]:
+        if item.get("id") == item_id:
+            _apply_update_fields(item, args, "lender")
+            save_data(data)
+            return {"success": True, "refresh": True}
+    return {"success": False, "error": "Rimborso non trovato."}
+
+
+_AGENT_DISPATCH: dict = {
+    "get_summary": agent_fn_get_summary,
+    "search_entries": agent_fn_search_entries,
+    "add_expense": agent_fn_add_expense,
+    "add_loan": agent_fn_add_loan,
+    "add_repayment": agent_fn_add_repayment,
+    "delete_expense": agent_fn_delete_expense,
+    "delete_loan": agent_fn_delete_loan,
+    "delete_repayment": agent_fn_delete_repayment,
+    "update_expense": agent_fn_update_expense,
+    "update_loan": agent_fn_update_loan,
+    "update_repayment": agent_fn_update_repayment,
+}
+
+
+def dispatch_agent_function(name: str, args: dict) -> dict:
+    fn = _AGENT_DISPATCH.get(name)
+    if fn is None:
+        return {"success": False, "error": f"Funzione '{name}' non riconosciuta."}
+    try:
+        no_arg_fns = {"get_summary"}
+        return fn() if name in no_arg_fns else fn(args)
+    except Exception as exc:
+        return {"success": False, "error": f"Errore esecuzione {name}: {exc}"}
+
+
+def call_gemini_agent_chat(history: list[dict]) -> dict:
+    """Multi-turn Gemini agent with native Function Calling."""
+    api_key = get_gemini_api_key()
+    if not api_key:
+        return {
+            "reply": "GEMINI_API_KEY non configurata. Imposta la variabile d'ambiente e riavvia.",
+            "history": history,
+            "refresh": False,
+        }
+
+    model = get_gemini_model()
+    endpoint = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}"
+        f":generateContent?key={api_key}"
+    )
+    today_str = date.today().isoformat()
+    from datetime import timedelta as _td
+    yesterday_str = (date.today() - _td(days=1)).isoformat()
+    system_text = AGENT_SYSTEM_INSTRUCTION.format(today=today_str, yesterday=yesterday_str)
+
+    refresh_needed = False
+
+    for _iteration in range(6):
+        body = {
+            "system_instruction": {"parts": [{"text": system_text}]},
+            "tools": [AGENT_TOOL_DECLARATIONS],
+            "contents": history,
+        }
+        req = urllib.request.Request(
+            endpoint,
+            data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                raw = resp.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as exc:
+            err_body = exc.read().decode("utf-8", errors="replace")
+            msg = ""
+            try:
+                err_obj = json.loads(err_body).get("error", {})
+                msg = sanitize_text(err_obj.get("message", ""))
+            except Exception:
+                pass
+            if exc.code == 429:
+                reply = "Quota Gemini esaurita (HTTP 429). Riprova tra poco."
+            elif exc.code in {401, 403}:
+                reply = "Accesso Gemini negato: controlla la GEMINI_API_KEY."
+            else:
+                reply = f"Errore Gemini HTTP {exc.code}. {msg or 'Riprova tra poco.'}"
+            return {"reply": reply, "history": history, "refresh": False}
+        except (urllib.error.URLError, TimeoutError):
+            return {
+                "reply": "Connessione a Gemini non riuscita (rete/timeout). Riprova.",
+                "history": history,
+                "refresh": False,
+            }
+
+        try:
+            gemini_resp = json.loads(raw)
+        except Exception:
+            return {"reply": "Risposta Gemini non valida (JSON).", "history": history, "refresh": False}
+
+        candidates = gemini_resp.get("candidates", [])
+        if not candidates:
+            finish = gemini_resp.get("promptFeedback", {}).get("blockReason", "")
+            return {
+                "reply": f"Risposta vuota da Gemini.{' Motivo: ' + finish if finish else ''} Riprova.",
+                "history": history,
+                "refresh": False,
+            }
+
+        content = candidates[0].get("content", {})
+        parts = content.get("parts", [])
+        history = history + [{"role": "model", "parts": parts}]
+
+        function_calls = [p for p in parts if "functionCall" in p]
+        if not function_calls:
+            text_reply = "\n".join(p.get("text", "") for p in parts if "text" in p).strip()
+            refresh_tag = "[REFRESH]" in text_reply
+            clean_reply = text_reply.replace("[REFRESH]", "").strip()
+            if refresh_tag:
+                refresh_needed = True
+            return {
+                "reply": clean_reply or "Risposta vuota. Riprova.",
+                "history": history,
+                "refresh": refresh_needed,
+            }
+
+        fn_responses = []
+        for fc_part in function_calls:
+            fc = fc_part["functionCall"]
+            fn_name = fc.get("name", "")
+            fn_args = fc.get("args") or {}
+            result = dispatch_agent_function(fn_name, fn_args)
+            if result.get("refresh"):
+                refresh_needed = True
+            fn_responses.append(
+                {"functionResponse": {"name": fn_name, "response": result}}
+            )
+
+        history = history + [{"role": "user", "parts": fn_responses}]
+
+    return {
+        "reply": "Il processo ha raggiunto il limite massimo di iterazioni. Riprova.",
+        "history": history,
+        "refresh": refresh_needed,
+    }
+
+
+@app.route("/ai-agent-chat", methods=["POST"])
+def ai_agent_chat():
+    if not is_authenticated():
+        return jsonify({"error": "Non autenticato"}), 401
+    payload = request.get_json(silent=True) or {}
+    message = sanitize_text(payload.get("message", ""))
+    raw_history = payload.get("history")
+    history: list[dict] = raw_history if isinstance(raw_history, list) else []
+
+    if not message:
+        return jsonify({"reply": "Scrivi un messaggio.", "history": history, "refresh": False})
+
+    history = history + [{"role": "user", "parts": [{"text": message}]}]
+    result = call_gemini_agent_chat(history)
+    return jsonify(result)
+
+
+# ---------------------------------------------------------------------------
+# Existing AI command (pattern-based bot)
+# ---------------------------------------------------------------------------
+
 @app.route("/ai-command", methods=["POST"])
 def ai_command():
     payload = request.get_json(silent=True) or {}

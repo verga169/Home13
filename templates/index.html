@@ -627,6 +627,130 @@
             flex: 0 0 auto;
         }
 
+        /* ---- AI Agent (test) chat UI ---- */
+        .ai-agent-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 3px 9px;
+            border-radius: 20px;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .ai-agent-chat-window {
+            border: 1px solid #c4b5fd;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
+            padding: 12px;
+            min-height: 180px;
+            max-height: 420px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            scroll-behavior: smooth;
+        }
+
+        .ai-agent-msg {
+            max-width: 82%;
+            padding: 9px 13px;
+            border-radius: 14px;
+            font-size: 0.93rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ai-agent-msg-user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #4f46e5, #6d28d9);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .ai-agent-msg-bot {
+            align-self: flex-start;
+            background: #ffffff;
+            color: #1f2c28;
+            border: 1px solid #ddd6fe;
+            border-bottom-left-radius: 4px;
+        }
+
+        .ai-agent-msg-typing {
+            align-self: flex-start;
+            background: #ffffff;
+            color: #6d28d9;
+            border: 1px solid #ddd6fe;
+            border-bottom-left-radius: 4px;
+            font-style: italic;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ai-agent-msg-typing::after {
+            content: "";
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid rgba(109, 40, 217, 0.25);
+            border-top-color: #6d28d9;
+            animation: aiSpin 0.85s linear infinite;
+            flex: 0 0 auto;
+        }
+
+        .ai-agent-form {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .ai-agent-form input {
+            border-color: #c4b5fd;
+        }
+
+        .ai-agent-form input:focus {
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+        }
+
+        .btn-agent {
+            background: linear-gradient(135deg, #4f46e5, #6d28d9);
+            color: #fff;
+            border: none;
+        }
+
+        .btn-agent:hover {
+            background: linear-gradient(135deg, #4338ca, #5b21b6);
+        }
+
+        .ai-agent-clear {
+            margin-top: 8px;
+            font-size: 0.82rem;
+            color: #7c3aed;
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 620px) {
+            .ai-agent-form { grid-template-columns: 1fr; }
+            .ai-agent-chat-window { max-height: 320px; }
+        }
+
+        /* ---- end AI Agent ---- */
+
         .install-panel {
             margin: 0 0 20px;
             padding: 12px 14px;
@@ -835,6 +959,21 @@
                 <button class="btn btn-brand" type="submit">Invia</button>
             </form>
         </section>
+
+        <section class="card">
+            <h2>Assistente AI <span class="ai-agent-badge">&#x1F9EA; Test &ndash; Agente Gemini</span></h2>
+            <p style="margin:0 0 10px;font-size:0.88rem;color:var(--muted);">
+                Versione sperimentale: usa Gemini con <em>Function Calling</em> nativo per aggiungere,
+                cercare, modificare ed eliminare dati in modo conversazionale, senza pattern predefiniti.
+            </p>
+            <div id="ai-agent-chat-window" class="ai-agent-chat-window" role="log" aria-live="polite" aria-label="Chat agente AI"></div>
+            <form id="ai-agent-form" class="ai-agent-form" autocomplete="off">
+                <input id="ai-agent-input" type="text" placeholder="Scrivi qui (es: aggiungi spesa parquet 3000€)" autocomplete="off" required>
+                <button class="btn btn-agent" type="submit">Invia</button>
+            </form>
+            <button class="ai-agent-clear" id="ai-agent-clear" type="button">Cancella conversazione</button>
+        </section>
+
 
         <section class="chart-grid">
             <article class="card chart-card">
@@ -1355,6 +1494,127 @@
                 }
             });
         }
+
+        /* ---- AI Agent (Gemini Function Calling) ---- */
+        (function initAiAgent() {
+            const agentForm = document.getElementById("ai-agent-form");
+            const agentInput = document.getElementById("ai-agent-input");
+            const agentWindow = document.getElementById("ai-agent-chat-window");
+            const agentClear = document.getElementById("ai-agent-clear");
+            const agentSubmitBtn = agentForm ? agentForm.querySelector('button[type="submit"]') : null;
+
+            if (!agentForm || !agentInput || !agentWindow) return;
+
+            let agentHistory = [];
+            const STORAGE_KEY = "home13_agent_history_v1";
+
+            function persistHistory() {
+                try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(agentHistory)); } catch (_) {}
+            }
+
+            function loadHistory() {
+                try {
+                    const raw = sessionStorage.getItem(STORAGE_KEY);
+                    if (raw) agentHistory = JSON.parse(raw);
+                } catch (_) { agentHistory = []; }
+            }
+
+            function appendMsg(text, role) {
+                const div = document.createElement("div");
+                div.classList.add("ai-agent-msg", role === "user" ? "ai-agent-msg-user" : "ai-agent-msg-bot");
+                div.textContent = text;
+                agentWindow.appendChild(div);
+                agentWindow.scrollTop = agentWindow.scrollHeight;
+                return div;
+            }
+
+            function appendTyping() {
+                const div = document.createElement("div");
+                div.classList.add("ai-agent-msg", "ai-agent-msg-typing");
+                div.textContent = "Gemini sta ragionando";
+                agentWindow.appendChild(div);
+                agentWindow.scrollTop = agentWindow.scrollHeight;
+                return div;
+            }
+
+            function renderHistory() {
+                agentWindow.innerHTML = "";
+                for (const turn of agentHistory) {
+                    if (turn.role === "user") {
+                        const txt = (turn.parts || []).map(p => p.text || "").join("").trim();
+                        if (txt) appendMsg(txt, "user");
+                    } else if (turn.role === "model") {
+                        const txt = (turn.parts || [])
+                            .filter(p => p.text)
+                            .map(p => p.text)
+                            .join("\n")
+                            .trim();
+                        if (txt) appendMsg(txt, "bot");
+                    }
+                }
+            }
+
+            function setAgentBusy(busy) {
+                agentInput.disabled = busy;
+                if (agentSubmitBtn) {
+                    agentSubmitBtn.disabled = busy;
+                    agentSubmitBtn.textContent = busy ? "Attendi..." : "Invia";
+                }
+            }
+
+            loadHistory();
+            if (agentHistory.length > 0) renderHistory();
+            else appendMsg("Ciao! Sono l'agente AI di test. Puoi chiedermi di aggiungere spese, prestiti, rimborsi, cercare voci, modificarle o eliminarle. Come posso aiutarti?", "bot");
+
+            agentForm.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const message = (agentInput.value || "").trim();
+                if (!message) return;
+
+                agentInput.value = "";
+                setAgentBusy(true);
+                appendMsg(message, "user");
+                const typingEl = appendTyping();
+
+                try {
+                    const historyToSend = agentHistory.filter(t => t.role === "user" || t.role === "model");
+                    const response = await fetch("/ai-agent-chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ message, history: historyToSend }),
+                    });
+
+                    const result = await response.json();
+                    typingEl.remove();
+
+                    const reply = (result && result.reply) ? result.reply : "Risposta non ricevuta. Riprova.";
+                    appendMsg(reply, "bot");
+
+                    if (result && Array.isArray(result.history)) {
+                        agentHistory = result.history.filter(t => t.role === "user" || t.role === "model");
+                        persistHistory();
+                    }
+
+                    if (result && result.refresh) {
+                        window.setTimeout(() => window.location.reload(), 900);
+                    }
+                } catch (err) {
+                    typingEl.remove();
+                    appendMsg("Errore di connessione con l'agente. Riprova.", "bot");
+                } finally {
+                    setAgentBusy(false);
+                    agentInput.focus();
+                }
+            });
+
+            agentClear && agentClear.addEventListener("click", () => {
+                agentHistory = [];
+                persistHistory();
+                agentWindow.innerHTML = "";
+                appendMsg("Conversazione cancellata. Come posso aiutarti?", "bot");
+            });
+        })();
+        /* ---- end AI Agent ---- */
 
         const payload = JSON.parse(document.getElementById("chart-data").textContent);
         const isMobile = window.matchMedia("(max-width: 620px)").matches;
