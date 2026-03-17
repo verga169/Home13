@@ -958,8 +958,8 @@ AGENT_SYSTEM_INSTRUCTION = (
     "- Rispondi sempre in italiano, in modo naturale e conversazionale.\n"
     "- Quando l'utente vuole eseguire un'operazione usa le funzioni disponibili.\n"
     "- Se mancano dati obbligatori, chiedi all'utente prima di procedere.\n"
-    "- Prima di eliminare qualsiasi dato, usa search_entries per trovare la voce, "
-    "mostrala all'utente (importo, data, descrizione) e chiedi conferma esplicita.\n"
+    "- Prima di eliminare dati, usa search_entries per mostrare all'utente cosa verrà eliminato "
+    "(singole voci o gruppi) e chiedi conferma esplicita.\n"
     "- Prima di modificare dati, usa search_entries per trovare la voce corretta, "
     "mostrala e chiedi conferma sui nuovi valori.\n"
     "- Per le date nei parametri funzione usa il formato ISO YYYY-MM-DD. "
@@ -970,6 +970,9 @@ AGENT_SYSTEM_INSTRUCTION = (
     "- Per domande su totali o somme in un intervallo di date, usa search_entries con "
     "date_from e date_to (formato YYYY-MM-DD) e calcola la somma dal campo total_amount "
     "restituito dalla funzione. Non dire mai che non puoi calcolare somme per intervallo.\n"
+    "- Se l'utente chiede di eliminare tutte le voci di una sezione, usa search_entries per "
+    "mostrare il numero di voci coinvolte, chiedi conferma esplicita e poi usa delete_all_entries "
+    "con confirm=true.\n"
     "- Dopo ogni operazione CRUD di successo di aggiunta, modifica o cancellazione, "
     "aggiungi esattamente il tag [REFRESH] alla fine del tuo messaggio: "
     "il frontend si occuperà di ricaricare la pagina.\n"
@@ -1123,6 +1126,28 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     "id": {"type": "string", "description": "ID univoco del rimborso."},
                 },
                 "required": ["id"],
+            },
+        },
+        {
+            "name": "delete_all_entries",
+            "description": (
+                "Elimina tutte le voci di una sezione (acquisto_casa, ristrutturazione, loans, repayments). "
+                "Richiede conferma esplicita con confirm=true."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "section": {
+                        "type": "string",
+                        "enum": ["acquisto_casa", "ristrutturazione", "loans", "repayments"],
+                        "description": "Sezione da svuotare completamente.",
+                    },
+                    "confirm": {
+                        "type": "boolean",
+                        "description": "Deve essere true dopo conferma esplicita dell'utente.",
+                    },
+                },
+                "required": ["section", "confirm"],
             },
         },
         {
@@ -1404,6 +1429,62 @@ def agent_fn_delete_repayment(args: dict) -> dict:
     return {"success": False, "error": "Rimborso non trovato o già eliminato."}
 
 
+def _is_explicit_confirmation(value) -> bool:
+    if value is True:
+        return True
+    text = sanitize_text(str(value)).casefold()
+    return text in {"true", "1", "yes", "ok", "conferma", "si", "sì"}
+
+
+def agent_fn_delete_all_entries(args: dict) -> dict:
+    section = sanitize_text(args.get("section", ""))
+    allowed_sections = {"acquisto_casa", "ristrutturazione", "loans", "repayments"}
+    if section not in allowed_sections:
+        return {"success": False, "error": "Sezione non valida."}
+
+    if not _is_explicit_confirmation(args.get("confirm")):
+        return {
+            "success": False,
+            "error": "Conferma esplicita obbligatoria. Ripeti con confirm=true dopo consenso utente.",
+        }
+
+    deleted_count = 0
+
+    if USE_DATABASE:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                if section in {"acquisto_casa", "ristrutturazione"}:
+                    cur.execute("DELETE FROM expenses WHERE category = %s", (section,))
+                elif section == "loans":
+                    cur.execute("DELETE FROM loans")
+                else:
+                    cur.execute("DELETE FROM repayments")
+                deleted_count = cur.rowcount
+            if deleted_count > 0:
+                conn.commit()
+    else:
+        data = load_data()
+        if section in {"acquisto_casa", "ristrutturazione"}:
+            deleted_count = len(data["expenses"][section])
+            data["expenses"][section] = []
+        elif section == "loans":
+            deleted_count = len(data["loans"])
+            data["loans"] = []
+        else:
+            deleted_count = len(data["repayments"])
+            data["repayments"] = []
+
+        if deleted_count > 0:
+            save_data(data)
+
+    return {
+        "success": True,
+        "refresh": True,
+        "section": section,
+        "deleted_count": int(deleted_count),
+    }
+
+
 def _apply_update_fields(item: dict, args: dict, text_key: str) -> None:
     if args.get(text_key):
         item[text_key] = capitalize_first(sanitize_text(args[text_key]))
@@ -1580,6 +1661,7 @@ _AGENT_DISPATCH: dict = {
     "delete_expense": agent_fn_delete_expense,
     "delete_loan": agent_fn_delete_loan,
     "delete_repayment": agent_fn_delete_repayment,
+    "delete_all_entries": agent_fn_delete_all_entries,
     "update_expense": agent_fn_update_expense,
     "update_loan": agent_fn_update_loan,
     "update_repayment": agent_fn_update_repayment,
