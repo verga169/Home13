@@ -612,7 +612,7 @@
             min-height: var(--ai-chat-min-height);
             max-height: var(--ai-chat-max-height);
             height: auto;
-            overflow-y: auto;
+            overflow-y: hidden;
             margin-bottom: 10px;
             display: flex;
             flex-direction: column;
@@ -1404,8 +1404,11 @@
             function adjustAgentWindowHeight(scrollToBottom = false) {
                 const { minHeight, maxHeight } = getChatHeightLimits();
                 agentWindow.style.height = "auto";
-                const nextHeight = Math.min(maxHeight, Math.max(minHeight, agentWindow.scrollHeight));
+                const contentHeight = agentWindow.scrollHeight;
+                const shouldEnableScroll = contentHeight > (maxHeight + 1);
+                const nextHeight = Math.min(maxHeight, Math.max(minHeight, contentHeight));
                 agentWindow.style.height = `${nextHeight}px`;
+                agentWindow.style.overflowY = shouldEnableScroll ? "auto" : "hidden";
                 if (scrollToBottom) {
                     agentWindow.scrollTop = agentWindow.scrollHeight;
                 }
