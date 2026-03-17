@@ -17,6 +17,7 @@ Home13 e una web app Flask per monitorare i costi legati a casa e ristrutturazio
 - Date mostrate in formato italiano (`gg/mm/aaaa`).
 - UI responsive desktop/mobile con attenzione a overflow e touch interactions.
 - Dopo submit form (aggiunta/modifica/eliminazione) la pagina mantiene la posizione di scroll.
+- Assistente AI con area chat a altezza dinamica (compatta con pochi messaggi, crescita progressiva fino a limite con scroll verticale).
 - Favicon da `static/favicon.ico`.
 - Installabile come PWA su smartphone (manifest + service worker).
 
@@ -86,7 +87,7 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
 ## Assistente AI (Gemini Flash)
 
-- Endpoint: `POST /ai-command`
+- Endpoint: `POST /ai-agent-chat`
 - Configurazione via env:
 	- `GEMINI_API_KEY=<chiave_api_gemini>`
 	- `GEMINI_MODEL=gemini-2.5-flash-lite` (opzionale, default)
@@ -96,6 +97,9 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 	- per le rimozioni richiede conferma esplicita (`si`/`no`) prima di eliminare
 	- in caso di ambiguita chiede dettagli aggiuntivi (es. importo/data/soggetto)
 	- in UI mostra stato di elaborazione (busy indicator) dopo invio comando
+	- messaggio iniziale chat: `Ciao! Sono l'agente AI. Come posso aiutarti?`
+	- cronologia chat non persistente tra refresh: ad ogni ricarica pagina la conversazione riparte da zero
+	- altezza chat dinamica su desktop/mobile: cresce con il contenuto fino a un massimo, poi usa scroll verticale
 	- errori API Gemini mostrati in modo esplicito (es. quota 429, key/permessi 401/403, timeout rete)
 
 ## Login e Sicurezza
