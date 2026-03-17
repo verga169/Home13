@@ -603,12 +603,15 @@
         }
 
         .ai-agent-chat-window {
+            --ai-chat-min-height: 64px;
+            --ai-chat-max-height: 420px;
             border: 1px solid #c4b5fd;
             border-radius: 14px;
             background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
             padding: 12px;
-            min-height: 180px;
-            max-height: 420px;
+            min-height: var(--ai-chat-min-height);
+            max-height: var(--ai-chat-max-height);
+            height: auto;
             overflow-y: auto;
             margin-bottom: 10px;
             display: flex;
@@ -703,7 +706,7 @@
 
         @media (max-width: 620px) {
             .ai-agent-form { grid-template-columns: 1fr auto auto; }
-            .ai-agent-chat-window { max-height: 320px; }
+            .ai-agent-chat-window { --ai-chat-max-height: 320px; }
         }
 
         /* ---- end AI Agent ---- */
@@ -1403,12 +1406,29 @@
                 } catch (_) { agentHistory = []; }
             }
 
+            function getChatHeightLimits() {
+                const styles = window.getComputedStyle(agentWindow);
+                const minHeight = parseFloat(styles.getPropertyValue("--ai-chat-min-height")) || 64;
+                const maxHeight = parseFloat(styles.getPropertyValue("--ai-chat-max-height")) || 420;
+                return { minHeight, maxHeight };
+            }
+
+            function adjustAgentWindowHeight(scrollToBottom = false) {
+                const { minHeight, maxHeight } = getChatHeightLimits();
+                agentWindow.style.height = "auto";
+                const nextHeight = Math.min(maxHeight, Math.max(minHeight, agentWindow.scrollHeight));
+                agentWindow.style.height = `${nextHeight}px`;
+                if (scrollToBottom) {
+                    agentWindow.scrollTop = agentWindow.scrollHeight;
+                }
+            }
+
             function appendMsg(text, role) {
                 const div = document.createElement("div");
                 div.classList.add("ai-agent-msg", role === "user" ? "ai-agent-msg-user" : "ai-agent-msg-bot");
                 div.textContent = text;
                 agentWindow.appendChild(div);
-                agentWindow.scrollTop = agentWindow.scrollHeight;
+                adjustAgentWindowHeight(true);
                 return div;
             }
 
@@ -1417,7 +1437,7 @@
                 div.classList.add("ai-agent-msg", "ai-agent-msg-typing");
                 div.textContent = "Gemini sta ragionando";
                 agentWindow.appendChild(div);
-                agentWindow.scrollTop = agentWindow.scrollHeight;
+                adjustAgentWindowHeight(true);
                 return div;
             }
 
@@ -1437,6 +1457,7 @@
                         if (txt) appendMsg(txt, "bot");
                     }
                 }
+                adjustAgentWindowHeight(true);
             }
 
             function setAgentBusy(busy) {
@@ -1449,7 +1470,9 @@
 
             loadHistory();
             if (agentHistory.length > 0) renderHistory();
-            else appendMsg("Ciao! Sono l'agente AI di test. Puoi chiedermi di aggiungere spese, prestiti, rimborsi, cercare voci, modificarle o eliminarle. Come posso aiutarti?", "bot");
+            else appendMsg("Ciao! Sono l'agente AI. Puoi chiedermi di aggiungere spese, prestiti, rimborsi, cercare voci, modificarle o eliminarle. Come posso aiutarti?", "bot");
+            adjustAgentWindowHeight();
+            window.addEventListener("resize", () => adjustAgentWindowHeight());
 
             agentForm.addEventListener("submit", async (event) => {
                 event.preventDefault();
@@ -1471,6 +1494,7 @@
 
                     const result = await response.json();
                     typingEl.remove();
+                    adjustAgentWindowHeight(true);
 
                     const reply = (result && result.reply) ? result.reply : "Risposta non ricevuta. Riprova.";
                     appendMsg(reply, "bot");
@@ -1485,6 +1509,7 @@
                     }
                 } catch (err) {
                     typingEl.remove();
+                    adjustAgentWindowHeight(true);
                     appendMsg("Errore di connessione con l'agente. Riprova.", "bot");
                 } finally {
                     setAgentBusy(false);
@@ -1497,6 +1522,7 @@
                 persistHistory();
                 agentWindow.innerHTML = "";
                 appendMsg("Conversazione cancellata. Come posso aiutarti?", "bot");
+                adjustAgentWindowHeight();
             });
         })();
         /* ---- end AI Agent ---- */
