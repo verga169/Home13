@@ -709,7 +709,7 @@
 
         .ai-agent-form {
             display: grid;
-            grid-template-columns: 1fr auto;
+            grid-template-columns: 1fr auto auto;
             gap: 8px;
             align-items: center;
         }
@@ -734,18 +734,17 @@
         }
 
         .ai-agent-clear {
-            margin-top: 8px;
-            font-size: 0.82rem;
-            color: #7c3aed;
-            background: none;
+            background: #dc2626;
+            color: #fff;
             border: none;
-            padding: 0;
-            cursor: pointer;
-            text-decoration: underline;
+        }
+
+        .ai-agent-clear:hover {
+            background: #b91c1c;
         }
 
         @media (max-width: 620px) {
-            .ai-agent-form { grid-template-columns: 1fr; }
+            .ai-agent-form { grid-template-columns: 1fr auto auto; }
             .ai-agent-chat-window { max-height: 320px; }
         }
 
@@ -970,8 +969,8 @@
             <form id="ai-agent-form" class="ai-agent-form" autocomplete="off">
                 <input id="ai-agent-input" type="text" placeholder="Scrivi qui (es: aggiungi spesa parquet 3000€)" autocomplete="off" required>
                 <button class="btn btn-agent" type="submit">Invia</button>
+                <button class="btn ai-agent-clear" id="ai-agent-clear" type="button">Clear</button>
             </form>
-            <button class="ai-agent-clear" id="ai-agent-clear" type="button">Cancella conversazione</button>
         </section>
 
 
