@@ -956,6 +956,8 @@ AGENT_SYSTEM_INSTRUCTION = (
     "4. Rimborsi (section=repayments): denaro restituito ai prestatori.\n\n"
     "Regole di comportamento:\n"
     "- Rispondi sempre in italiano, in modo naturale e conversazionale.\n"
+    "- Non menzionare mai ID, codici tecnici o chiavi interne nelle risposte all'utente. "
+    "Per identificare una voce chiedi solo dettagli umani (data, importo, descrizione, prestatore).\n"
     "- Quando l'utente vuole eseguire un'operazione usa le funzioni disponibili.\n"
     "- Se mancano dati obbligatori, chiedi all'utente prima di procedere.\n"
     "- Prima di eliminare dati, usa search_entries per mostrare all'utente cosa verrà eliminato "
@@ -992,7 +994,7 @@ AGENT_TOOL_DECLARATIONS: dict = {
             "name": "search_entries",
             "description": (
                 "Cerca voci nel database. Usalo prima di eliminare o modificare "
-                "per trovare l'ID corretto, o per rispondere a domande sulle voci presenti."
+                "per trovare la voce corretta, o per rispondere a domande sulle voci presenti."
             ),
             "parameters": {
                 "type": "object",
@@ -1084,8 +1086,8 @@ AGENT_TOOL_DECLARATIONS: dict = {
         {
             "name": "delete_expense",
             "description": (
-                "Elimina una spesa tramite il suo ID univoco. "
-                "Usa search_entries prima per trovare l'ID e chiedere conferma all'utente."
+                "Elimina una spesa esistente. "
+                "Usa search_entries prima per trovare la voce e chiedere conferma all'utente."
             ),
             "parameters": {
                 "type": "object",
@@ -1103,8 +1105,8 @@ AGENT_TOOL_DECLARATIONS: dict = {
         {
             "name": "delete_loan",
             "description": (
-                "Elimina un prestito tramite il suo ID univoco. "
-                "Usa search_entries prima per trovare l'ID e chiedere conferma all'utente."
+                "Elimina un prestito esistente. "
+                "Usa search_entries prima per trovare la voce e chiedere conferma all'utente."
             ),
             "parameters": {
                 "type": "object",
@@ -1117,8 +1119,8 @@ AGENT_TOOL_DECLARATIONS: dict = {
         {
             "name": "delete_repayment",
             "description": (
-                "Elimina un rimborso tramite il suo ID univoco. "
-                "Usa search_entries prima per trovare l'ID e chiedere conferma all'utente."
+                "Elimina un rimborso esistente. "
+                "Usa search_entries prima per trovare la voce e chiedere conferma all'utente."
             ),
             "parameters": {
                 "type": "object",
@@ -1154,7 +1156,7 @@ AGENT_TOOL_DECLARATIONS: dict = {
             "name": "update_expense",
             "description": (
                 "Modifica una spesa esistente. "
-                "Usa search_entries prima per trovare l'ID corretto."
+                "Usa search_entries prima per trovare la voce corretta."
             ),
             "parameters": {
                 "type": "object",
@@ -1176,7 +1178,7 @@ AGENT_TOOL_DECLARATIONS: dict = {
             "name": "update_loan",
             "description": (
                 "Modifica un prestito esistente. "
-                "Usa search_entries prima per trovare l'ID corretto."
+                "Usa search_entries prima per trovare la voce corretta."
             ),
             "parameters": {
                 "type": "object",
@@ -1194,7 +1196,7 @@ AGENT_TOOL_DECLARATIONS: dict = {
             "name": "update_repayment",
             "description": (
                 "Modifica un rimborso esistente. "
-                "Usa search_entries prima per trovare l'ID corretto."
+                "Usa search_entries prima per trovare la voce corretta."
             ),
             "parameters": {
                 "type": "object",
@@ -1399,7 +1401,7 @@ def agent_fn_delete_expense(args: dict) -> dict:
     item_id = sanitize_text(args.get("id", ""))
     category = sanitize_text(args.get("category", ""))
     if not item_id or category not in {"acquisto_casa", "ristrutturazione"}:
-        return {"success": False, "error": "ID o categoria mancante/non valida."}
+        return {"success": False, "error": "Voce o categoria mancante/non valida."}
     deleted = delete_ai_operation(
         "delete_expense_acquisto_casa" if category == "acquisto_casa" else "delete_expense_ristrutturazione",
         item_id,
@@ -1412,7 +1414,7 @@ def agent_fn_delete_expense(args: dict) -> dict:
 def agent_fn_delete_loan(args: dict) -> dict:
     item_id = sanitize_text(args.get("id", ""))
     if not item_id:
-        return {"success": False, "error": "ID mancante."}
+        return {"success": False, "error": "Voce mancante."}
     deleted = delete_ai_operation("delete_loan", item_id)
     if deleted:
         return {"success": True, "refresh": True}
@@ -1422,7 +1424,7 @@ def agent_fn_delete_loan(args: dict) -> dict:
 def agent_fn_delete_repayment(args: dict) -> dict:
     item_id = sanitize_text(args.get("id", ""))
     if not item_id:
-        return {"success": False, "error": "ID mancante."}
+        return {"success": False, "error": "Voce mancante."}
     deleted = delete_ai_operation("delete_repayment", item_id)
     if deleted:
         return {"success": True, "refresh": True}
@@ -1506,7 +1508,7 @@ def agent_fn_update_expense(args: dict) -> dict:
     item_id = sanitize_text(args.get("id", ""))
     category = sanitize_text(args.get("category", ""))
     if not item_id or category not in {"acquisto_casa", "ristrutturazione"}:
-        return {"success": False, "error": "ID o categoria mancante/non valida."}
+        return {"success": False, "error": "Voce o categoria mancante/non valida."}
 
     if USE_DATABASE:
         sets = []
@@ -1556,7 +1558,7 @@ def agent_fn_update_expense(args: dict) -> dict:
 def agent_fn_update_loan(args: dict) -> dict:
     item_id = sanitize_text(args.get("id", ""))
     if not item_id:
-        return {"success": False, "error": "ID mancante."}
+        return {"success": False, "error": "Voce mancante."}
 
     if USE_DATABASE:
         sets = []
@@ -1608,7 +1610,7 @@ def agent_fn_update_loan(args: dict) -> dict:
 def agent_fn_update_repayment(args: dict) -> dict:
     item_id = sanitize_text(args.get("id", ""))
     if not item_id:
-        return {"success": False, "error": "ID mancante."}
+        return {"success": False, "error": "Voce mancante."}
 
     if USE_DATABASE:
         sets = []
@@ -1679,6 +1681,24 @@ def dispatch_agent_function(name: str, args: dict) -> dict:
         return {"success": False, "error": f"Errore esecuzione {name}: {exc}"}
 
 
+def sanitize_agent_reply_text(reply_text: str, refresh_needed: bool = False) -> str:
+    text = sanitize_text(reply_text)
+    if text:
+        text = re.sub(r"[^.!?\n]*\bID\b[^.!?\n]*[.!?]?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\n{3,}", "\n\n", text).strip()
+
+    if text:
+        return text
+
+    if refresh_needed:
+        return "Operazione completata con successo."
+
+    return (
+        "Per procedere ho bisogno di un dettaglio in più sulla voce "
+        "(ad esempio data, importo, descrizione o prestatore)."
+    )
+
+
 def call_gemini_agent_chat(history: list[dict]) -> dict:
     """Multi-turn Gemini agent with native Function Calling."""
     api_key = get_gemini_api_key()
@@ -1747,8 +1767,12 @@ def call_gemini_agent_chat(history: list[dict]) -> dict:
         candidates = gemini_resp.get("candidates", [])
         if not candidates:
             finish = gemini_resp.get("promptFeedback", {}).get("blockReason", "")
+            reason_hint = f" (motivo: {finish})" if finish else ""
             return {
-                "reply": f"Risposta vuota da Gemini.{' Motivo: ' + finish if finish else ''} Riprova.",
+                "reply": (
+                    "Non ho ricevuto una risposta completa dal modello"
+                    f"{reason_hint}. Riprova con una richiesta più specifica."
+                ),
                 "history": history,
                 "refresh": False,
             }
@@ -1770,8 +1794,9 @@ def call_gemini_agent_chat(history: list[dict]) -> dict:
             clean_reply = text_reply.replace("[REFRESH]", "").strip()
             if refresh_tag:
                 refresh_needed = True
+            final_reply = sanitize_agent_reply_text(clean_reply, refresh_needed=refresh_needed)
             return {
-                "reply": clean_reply or "Risposta vuota. Riprova.",
+                "reply": final_reply,
                 "history": history,
                 "refresh": refresh_needed,
             }
