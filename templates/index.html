@@ -32,9 +32,9 @@
             --brand-dark: #0b4f4a;
             --accent: #4f9b92;
             --buy: #3b82f6;
-            --reno: #ef4444;
-            --loan: #10b981;
-            --repay: #f97316;
+            --reno: #facc15;
+            --loan: #ff2d2d;
+            --repay: #00d84a;
             --shadow: 0 12px 30px rgba(20, 36, 31, 0.10);
             --ui-fast: 180ms;
             --ui-smooth: 320ms;
@@ -1396,6 +1396,54 @@
             return { min: minIdx, max: labels.length - 1 };
         }
 
+        function formatTimelineDateLabel(raw) {
+            const dateObj = raw ? new Date(raw) : null;
+            if (!dateObj || Number.isNaN(dateObj.getTime())) {
+                return raw || "";
+            }
+
+            return dateObj.toLocaleDateString("it-IT", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "2-digit",
+            });
+        }
+
+        function buildTimelineTicks(scale, labels) {
+            if (!labels || labels.length === 0) {
+                return [{ value: 0 }];
+            }
+
+            const minValue = Number.isFinite(scale.min) ? scale.min : 0;
+            const maxValue = Number.isFinite(scale.max) ? scale.max : labels.length - 1;
+            const visibleMin = Math.max(0, Math.ceil(minValue));
+            const visibleMax = Math.min(labels.length - 1, Math.floor(maxValue));
+
+            if (visibleMax < visibleMin) {
+                return [{ value: visibleMin }];
+            }
+
+            const chartArea = scale.chart?.chartArea;
+            const availableWidth = chartArea
+                ? Math.max(chartArea.right - chartArea.left, 0)
+                : Math.max(scale.width || 0, 0);
+            const minTickSpacing = isMobile ? 84 : 96;
+            const maxVisibleTicks = Math.max(2, Math.floor(availableWidth / minTickSpacing));
+            const visiblePoints = visibleMax - visibleMin + 1;
+            const tickStep = Math.max(1, Math.ceil(visiblePoints / maxVisibleTicks));
+            const ticks = [];
+
+            for (let idx = visibleMin; idx <= visibleMax; idx += tickStep) {
+                ticks.push({ value: idx });
+            }
+
+            if (ticks[ticks.length - 1]?.value !== visibleMax) {
+                ticks.push({ value: visibleMax });
+            }
+
+            return ticks;
+        }
+
         const TIMELINE_ZOOM_SPEED = 0.015;
         const totalsValues = (payload.totals.values || []).map((value) => Number(value) || 0);
         const hasNegativeTotals = totalsValues.some((value) => value < 0);
@@ -1482,8 +1530,8 @@
                     {
                         label: "Ristrutturazione",
                         data: payload.timeline.ristrutturazione,
-                        borderColor: "#ef4444",
-                        backgroundColor: "rgba(239,68,68,0.75)",
+                        borderColor: "#facc15",
+                        backgroundColor: "rgba(250,204,21,0.9)",
                         pointRadius: isMobile ? 4 : 5,
                         pointHoverRadius: isMobile ? 7 : 9,
                         pointBorderWidth: 2,
@@ -1493,8 +1541,8 @@
                     {
                         label: "Prestiti ricevuti",
                         data: payload.timeline.prestiti,
-                        borderColor: "#10b981",
-                        backgroundColor: "rgba(16,185,129,0.75)",
+                        borderColor: "#ff2d2d",
+                        backgroundColor: "rgba(255,45,45,0.9)",
                         pointRadius: isMobile ? 4 : 5,
                         pointHoverRadius: isMobile ? 7 : 9,
                         pointBorderWidth: 2,
@@ -1504,8 +1552,8 @@
                     {
                         label: "Rimborsi",
                         data: payload.timeline.rimborsi,
-                        borderColor: "#f97316",
-                        backgroundColor: "rgba(249,115,22,0.75)",
+                        borderColor: "#00d84a",
+                        backgroundColor: "rgba(0,216,74,0.9)",
                         pointRadius: isMobile ? 4 : 5,
                         pointHoverRadius: isMobile ? 7 : 9,
                         pointBorderWidth: 2,
@@ -1523,16 +1571,15 @@
                         type: "linear",
                         min: initialYearWindow.min,
                         max: initialYearWindow.max,
+                        afterBuildTicks: (scale) => {
+                            scale.ticks = buildTimelineTicks(scale, timelineLabels);
+                        },
                         ticks: {
-                            autoSkip: true,
-                            maxTicksLimit: isMobile ? 4 : 8,
                             maxRotation: 0,
+                            minRotation: 0,
                             callback: (value) => {
                                 const idx = Math.round(Number(value));
-                                const raw = timelineLabels[idx] || "";
-                                const dateObj = raw ? new Date(raw) : null;
-                                if (!dateObj || Number.isNaN(dateObj.getTime())) return raw;
-                                return dateObj.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "2-digit" });
+                                return formatTimelineDateLabel(timelineLabels[idx] || "");
                             },
                         },
                     },
