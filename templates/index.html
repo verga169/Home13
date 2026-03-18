@@ -1421,9 +1421,18 @@
             const agentSubmitBtn = agentForm ? agentForm.querySelector('button[type="submit"]') : null;
 
             // Web Speech API setup
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
             let recognition = null;
             let isListening = false;
+            let isBraveBrowser = false;
+
+            if (navigator.brave && typeof navigator.brave.isBrave === 'function') {
+                navigator.brave.isBrave().then((result) => {
+                    isBraveBrowser = Boolean(result);
+                }).catch(() => {
+                    isBraveBrowser = false;
+                });
+            }
 
             if (SpeechRecognition) {
                 recognition = new SpeechRecognition();
@@ -1455,7 +1464,11 @@
                         case 'network':
                             errorMsg += 'connessione';
                             agentMicBtn.title = 'Connessione ai servizi vocali non disponibile.';
-                            alert('Errore di rete del riconoscimento vocale. Verifica connessione, VPN/AdBlock e riprova.');
+                            if (isBraveBrowser) {
+                                alert('Brave sta bloccando il servizio di riconoscimento vocale (errore network). Prova a disattivare Shields per questo sito oppure usa Chrome per la dettatura.');
+                            } else {
+                                alert('Errore di rete del riconoscimento vocale. Verifica connessione, VPN/AdBlock e riprova.');
+                            }
                             break;
                         case 'no-speech': errorMsg += 'nessun audio rilevato'; break;
                         case 'audio-capture': errorMsg += 'microfono non disponibile'; break;
