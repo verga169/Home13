@@ -1420,18 +1420,134 @@
             const agentMicBtn = document.getElementById("ai-agent-mic");
             const agentSubmitBtn = agentForm ? agentForm.querySelector('button[type="submit"]') : null;
 
-            // Web Speech API setup
+            // Voice input: SpeechRecognition (Chrome) + MediaRecorder fallback (Brave/Chromium).
             const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
             let recognition = null;
             let isListening = false;
             let isBraveBrowser = false;
+            let useRecorderFallback = Boolean(navigator.brave && typeof navigator.brave.isBrave === 'function');
+
+            let mediaRecorder = null;
+            let recorderStream = null;
+            let recordedChunks = [];
+            let isRecordingFallback = false;
 
             if (navigator.brave && typeof navigator.brave.isBrave === 'function') {
                 navigator.brave.isBrave().then((result) => {
                     isBraveBrowser = Boolean(result);
+                    useRecorderFallback = Boolean(result);
+                    if (isBraveBrowser) {
+                        agentMicBtn.title = 'Dettatura compatibilità Brave (registrazione + trascrizione server).';
+                    }
                 }).catch(() => {
                     isBraveBrowser = false;
                 });
+            }
+
+            function setMicActive(active) {
+                if (active) {
+                    agentMicBtn.classList.add('listening');
+                    agentMicBtn.textContent = '🔴';
+                } else {
+                    agentMicBtn.classList.remove('listening');
+                    agentMicBtn.textContent = '🎤';
+                }
+            }
+
+            async function transcribeRecordedAudio(audioBlob) {
+                const formData = new FormData();
+                const audioType = (audioBlob && audioBlob.type) ? audioBlob.type : 'audio/webm';
+                formData.append('audio', audioBlob, `voice-input.${audioType.includes('mp4') ? 'mp4' : 'webm'}`);
+
+                const response = await fetch('/ai-agent-transcribe', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const result = await response.json();
+                if (!response.ok || !result || !result.text) {
+                    throw new Error((result && result.error) || 'Trascrizione non disponibile');
+                }
+
+                agentInput.value = String(result.text || '').trim();
+                agentInput.focus();
+            }
+
+            async function startRecorderFallback() {
+                if (!window.isSecureContext) {
+                    alert('Il microfono richiede una connessione sicura (HTTPS o localhost).');
+                    return;
+                }
+                if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+                    alert('Il browser non supporta la registrazione microfono.');
+                    return;
+                }
+                if (typeof MediaRecorder === 'undefined') {
+                    alert('Il browser non supporta MediaRecorder.');
+                    return;
+                }
+
+                try {
+                    recorderStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    recordedChunks = [];
+
+                    let mimeType = '';
+                    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                        mimeType = 'audio/webm;codecs=opus';
+                    } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+                        mimeType = 'audio/webm';
+                    } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                        mimeType = 'audio/mp4';
+                    }
+
+                    mediaRecorder = mimeType ? new MediaRecorder(recorderStream, { mimeType }) : new MediaRecorder(recorderStream);
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data && event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.onerror = () => {
+                        alert('Errore durante la registrazione audio.');
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        isRecordingFallback = false;
+                        setMicActive(false);
+
+                        if (recorderStream) {
+                            (recorderStream.getTracks() || []).forEach((track) => track.stop());
+                            recorderStream = null;
+                        }
+
+                        const blobType = (mediaRecorder && mediaRecorder.mimeType) || 'audio/webm';
+                        const audioBlob = new Blob(recordedChunks, { type: blobType });
+                        if (!audioBlob || audioBlob.size === 0) {
+                            return;
+                        }
+
+                        try {
+                            await transcribeRecordedAudio(audioBlob);
+                        } catch (err) {
+                            console.error('Recorder transcription error:', err);
+                            alert('Trascrizione audio non disponibile. Riprova tra qualche secondo.');
+                        }
+                    };
+
+                    mediaRecorder.start();
+                    isRecordingFallback = true;
+                    setMicActive(true);
+                    agentMicBtn.title = 'Registrazione in corso: clicca di nuovo per fermare e trascrivere.';
+                    agentInput.value = '';
+                } catch (err) {
+                    console.error('Recorder start error:', err);
+                    alert('Impossibile avviare la registrazione microfono. Verifica i permessi.');
+                }
+            }
+
+            function stopRecorderFallback() {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
             }
 
             if (SpeechRecognition) {
@@ -1443,8 +1559,7 @@
 
                 recognition.onstart = () => {
                     isListening = true;
-                    agentMicBtn.classList.add('listening');
-                    agentMicBtn.textContent = '🔴';
+                    setMicActive(true);
                 };
 
                 recognition.onresult = (event) => {
@@ -1464,10 +1579,11 @@
                         case 'network':
                             errorMsg += 'connessione';
                             agentMicBtn.title = 'Connessione ai servizi vocali non disponibile.';
-                            if (isBraveBrowser) {
-                                alert('Brave sta bloccando il servizio di riconoscimento vocale (errore network). Prova a disattivare Shields per questo sito oppure usa Chrome per la dettatura.');
+                            if (isBraveBrowser || useRecorderFallback) {
+                                useRecorderFallback = true;
+                                alert('Compatibilità Brave attivata: useremo registrazione audio + trascrizione server. Premi 🎤 per iniziare, poi premi di nuovo per fermare e trascrivere.');
                             } else {
-                                alert('Errore di rete del riconoscimento vocale. Verifica connessione, VPN/AdBlock e riprova.');
+                                alert('Errore di rete del riconoscimento vocale. Verifica connessione e riprova.');
                             }
                             break;
                         case 'no-speech': errorMsg += 'nessun audio rilevato'; break;
@@ -1484,16 +1600,26 @@
 
                 recognition.onend = () => {
                     isListening = false;
-                    agentMicBtn.classList.remove('listening');
-                    agentMicBtn.textContent = '🎤';
+                    setMicActive(false);
                 };
 
-                agentMicBtn.addEventListener('click', (e) => {
+                agentMicBtn.addEventListener('click', async (e) => {
                     e.preventDefault();
+
+                    if (useRecorderFallback) {
+                        if (isRecordingFallback) {
+                            stopRecorderFallback();
+                        } else {
+                            await startRecorderFallback();
+                        }
+                        return;
+                    }
+
                     if (!window.isSecureContext) {
                         alert('Il microfono richiede una connessione sicura (HTTPS o localhost).');
                         return;
                     }
+
                     if (isListening) {
                         recognition.stop();
                     } else {
@@ -1508,8 +1634,14 @@
                     }
                 });
             } else {
-                agentMicBtn.disabled = true;
-                agentMicBtn.title = 'Speech Recognition non supportato in questo browser';
+                agentMicBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    if (isRecordingFallback) {
+                        stopRecorderFallback();
+                    } else {
+                        await startRecorderFallback();
+                    }
+                });
             }
             const AGENT_HISTORY_STORAGE_KEY = "home13_ai_agent_history_v2";
             const MAX_AGENT_TURNS_STORED = 40;
