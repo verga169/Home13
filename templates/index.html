@@ -1424,64 +1424,13 @@
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             let recognition = null;
             let isListening = false;
-            let hasMicPermission = false;
-
-            async function ensureMicrophonePermission() {
-                if (hasMicPermission) {
-                    return true;
-                }
-
-                if (!window.isSecureContext) {
-                    agentMicBtn.title = 'Il microfono richiede HTTPS o localhost.';
-                    console.warn('Microfono non disponibile fuori da contesto sicuro (HTTPS/localhost).');
-                    alert('Il microfono richiede una connessione sicura (HTTPS o localhost).');
-                    return false;
-                }
-
-                if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-                    return true;
-                }
-
-                if (navigator.permissions && typeof navigator.permissions.query === 'function') {
-                    try {
-                        const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
-                        if (permissionStatus && permissionStatus.state === 'denied') {
-                            agentMicBtn.title = 'Permesso microfono negato. Riabilitalo dall\'icona lucchetto del browser.';
-                            console.warn('Permesso microfono in stato denied: il browser non mostra più il prompt automatico.');
-                            alert('Permesso microfono negato. Abilita il microfono nelle impostazioni del browser.');
-                            return false;
-                        }
-                    } catch (_) {
-                        // Ignore unsupported Permission API details and fallback to getUserMedia.
-                    }
-                }
-
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    hasMicPermission = true;
-                    agentMicBtn.title = 'Ascolta comando vocale';
-                    (stream.getTracks() || []).forEach((track) => track.stop());
-                    return true;
-                } catch (err) {
-                    const errName = (err && err.name) || '';
-                    if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError' || errName === 'SecurityError') {
-                        agentMicBtn.title = 'Permesso microfono negato. Riabilitalo dall\'icona lucchetto del browser.';
-                        console.warn('Permesso microfono negato.');
-                        alert('Permesso microfono negato. Abilita il microfono nelle impostazioni del browser.');
-                    } else {
-                        agentMicBtn.title = 'Impossibile accedere al microfono. Controlla dispositivo e permessi browser.';
-                        console.warn('Impossibile accedere al microfono.', err);
-                        alert('Impossibile accedere al microfono. Controlla dispositivo e permessi del browser.');
-                    }
-                    return false;
-                }
-            }
 
             if (SpeechRecognition) {
                 recognition = new SpeechRecognition();
                 recognition.language = 'it-IT';
                 recognition.interimResults = false;
                 recognition.maxAlternatives = 1;
+                recognition.continuous = false;
 
                 recognition.onstart = () => {
                     isListening = true;
@@ -1503,7 +1452,11 @@
                     console.error('Speech recognition error:', event.error);
                     let errorMsg = 'Errore microfono: ';
                     switch(event.error) {
-                        case 'network': errorMsg += 'connessione'; break;
+                        case 'network':
+                            errorMsg += 'connessione';
+                            agentMicBtn.title = 'Connessione ai servizi vocali non disponibile.';
+                            alert('Errore di rete del riconoscimento vocale. Verifica connessione, VPN/AdBlock e riprova.');
+                            break;
                         case 'no-speech': errorMsg += 'nessun audio rilevato'; break;
                         case 'audio-capture': errorMsg += 'microfono non disponibile'; break;
                         case 'not-allowed':
@@ -1522,16 +1475,16 @@
                     agentMicBtn.textContent = '🎤';
                 };
 
-                agentMicBtn.addEventListener('click', async (e) => {
+                agentMicBtn.addEventListener('click', (e) => {
                     e.preventDefault();
+                    if (!window.isSecureContext) {
+                        alert('Il microfono richiede una connessione sicura (HTTPS o localhost).');
+                        return;
+                    }
                     if (isListening) {
                         recognition.stop();
                     } else {
                         agentInput.value = '';
-                        const permissionGranted = await ensureMicrophonePermission();
-                        if (!permissionGranted) {
-                            return;
-                        }
                         try {
                             recognition.start();
                         } catch (err) {
