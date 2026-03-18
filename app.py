@@ -1004,7 +1004,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                 "type": "object",
                 "properties": {},
                 "required": [],
-                "additionalProperties": False,
             },
         },
         {
@@ -1053,7 +1052,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["section"],
-                "additionalProperties": False,
             },
         },
         {
@@ -1084,7 +1082,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["category", "description", "date", "amount"],
-                "additionalProperties": False,
             },
         },
         {
@@ -1114,7 +1111,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["lender", "date", "amount"],
-                "additionalProperties": False,
             },
         },
         {
@@ -1140,7 +1136,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["lender", "date", "amount"],
-                "additionalProperties": False,
             },
         },
         {
@@ -1163,7 +1158,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["id", "category"],
-                "additionalProperties": False,
             },
         },
         {
@@ -1179,7 +1173,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["id"],
-                "additionalProperties": False,
             },
         },
         {
@@ -1195,7 +1188,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["id"],
-                "additionalProperties": False,
             },
         },
         {
@@ -1217,7 +1209,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["section", "confirm"],
-                "additionalProperties": False,
             },
         },
         {
@@ -1255,7 +1246,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["id", "category"],
-                "additionalProperties": False,
             },
         },
         {
@@ -1292,7 +1282,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["id"],
-                "additionalProperties": False,
             },
         },
         {
@@ -1325,7 +1314,6 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["id"],
-                "additionalProperties": False,
             },
         },
     ]
