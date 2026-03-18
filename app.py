@@ -110,6 +110,22 @@ CATEGORY_DISPLAY_NAMES = {
     "repayments": "Rimborsi",
 }
 
+SECTION_ALIASES = {
+    "acquisto_casa": "acquisto_casa",
+    "acquisto casa": "acquisto_casa",
+    "acquisto": "acquisto_casa",
+    "ristrutturazione": "ristrutturazione",
+    "ristrutturazioni": "ristrutturazione",
+    "loans": "loans",
+    "prestiti": "loans",
+    "prestiti ricevuti": "loans",
+    "repayments": "repayments",
+    "rimborsi": "repayments",
+    "all": "all",
+    "tutto": "all",
+    "tutti": "all",
+}
+
 
 def get_gemini_api_key() -> str:
     # Re-read local env files so updates to .env.local are picked up immediately.
@@ -324,6 +340,14 @@ def normalize_text(raw_value: str) -> str:
     text = unicodedata.normalize("NFKD", text)
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
     return re.sub(r"\s+", " ", text).strip()
+
+
+def canonical_section(raw_value: str, allow_all: bool = True) -> str:
+    normalized = normalize_text(raw_value).replace("_", " ")
+    canonical = SECTION_ALIASES.get(normalized, "")
+    if canonical == "all" and not allow_all:
+        return ""
+    return canonical
 
 
 def parse_iso_date(raw_value: str) -> date:
@@ -1590,7 +1614,10 @@ def agent_fn_verify_lender_amount(args: dict) -> dict:
 
 
 def agent_fn_search_entries(args: dict) -> dict:
-    section = sanitize_text(args.get("section", "all"))
+    section = canonical_section(sanitize_text(args.get("section", "all")), allow_all=True)
+    if not section:
+        return {"success": False, "error": "Sezione non valida."}
+
     desc_filter = sanitize_text(args.get("description")) or None
     lender_filter = sanitize_text(args.get("lender")) or None
     amount_filter = float(args["amount"]) if args.get("amount") is not None else None
@@ -1688,7 +1715,7 @@ def _is_same_last_user_turn(history: list[dict], message: str) -> bool:
 
 
 def agent_fn_add_expense(args: dict) -> dict:
-    category = sanitize_text(args.get("category", ""))
+    category = canonical_section(sanitize_text(args.get("category", "")), allow_all=False)
     if category not in {"acquisto_casa", "ristrutturazione"}:
         return {"success": False, "error": "Categoria non valida."}
     description = capitalize_first(sanitize_text(args.get("description", ""))) or "Spesa"
@@ -1792,7 +1819,7 @@ def agent_fn_add_repayment(args: dict) -> dict:
 
 def agent_fn_delete_expense(args: dict) -> dict:
     item_id = sanitize_text(args.get("id", ""))
-    category = sanitize_text(args.get("category", ""))
+    category = canonical_section(sanitize_text(args.get("category", "")), allow_all=False)
     if not item_id or category not in {"acquisto_casa", "ristrutturazione"}:
         return {"success": False, "error": "Voce o categoria mancante/non valida."}
     deleted = delete_ai_operation(
@@ -1832,7 +1859,7 @@ def _is_explicit_confirmation(value) -> bool:
 
 
 def agent_fn_delete_all_entries(args: dict) -> dict:
-    section = sanitize_text(args.get("section", ""))
+    section = canonical_section(sanitize_text(args.get("section", "")), allow_all=False)
     allowed_sections = {"acquisto_casa", "ristrutturazione", "loans", "repayments"}
     if section not in allowed_sections:
         return {"success": False, "error": "Sezione non valida."}
@@ -1899,7 +1926,7 @@ def _apply_update_fields(item: dict, args: dict, text_key: str) -> None:
 
 def agent_fn_update_expense(args: dict) -> dict:
     item_id = sanitize_text(args.get("id", ""))
-    category = sanitize_text(args.get("category", ""))
+    category = canonical_section(sanitize_text(args.get("category", "")), allow_all=False)
     if not item_id or category not in {"acquisto_casa", "ristrutturazione"}:
         return {"success": False, "error": "Voce o categoria mancante/non valida."}
 
