@@ -590,7 +590,7 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            background: linear-gradient(135deg, var(--brand), var(--brand-dark));
             color: #fff;
             font-size: 0.72rem;
             font-weight: 700;
@@ -605,9 +605,9 @@
         .ai-agent-chat-window {
             --ai-chat-min-height: 64px;
             --ai-chat-max-height: 640px;
-            border: 1px solid #c4b5fd;
+            border: 1px solid rgba(15, 118, 110, 0.28);
             border-radius: 14px;
-            background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
+            background: linear-gradient(180deg, #f1fbf8 0%, #e7f4f1 100%);
             padding: 12px;
             min-height: var(--ai-chat-min-height);
             max-height: var(--ai-chat-max-height);
@@ -638,12 +638,12 @@
             width: 44px;
             height: 5px;
             border-radius: 999px;
-            background: rgba(124, 58, 237, 0.35);
+            background: rgba(15, 118, 110, 0.35);
             transition: background-color var(--ui-fast) var(--ui-ease), transform var(--ui-fast) var(--ui-ease);
         }
 
         .ai-agent-resize-handle:hover::before {
-            background: rgba(124, 58, 237, 0.52);
+            background: rgba(15, 118, 110, 0.52);
             transform: scaleX(1.06);
         }
 
@@ -665,7 +665,7 @@
 
         .ai-agent-msg-user {
             align-self: flex-end;
-            background: linear-gradient(135deg, #4f46e5, #6d28d9);
+            background: linear-gradient(135deg, var(--brand), var(--brand-dark));
             color: #fff;
             border-bottom-right-radius: 4px;
         }
@@ -674,15 +674,15 @@
             align-self: flex-start;
             background: #ffffff;
             color: #1f2c28;
-            border: 1px solid #ddd6fe;
+            border: 1px solid rgba(15, 118, 110, 0.2);
             border-bottom-left-radius: 4px;
         }
 
         .ai-agent-msg-typing {
             align-self: flex-start;
             background: #ffffff;
-            color: #6d28d9;
-            border: 1px solid #ddd6fe;
+            color: var(--brand-dark);
+            border: 1px solid rgba(15, 118, 110, 0.2);
             border-bottom-left-radius: 4px;
             font-style: italic;
             display: flex;
@@ -695,8 +695,8 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            border: 2px solid rgba(109, 40, 217, 0.25);
-            border-top-color: #6d28d9;
+            border: 2px solid rgba(15, 118, 110, 0.22);
+            border-top-color: var(--brand);
             animation: aiSpin 0.85s linear infinite;
             flex: 0 0 auto;
         }
@@ -709,22 +709,22 @@
         }
 
         .ai-agent-form input {
-            border-color: #c4b5fd;
+            border-color: rgba(15, 118, 110, 0.28);
         }
 
         .ai-agent-form input:focus {
-            border-color: #7c3aed;
-            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+            border-color: rgba(15, 118, 110, 0.45);
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
         }
 
         .btn-agent {
-            background: linear-gradient(135deg, #4f46e5, #6d28d9);
+            background: linear-gradient(135deg, var(--brand), var(--brand-dark));
             color: #fff;
             border: none;
         }
 
         .btn-agent:hover {
-            background: linear-gradient(135deg, #4338ca, #5b21b6);
+            background: var(--brand-dark);
         }
 
         .ai-agent-clear {
@@ -738,14 +738,14 @@
         }
 
         .ai-agent-mic {
-            background: #6366f1;
+            background: var(--accent);
             color: #fff;
             border: none;
             transition: all 0.2s ease;
         }
 
         .ai-agent-mic:hover {
-            background: #4f46e5;
+            background: var(--brand);
         }
 
         .ai-agent-mic:disabled {
