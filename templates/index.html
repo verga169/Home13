@@ -1450,13 +1450,21 @@
                 recognition.onerror = (event) => {
                     console.error('Speech recognition error:', event.error);
                     let errorMsg = 'Errore microfono: ';
+                    let shouldAlert = false;
                     switch(event.error) {
                         case 'network': errorMsg += 'connessione'; break;
                         case 'no-speech': errorMsg += 'nessun audio rilevato'; break;
                         case 'audio-capture': errorMsg += 'microfono non disponibile'; break;
+                        case 'not-allowed':
+                            errorMsg = 'Permesso negato. Abilita il microfono nelle impostazioni del browser.';
+                            shouldAlert = true;
+                            break;
                         default: errorMsg += event.error;
                     }
                     console.warn(errorMsg);
+                    if (shouldAlert) {
+                        alert(errorMsg);
+                    }
                 };
 
                 recognition.onend = () => {
@@ -1471,7 +1479,12 @@
                         recognition.stop();
                     } else {
                         agentInput.value = '';
-                        recognition.start();
+                        try {
+                            recognition.start();
+                        } catch (err) {
+                            console.error('Speech recognition start error:', err);
+                            alert('Errore avvio microfono: ' + (err.message || 'errore sconosciuto'));
+                        }
                     }
                 });
             } else {
