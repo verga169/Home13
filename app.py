@@ -945,56 +945,73 @@ def health_check():
 # ---------------------------------------------------------------------------
 
 AGENT_SYSTEM_INSTRUCTION = (
-    "Sei l'assistente AI dell'app Home13, un'applicazione web per la gestione "
-    "delle spese legate all'acquisto e ristrutturazione di una casa.\n\n"
-    "Le categorie di dati che gestisci:\n"
-    "1. Spese di acquisto casa (category=acquisto_casa): notaio, rogito, agenzia, "
-    "imposte, caparra, mutuo, compravendita, ecc.\n"
-    "2. Spese di ristrutturazione (category=ristrutturazione): lavori, materiali, "
-    "mobili, elettrodomestici, impianti, idraulico, ecc.\n"
-    "3. Prestiti ricevuti (section=loans): denaro ricevuto in prestito da persone.\n"
-    "4. Rimborsi (section=repayments): denaro restituito ai prestatori.\n\n"
-    "Regole di comportamento:\n"
-    "- Rispondi sempre in italiano, in modo naturale e conversazionale.\n"
-    "- Non menzionare mai ID, codici tecnici o chiavi interne nelle risposte all'utente. "
-    "Per identificare una voce chiedi solo dettagli umani (data, importo, descrizione, prestatore).\n"
-    "- Quando l'utente vuole eseguire un'operazione usa le funzioni disponibili.\n"
-    "- Se mancano dati obbligatori, chiedi all'utente prima di procedere.\n"
-    "- Prima di eliminare dati, usa search_entries per mostrare all'utente cosa verrà eliminato "
-    "(singole voci o gruppi) e chiedi conferma esplicita.\n"
-    "- Prima di modificare dati, usa search_entries per trovare la voce corretta, "
-    "mostrala e chiedi conferma sui nuovi valori.\n"
-    "- Per le date nei parametri funzione usa il formato ISO YYYY-MM-DD. "
-    "Se l'utente dice 'oggi' usa {today}, 'ieri' usa {yesterday}.\n"
-    "- Deduce la categoria dal contesto: acquisto immobiliare → acquisto_casa, "
-    "tutto il resto → ristrutturazione.\n"
-    "- Non inventare dati: se non riesci a trovare una voce, dillo chiaramente.\n"
-    "- Per domande su totali o somme in un intervallo di date, usa search_entries con "
-    "date_from e date_to (formato YYYY-MM-DD) e calcola la somma dal campo total_amount "
-    "restituito dalla funzione. Non dire mai che non puoi calcolare somme per intervallo.\n"
-    "- Se l'utente chiede di eliminare tutte le voci di una sezione, usa search_entries per "
-    "mostrare il numero di voci coinvolte, chiedi conferma esplicita e poi usa delete_all_entries "
-    "con confirm=true.\n"
-    "- Dopo ogni operazione CRUD di successo di aggiunta, modifica o cancellazione, "
-    "aggiungi esattamente il tag [REFRESH] alla fine del tuo messaggio: "
-    "il frontend si occuperà di ricaricare la pagina.\n"
+    "Sei l'assistente AI dell'app Home13, dedicata alla gestione di spese casa, "
+    "prestiti ricevuti e rimborsi.\n\n"
+    "PRIORITÀ ASSOLUTE (in ordine):\n"
+    "1) Accuratezza operativa: usa sempre le funzioni disponibili per leggere/modificare dati.\n"
+    "2) Sicurezza utente: non eseguire mai cancellazioni/modifiche senza conferma esplicita.\n"
+    "3) Linguaggio utente: niente dettagli tecnici interni, risposte chiare e brevi.\n\n"
+    "DOMINIO DATI:\n"
+    "- Spese acquisto casa (category=acquisto_casa): notaio, rogito, agenzia, imposte, caparra, mutuo, compravendita.\n"
+    "- Spese ristrutturazione (category=ristrutturazione): lavori, materiali, mobili, elettrodomestici, impianti, artigiani.\n"
+    "- Prestiti ricevuti (section=loans): denaro ricevuto da persone.\n"
+    "- Rimborsi (section=repayments): denaro restituito ai prestatori.\n\n"
+    "REGOLE DI RISPOSTA:\n"
+    "- Rispondi sempre in italiano, tono naturale, frasi concise e orientate all'azione.\n"
+    "- Quando mostri date all'utente, usa sempre il formato italiano GG/MM/AAAA.\n"
+    "- NON menzionare mai ID, codici, chiavi interne, nomi di campo o dettagli tecnici.\n"
+    "- Per identificare una voce usa solo riferimenti umani: data, importo, descrizione, prestatore.\n"
+    "- Non inventare mai dati: se non trovi una voce, dichiaralo chiaramente.\n"
+    "- Se mancano dati obbligatori, chiedi solo il minimo indispensabile.\n\n"
+    "GESTIONE DATE (obbligatoria):\n"
+    "- Nei parametri funzione usa sempre formato ISO YYYY-MM-DD.\n"
+    "- Converte automaticamente: 'oggi'={today}, 'ieri'={yesterday}, 'domani'={tomorrow}, "
+    "'dopodomani'={day_after_tomorrow}, 'l'altro ieri'={day_before_yesterday}.\n"
+    "- Se l'utente ha già indicato una data (esplicita o relativa), NON richiederla di nuovo.\n"
+    "- Se la data non è specificata, puoi assumere oggi solo per nuove registrazioni; "
+    "per modifiche/cancellazioni chiedi conferma dei riferimenti.\n\n"
+    "DEDUZIONE CATEGORIA:\n"
+    "- Se il contesto è acquisto immobile/atto/rogito/mutuo -> acquisto_casa.\n"
+    "- Altrimenti, per spese di lavori/forniture/casa -> ristrutturazione.\n\n"
+    "PROTOCOLLO OPERATIVO:\n"
+    "- AGGIUNTA: se i dati minimi sono presenti, esegui direttamente la funzione di inserimento.\n"
+    "- MODIFICA: prima cerca con search_entries, mostra la voce candidata in forma umana, "
+    "chiedi conferma dei nuovi valori, poi aggiorna.\n"
+    "- CANCELLAZIONE SINGOLA: prima cerca con search_entries, mostra cosa verrà eliminato, "
+    "chiedi conferma esplicita, poi elimina.\n"
+    "- CANCELLAZIONE MASSIVA: usa search_entries per quantificare le voci coinvolte, "
+    "chiedi conferma esplicita, poi usa delete_all_entries con confirm=true.\n"
+    "- RICHIESTE DI TOTALI/INTERVALLI: usa search_entries con date_from/date_to e calcola dal campo total_amount.\n\n"
+    "GESTIONE AMBIGUITÀ:\n"
+    "- Se trovi più voci simili, non scegliere in autonomia: chiedi un disambiguatore (data/importo/descrizione/prestatore).\n"
+    "- Fai una sola domanda di chiarimento per volta, la più utile a sbloccare l'azione.\n"
+    "- Se l'utente conferma con 'si/sì', procedi senza ripetere domande già risolte.\n\n"
+    "POST-OPERAZIONE:\n"
+    "- Dopo aggiunta/modifica/cancellazione riuscita, termina il messaggio con [REFRESH] esattamente una volta.\n"
+    "- Non usare [REFRESH] se nessuna modifica dati è stata effettuata.\n"
 )
+
+_ISO_DATE_PATTERN = r"^\d{4}-\d{2}-\d{2}$"
 
 AGENT_TOOL_DECLARATIONS: dict = {
     "function_declarations": [
         {
             "name": "get_summary",
             "description": (
-                "Restituisce il riepilogo finanziario: totali per categoria, "
-                "debito residuo e saldo per prestatore."
+                "Restituisce il riepilogo finanziario aggregato (totali, debito residuo, saldo per prestatore)."
             ),
-            "parameters": {"type": "object", "properties": {}, "required": []},
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": False,
+            },
         },
         {
             "name": "search_entries",
             "description": (
-                "Cerca voci nel database. Usalo prima di eliminare o modificare "
-                "per trovare la voce corretta, o per rispondere a domande sulle voci presenti."
+                "Ricerca voci esistenti. Usalo per disambiguare prima di update/delete "
+                "e per rispondere a richieste su elenco/somme/intervalli."
             ),
             "parameters": {
                 "type": "object",
@@ -1002,39 +1019,46 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     "section": {
                         "type": "string",
                         "enum": ["acquisto_casa", "ristrutturazione", "loans", "repayments", "all"],
-                        "description": "La sezione in cui cercare.",
+                        "description": "Sezione in cui cercare.",
                     },
                     "description": {
                         "type": "string",
-                        "description": "Testo da cercare nella descrizione (per le spese).",
+                        "minLength": 1,
+                        "description": "Filtro testuale descrizione (solo spese).",
                     },
                     "lender": {
                         "type": "string",
-                        "description": "Nome del prestatore (per prestiti e rimborsi).",
+                        "minLength": 1,
+                        "description": "Filtro per prestatore (prestiti/rimborsi).",
                     },
                     "amount": {
                         "type": "number",
-                        "description": "Importo esatto da cercare.",
+                        "minimum": 0.01,
+                        "description": "Importo esatto (euro).",
                     },
                     "date": {
                         "type": "string",
-                        "description": "Data esatta in formato YYYY-MM-DD. Non usare insieme a date_from/date_to.",
+                        "pattern": _ISO_DATE_PATTERN,
+                        "description": "Data singola YYYY-MM-DD (non usarla insieme a date_from/date_to).",
                     },
                     "date_from": {
                         "type": "string",
-                        "description": "Data iniziale intervallo (inclusa) in formato YYYY-MM-DD.",
+                        "pattern": _ISO_DATE_PATTERN,
+                        "description": "Data inizio intervallo inclusa YYYY-MM-DD.",
                     },
                     "date_to": {
                         "type": "string",
-                        "description": "Data finale intervallo (inclusa) in formato YYYY-MM-DD.",
+                        "pattern": _ISO_DATE_PATTERN,
+                        "description": "Data fine intervallo inclusa YYYY-MM-DD.",
                     },
                 },
                 "required": ["section"],
+                "additionalProperties": False,
             },
         },
         {
             "name": "add_expense",
-            "description": "Aggiunge una spesa al database.",
+            "description": "Registra una nuova spesa in acquisto_casa o ristrutturazione.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1045,96 +1069,139 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                     "description": {
                         "type": "string",
-                        "description": "Nome/descrizione della spesa (es: parquet, notaio, TV).",
+                        "minLength": 1,
+                        "description": "Descrizione utente della spesa.",
                     },
-                    "date": {"type": "string", "description": "Data in formato YYYY-MM-DD."},
-                    "amount": {"type": "number", "description": "Importo in euro, numero positivo."},
+                    "date": {
+                        "type": "string",
+                        "pattern": _ISO_DATE_PATTERN,
+                        "description": "Data operazione in formato YYYY-MM-DD.",
+                    },
+                    "amount": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "description": "Importo positivo in euro.",
+                    },
                 },
                 "required": ["category", "description", "date", "amount"],
+                "additionalProperties": False,
             },
         },
         {
             "name": "add_loan",
-            "description": "Registra un prestito ricevuto da un prestatore.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "lender": {"type": "string", "description": "Nome del prestatore."},
-                    "date": {"type": "string", "description": "Data in formato YYYY-MM-DD."},
-                    "amount": {"type": "number", "description": "Importo in euro, numero positivo."},
-                    "note": {"type": "string", "description": "Note opzionali sul prestito."},
-                },
-                "required": ["lender", "date", "amount"],
-            },
-        },
-        {
-            "name": "add_repayment",
-            "description": "Registra un rimborso effettuato a un prestatore.",
+            "description": "Registra un nuovo prestito ricevuto.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "lender": {
                         "type": "string",
-                        "description": "Nome del prestatore a cui è stato fatto il rimborso.",
+                        "minLength": 1,
+                        "description": "Nome prestatore.",
                     },
-                    "date": {"type": "string", "description": "Data in formato YYYY-MM-DD."},
-                    "amount": {"type": "number", "description": "Importo rimborsato in euro."},
+                    "date": {
+                        "type": "string",
+                        "pattern": _ISO_DATE_PATTERN,
+                        "description": "Data operazione in formato YYYY-MM-DD.",
+                    },
+                    "amount": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "description": "Importo positivo in euro.",
+                    },
+                    "note": {
+                        "type": "string",
+                        "description": "Nota opzionale.",
+                    },
                 },
                 "required": ["lender", "date", "amount"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "add_repayment",
+            "description": "Registra un nuovo rimborso effettuato a un prestatore.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lender": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Nome prestatore rimborsato.",
+                    },
+                    "date": {
+                        "type": "string",
+                        "pattern": _ISO_DATE_PATTERN,
+                        "description": "Data operazione in formato YYYY-MM-DD.",
+                    },
+                    "amount": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "description": "Importo positivo in euro.",
+                    },
+                },
+                "required": ["lender", "date", "amount"],
+                "additionalProperties": False,
             },
         },
         {
             "name": "delete_expense",
             "description": (
-                "Elimina una spesa esistente. "
-                "Usa search_entries prima per trovare la voce e chiedere conferma all'utente."
+                "Elimina una spesa esistente. Da usare solo dopo search_entries e conferma esplicita utente."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "id": {"type": "string", "description": "ID univoco della spesa."},
+                    "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Identificatore interno voce (mai da mostrare all'utente).",
+                    },
                     "category": {
                         "type": "string",
                         "enum": ["acquisto_casa", "ristrutturazione"],
-                        "description": "Categoria della spesa.",
+                        "description": "Categoria della voce da eliminare.",
                     },
                 },
                 "required": ["id", "category"],
+                "additionalProperties": False,
             },
         },
         {
             "name": "delete_loan",
-            "description": (
-                "Elimina un prestito esistente. "
-                "Usa search_entries prima per trovare la voce e chiedere conferma all'utente."
-            ),
+            "description": "Elimina un prestito esistente dopo ricerca e conferma esplicita utente.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "id": {"type": "string", "description": "ID univoco del prestito."},
+                    "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Identificatore interno voce (mai da mostrare all'utente).",
+                    },
                 },
                 "required": ["id"],
+                "additionalProperties": False,
             },
         },
         {
             "name": "delete_repayment",
-            "description": (
-                "Elimina un rimborso esistente. "
-                "Usa search_entries prima per trovare la voce e chiedere conferma all'utente."
-            ),
+            "description": "Elimina un rimborso esistente dopo ricerca e conferma esplicita utente.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "id": {"type": "string", "description": "ID univoco del rimborso."},
+                    "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Identificatore interno voce (mai da mostrare all'utente).",
+                    },
                 },
                 "required": ["id"],
+                "additionalProperties": False,
             },
         },
         {
             "name": "delete_all_entries",
             "description": (
-                "Elimina tutte le voci di una sezione (acquisto_casa, ristrutturazione, loans, repayments). "
-                "Richiede conferma esplicita con confirm=true."
+                "Svuota completamente una sezione. Da usare solo dopo conferma esplicita dell'utente."
             ),
             "parameters": {
                 "type": "object",
@@ -1142,71 +1209,123 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     "section": {
                         "type": "string",
                         "enum": ["acquisto_casa", "ristrutturazione", "loans", "repayments"],
-                        "description": "Sezione da svuotare completamente.",
+                        "description": "Sezione da eliminare integralmente.",
                     },
                     "confirm": {
                         "type": "boolean",
-                        "description": "Deve essere true dopo conferma esplicita dell'utente.",
+                        "description": "Deve essere true solo dopo consenso esplicito utente.",
                     },
                 },
                 "required": ["section", "confirm"],
+                "additionalProperties": False,
             },
         },
         {
             "name": "update_expense",
             "description": (
-                "Modifica una spesa esistente. "
-                "Usa search_entries prima per trovare la voce corretta."
+                "Modifica una spesa esistente. Obbligatorio fare search_entries prima e poi conferma utente."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "id": {"type": "string", "description": "ID univoco della spesa."},
+                    "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Identificatore interno voce (mai da mostrare all'utente).",
+                    },
                     "category": {
                         "type": "string",
                         "enum": ["acquisto_casa", "ristrutturazione"],
                         "description": "Categoria della spesa.",
                     },
-                    "description": {"type": "string", "description": "Nuova descrizione."},
-                    "date": {"type": "string", "description": "Nuova data YYYY-MM-DD."},
-                    "amount": {"type": "number", "description": "Nuovo importo in euro."},
+                    "description": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Nuova descrizione (opzionale).",
+                    },
+                    "date": {
+                        "type": "string",
+                        "pattern": _ISO_DATE_PATTERN,
+                        "description": "Nuova data YYYY-MM-DD (opzionale).",
+                    },
+                    "amount": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "description": "Nuovo importo positivo (opzionale).",
+                    },
                 },
                 "required": ["id", "category"],
+                "additionalProperties": False,
             },
         },
         {
             "name": "update_loan",
             "description": (
-                "Modifica un prestito esistente. "
-                "Usa search_entries prima per trovare la voce corretta."
+                "Modifica un prestito esistente. Obbligatorio fare search_entries prima e poi conferma utente."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "id": {"type": "string", "description": "ID univoco del prestito."},
-                    "lender": {"type": "string", "description": "Nuovo nome del prestatore."},
-                    "date": {"type": "string", "description": "Nuova data YYYY-MM-DD."},
-                    "amount": {"type": "number", "description": "Nuovo importo in euro."},
-                    "note": {"type": "string", "description": "Nuove note."},
+                    "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Identificatore interno voce (mai da mostrare all'utente).",
+                    },
+                    "lender": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Nuovo prestatore (opzionale).",
+                    },
+                    "date": {
+                        "type": "string",
+                        "pattern": _ISO_DATE_PATTERN,
+                        "description": "Nuova data YYYY-MM-DD (opzionale).",
+                    },
+                    "amount": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "description": "Nuovo importo positivo (opzionale).",
+                    },
+                    "note": {
+                        "type": "string",
+                        "description": "Nuova nota (opzionale).",
+                    },
                 },
                 "required": ["id"],
+                "additionalProperties": False,
             },
         },
         {
             "name": "update_repayment",
             "description": (
-                "Modifica un rimborso esistente. "
-                "Usa search_entries prima per trovare la voce corretta."
+                "Modifica un rimborso esistente. Obbligatorio fare search_entries prima e poi conferma utente."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "id": {"type": "string", "description": "ID univoco del rimborso."},
-                    "lender": {"type": "string", "description": "Nuovo nome del prestatore."},
-                    "date": {"type": "string", "description": "Nuova data YYYY-MM-DD."},
-                    "amount": {"type": "number", "description": "Nuovo importo in euro."},
+                    "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Identificatore interno voce (mai da mostrare all'utente).",
+                    },
+                    "lender": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Nuovo prestatore (opzionale).",
+                    },
+                    "date": {
+                        "type": "string",
+                        "pattern": _ISO_DATE_PATTERN,
+                        "description": "Nuova data YYYY-MM-DD (opzionale).",
+                    },
+                    "amount": {
+                        "type": "number",
+                        "minimum": 0.01,
+                        "description": "Nuovo importo positivo (opzionale).",
+                    },
                 },
                 "required": ["id"],
+                "additionalProperties": False,
             },
         },
     ]
@@ -1685,6 +1804,15 @@ def sanitize_agent_reply_text(reply_text: str, refresh_needed: bool = False) -> 
     text = sanitize_text(reply_text)
     if text:
         text = re.sub(r"[^.!?\n]*\bID\b[^.!?\n]*[.!?]?\s*", "", text, flags=re.IGNORECASE)
+        def _format_iso_date_match(match: re.Match) -> str:
+            iso_value = match.group(0)
+            try:
+                parsed = datetime.fromisoformat(iso_value)
+                return parsed.strftime("%d/%m/%Y")
+            except ValueError:
+                return iso_value
+
+        text = re.sub(r"\b\d{4}-\d{2}-\d{2}\b", _format_iso_date_match, text)
         text = re.sub(r"\n{3,}", "\n\n", text).strip()
 
     if text:
@@ -1697,6 +1825,29 @@ def sanitize_agent_reply_text(reply_text: str, refresh_needed: bool = False) -> 
         "Per procedere ho bisogno di un dettaglio in più sulla voce "
         "(ad esempio data, importo, descrizione o prestatore)."
     )
+
+
+def get_relative_date_hints(user_text: str, base_day: date | None = None) -> list[str]:
+    text = sanitize_text(user_text)
+    if not text:
+        return []
+
+    current_day = base_day or date.today()
+    patterns = [
+        (r"\boggi\b", "oggi", 0),
+        (r"\bieri\b", "ieri", -1),
+        (r"\bdomani\b", "domani", 1),
+        (r"\bdopodomani\b", "dopodomani", 2),
+        (r"\bl[\'’]altro\s+ieri\b", "l'altro ieri", -2),
+    ]
+
+    hints: list[str] = []
+    for pattern, label, delta_days in patterns:
+        if re.search(pattern, text, flags=re.IGNORECASE):
+            iso_day = (current_day + timedelta(days=delta_days)).isoformat()
+            hints.append(f"- '{label}' = {iso_day}")
+
+    return hints
 
 
 def call_gemini_agent_chat(history: list[dict]) -> dict:
@@ -1717,7 +1868,35 @@ def call_gemini_agent_chat(history: list[dict]) -> dict:
     today_str = date.today().isoformat()
     from datetime import timedelta as _td
     yesterday_str = (date.today() - _td(days=1)).isoformat()
-    system_text = AGENT_SYSTEM_INSTRUCTION.format(today=today_str, yesterday=yesterday_str)
+    tomorrow_str = (date.today() + _td(days=1)).isoformat()
+    day_after_tomorrow_str = (date.today() + _td(days=2)).isoformat()
+    day_before_yesterday_str = (date.today() - _td(days=2)).isoformat()
+    system_text = AGENT_SYSTEM_INSTRUCTION.format(
+        today=today_str,
+        yesterday=yesterday_str,
+        tomorrow=tomorrow_str,
+        day_after_tomorrow=day_after_tomorrow_str,
+        day_before_yesterday=day_before_yesterday_str,
+    )
+
+    latest_user_text = ""
+    if history:
+        last_turn = history[-1]
+        if isinstance(last_turn, dict) and last_turn.get("role") == "user":
+            latest_user_text = "\n".join(
+                sanitize_text((part or {}).get("text", ""))
+                for part in (last_turn.get("parts") or [])
+                if isinstance(part, dict)
+            ).strip()
+
+    relative_date_hints = get_relative_date_hints(latest_user_text, date.today())
+    if relative_date_hints:
+        system_text += (
+            "\n\nContesto rilevato nell'ultimo messaggio utente:\n"
+            "Sono presenti riferimenti temporali relativi già sufficienti. "
+            "Non richiedere nuovamente la data, converti direttamente in ISO e procedi.\n"
+            + "\n".join(relative_date_hints)
+        )
 
     refresh_needed = False
 
