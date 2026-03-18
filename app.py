@@ -103,6 +103,13 @@ DEFAULT_DATA = {
     "repayments": [],
 }
 
+CATEGORY_DISPLAY_NAMES = {
+    "acquisto_casa": "Acquisto Casa",
+    "ristrutturazione": "Ristrutturazione",
+    "loans": "Prestiti",
+    "repayments": "Rimborsi",
+}
+
 
 def get_gemini_api_key() -> str:
     # Re-read local env files so updates to .env.local are picked up immediately.
@@ -990,6 +997,7 @@ AGENT_SYSTEM_INSTRUCTION = (
     "- Rispondi sempre in italiano, tono naturale, frasi concise e orientate all'azione.\n"
     "- Quando mostri date all'utente, usa sempre il formato italiano GG/MM/AAAA.\n"
     "- NON menzionare mai ID, codici, chiavi interne, nomi di campo o dettagli tecnici.\n"
+    "- NON mostrare mai etichette tecniche come acquisto_casa/loans/repayments: usa sempre nomi umani con iniziale maiuscola.\n"
     "- Per identificare una voce usa solo riferimenti umani: data, importo, descrizione, prestatore.\n"
     "- Non inventare mai dati: se non trovi una voce, dichiaralo chiaramente.\n"
     "- Se mancano dati obbligatori, chiedi solo il minimo indispensabile.\n\n"
@@ -1900,7 +1908,7 @@ def agent_fn_update_expense(args: dict) -> dict:
         params: list = []
         if args.get("description"):
             sets.append("description = %s")
-            params.append(sanitize_text(args["description"]))
+            params.append(capitalize_first(sanitize_text(args["description"])))
         if args.get("date"):
             try:
                 sets.append("operation_date = %s")
@@ -1950,7 +1958,7 @@ def agent_fn_update_loan(args: dict) -> dict:
         params: list = []
         if args.get("lender"):
             sets.append("lender = %s")
-            params.append(sanitize_text(args["lender"]))
+            params.append(capitalize_first(sanitize_text(args["lender"])))
         if args.get("date"):
             try:
                 sets.append("operation_date = %s")
@@ -2002,7 +2010,7 @@ def agent_fn_update_repayment(args: dict) -> dict:
         params: list = []
         if args.get("lender"):
             sets.append("lender = %s")
-            params.append(sanitize_text(args["lender"]))
+            params.append(capitalize_first(sanitize_text(args["lender"])))
         if args.get("date"):
             try:
                 sets.append("operation_date = %s")
@@ -2072,6 +2080,10 @@ def sanitize_agent_reply_text(reply_text: str, refresh_needed: bool = False) -> 
     text = sanitize_text(reply_text)
     if text:
         text = re.sub(r"[^.!?\n]*\bID\b[^.!?\n]*[.!?]?\s*", "", text, flags=re.IGNORECASE)
+
+        for raw_name, display_name in CATEGORY_DISPLAY_NAMES.items():
+            text = re.sub(rf"\b{re.escape(raw_name)}\b", display_name, text, flags=re.IGNORECASE)
+
         def _format_iso_date_match(match: re.Match) -> str:
             iso_value = match.group(0)
             try:
