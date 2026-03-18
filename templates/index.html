@@ -1389,31 +1389,85 @@
             const agentWindow = document.getElementById("ai-agent-chat-window");
             const agentClear = document.getElementById("ai-agent-clear");
             const agentSubmitBtn = agentForm ? agentForm.querySelector('button[type="submit"]') : null;
-            const AGENT_HISTORY_STORAGE_KEY = "home13_ai_agent_history_v1";
+            const AGENT_HISTORY_STORAGE_KEY = "home13_ai_agent_history_v2";
+            const MAX_AGENT_TURNS_STORED = 40;
+            const MAX_AGENT_TURNS_FOR_REQUEST = 12;
+            const AGENT_HISTORY_TTL_HOURS = 24;
+            const AGENT_HISTORY_TTL_MS = AGENT_HISTORY_TTL_HOURS * 60 * 60 * 1000;
 
             if (!agentForm || !agentInput || !agentWindow) return;
 
             let agentHistory = [];
+            let agentHistoryCreatedAt = Date.now();
+
+            function normalizeAgentHistoryTurns(turns, maxTurns) {
+                if (!Array.isArray(turns)) return [];
+
+                const normalized = turns
+                    .filter(turn => turn && (turn.role === "user" || turn.role === "model") && Array.isArray(turn.parts))
+                    .map(turn => {
+                        const textParts = (turn.parts || [])
+                            .filter(part => part && typeof part.text === "string")
+                            .map(part => ({ text: String(part.text || "").trim() }))
+                            .filter(part => part.text.length > 0);
+                        return textParts.length ? { role: turn.role, parts: textParts } : null;
+                    })
+                    .filter(Boolean);
+
+                const safeTurns = normalized.length > maxTurns
+                    ? normalized.slice(normalized.length - maxTurns)
+                    : normalized;
+
+                if (safeTurns.length && safeTurns[0].role === "model") {
+                    return safeTurns.slice(1);
+                }
+
+                return safeTurns;
+            }
+
+            function pruneAgentHistory(maxTurns = MAX_AGENT_TURNS_STORED) {
+                agentHistory = normalizeAgentHistoryTurns(agentHistory, maxTurns);
+            }
+
+            function buildHistoryForRequest() {
+                return normalizeAgentHistoryTurns(agentHistory, MAX_AGENT_TURNS_FOR_REQUEST);
+            }
 
             function loadStoredAgentHistory() {
                 try {
                     const raw = localStorage.getItem(AGENT_HISTORY_STORAGE_KEY);
-                    if (!raw) return [];
+                    if (!raw) {
+                        agentHistoryCreatedAt = Date.now();
+                        return [];
+                    }
                     const parsed = JSON.parse(raw);
-                    if (!Array.isArray(parsed)) return [];
-                    return parsed.filter(turn =>
-                        turn &&
-                        (turn.role === "user" || turn.role === "model") &&
-                        Array.isArray(turn.parts)
-                    );
+                    const storedTimestamp = parsed.timestamp || 0;
+                    const storedHistory = parsed.history || [];
+                    const nowMs = Date.now();
+                    const ageMs = nowMs - storedTimestamp;
+
+                    if (ageMs > AGENT_HISTORY_TTL_MS) {
+                        agentHistoryCreatedAt = nowMs;
+                        localStorage.removeItem(AGENT_HISTORY_STORAGE_KEY);
+                        return [];
+                    }
+
+                    agentHistoryCreatedAt = storedTimestamp;
+                    return normalizeAgentHistoryTurns(storedHistory, MAX_AGENT_TURNS_STORED);
                 } catch (_) {
+                    agentHistoryCreatedAt = Date.now();
                     return [];
                 }
             }
 
             function persistAgentHistory() {
+                pruneAgentHistory(MAX_AGENT_TURNS_STORED);
                 try {
-                    localStorage.setItem(AGENT_HISTORY_STORAGE_KEY, JSON.stringify(agentHistory));
+                    const payload = {
+                        history: agentHistory,
+                        timestamp: agentHistoryCreatedAt,
+                    };
+                    localStorage.setItem(AGENT_HISTORY_STORAGE_KEY, JSON.stringify(payload));
                 } catch (_) {
                     // ignore localStorage failures
                 }
@@ -1505,7 +1559,7 @@
                 const typingEl = appendTyping();
 
                 try {
-                    const historyToSend = agentHistory.filter(t => t.role === "user" || t.role === "model");
+                    const historyToSend = buildHistoryForRequest();
                     const response = await fetch("/ai-agent-chat", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -1520,7 +1574,7 @@
                     appendMsg(reply, "bot");
 
                     if (result && Array.isArray(result.history)) {
-                        agentHistory = result.history.filter(t => t.role === "user" || t.role === "model");
+                        agentHistory = normalizeAgentHistoryTurns(result.history, MAX_AGENT_TURNS_STORED);
                     } else {
                         agentHistory.push({ role: "model", parts: [{ text: reply }] });
                     }
@@ -1535,6 +1589,7 @@
                     const errorReply = "Errore di connessione con l'agente. Riprova.";
                     appendMsg(errorReply, "bot");
                     agentHistory.push({ role: "model", parts: [{ text: errorReply }] });
+                    pruneAgentHistory(MAX_AGENT_TURNS_STORED);
                     persistAgentHistory();
                 } finally {
                     setAgentBusy(false);

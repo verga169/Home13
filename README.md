@@ -91,6 +91,9 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 - Configurazione via env:
 	- `GEMINI_API_KEY=<chiave_api_gemini>`
 	- `GEMINI_MODEL=gemini-2.5-flash-lite` (opzionale, default)
+	- `HOME13_AI_MAX_HISTORY_TURNS=12` (opzionale: numero massimo di turni passati al modello)
+	- `HOME13_AI_MAX_OUTPUT_TOKENS=380` (opzionale: limite massimo token output per risposta)
+	- `HOME13_AI_MAX_ITERATIONS=4` (opzionale: massimo loop function-calling per singola richiesta)
 - Comportamento:
 	- usa sempre Gemini per interpretare i comandi (nessun fallback locale)
 	- supporta inserimento e rimozione movimenti per: rimborsi, prestiti, acquisto casa, ristrutturazione
@@ -99,6 +102,8 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 	- in UI mostra stato di elaborazione (busy indicator) dopo invio comando
 	- messaggio iniziale chat: `Ciao! Sono l'agente AI. Come posso aiutarti?`
 	- cronologia chat non persistente tra refresh: ad ogni ricarica pagina la conversazione riparte da zero
+	- cronologia inviata all'API ottimizzata: solo ultimi turni utili, con esclusione dei dettagli tecnici interni di function-calling
+	- deduplica dei messaggi utente tra client/server per evitare doppio invio dello stesso testo
 	- altezza chat dinamica su desktop/mobile: cresce con il contenuto fino a un massimo, poi usa scroll verticale
 	- errori API Gemini mostrati in modo esplicito (es. quota 429, key/permessi 401/403, timeout rete)
 

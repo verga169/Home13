@@ -72,6 +72,21 @@ try:
 except ValueError:
     SESSION_DAYS = 90
 
+
+def _read_env_int(var_name: str, default_value: int, min_value: int, max_value: int) -> int:
+    raw_value = (os.environ.get(var_name) or "").strip()
+    if not raw_value:
+        return default_value
+    try:
+        return max(min_value, min(max_value, int(raw_value)))
+    except ValueError:
+        return default_value
+
+
+AI_MAX_HISTORY_TURNS = _read_env_int("HOME13_AI_MAX_HISTORY_TURNS", 12, 2, 80)
+AI_MAX_OUTPUT_TOKENS = _read_env_int("HOME13_AI_MAX_OUTPUT_TOKENS", 380, 64, 2048)
+AI_MAX_ITERATIONS = _read_env_int("HOME13_AI_MAX_ITERATIONS", 4, 1, 10)
+
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=SESSION_DAYS)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -981,7 +996,8 @@ AGENT_SYSTEM_INSTRUCTION = (
     "chiedi conferma esplicita, poi elimina.\n"
     "- CANCELLAZIONE MASSIVA: usa search_entries per quantificare le voci coinvolte, "
     "chiedi conferma esplicita, poi usa delete_all_entries con confirm=true.\n"
-    "- RICHIESTE DI TOTALI/INTERVALLI: usa search_entries con date_from/date_to e calcola dal campo total_amount.\n\n"
+    "- RICHIESTE DI TOTALI/INTERVALLI: usa search_entries con date_from/date_to e include_entries=false, "
+    "poi rispondi dal campo total_amount.\n\n"
     "GESTIONE AMBIGUITÀ:\n"
     "- Se trovi più voci simili, non scegliere in autonomia: chiedi un disambiguatore (data/importo/descrizione/prestatore).\n"
     "- Fai una sola domanda di chiarimento per volta, la più utile a sbloccare l'azione.\n"
@@ -1049,6 +1065,10 @@ AGENT_TOOL_DECLARATIONS: dict = {
                         "type": "string",
                         "pattern": _ISO_DATE_PATTERN,
                         "description": "Data fine intervallo inclusa YYYY-MM-DD.",
+                    },
+                    "include_entries": {
+                        "type": "boolean",
+                        "description": "Se false restituisce solo count/total_amount senza elenco dettagliato.",
                     },
                 },
                 "required": ["section"],
@@ -1371,6 +1391,11 @@ def agent_fn_search_entries(args: dict) -> dict:
     date_filter = sanitize_text(args.get("date")) or None
     date_from = sanitize_text(args.get("date_from")) or None
     date_to = sanitize_text(args.get("date_to")) or None
+    include_entries_raw = args.get("include_entries", True)
+    if isinstance(include_entries_raw, str):
+        include_entries = sanitize_text(include_entries_raw).casefold() not in {"false", "0", "no", "off"}
+    else:
+        include_entries = bool(include_entries_raw)
 
     data = load_data()
     results: list[dict] = []
@@ -1398,7 +1423,62 @@ def agent_fn_search_entries(args: dict) -> dict:
             )
 
     total = round(sum(float(e.get("amount", 0.0)) for e in results), 2)
-    return {"success": True, "count": len(results), "total_amount": total, "entries": results}
+    response = {"success": True, "count": len(results), "total_amount": total}
+    if include_entries:
+        response["entries"] = results
+    return response
+
+
+def _normalize_client_history(raw_history: list[dict], max_turns: int) -> list[dict]:
+    normalized: list[dict] = []
+    for turn in raw_history:
+        if not isinstance(turn, dict):
+            continue
+        role = turn.get("role")
+        if role not in {"user", "model"}:
+            continue
+        parts = turn.get("parts")
+        if not isinstance(parts, list):
+            continue
+
+        text_parts = []
+        for part in parts:
+            if not isinstance(part, dict):
+                continue
+            text = sanitize_text((part or {}).get("text", ""))
+            if text:
+                text_parts.append({"text": text})
+
+        if text_parts:
+            normalized.append({"role": role, "parts": text_parts})
+
+    if len(normalized) > max_turns:
+        normalized = normalized[-max_turns:]
+
+    if normalized and normalized[0].get("role") == "model":
+        normalized = normalized[1:]
+
+    return normalized
+
+
+def _build_client_safe_history(history: list[dict], max_turns: int) -> list[dict]:
+    return _normalize_client_history(history, max_turns)
+
+
+def _is_same_last_user_turn(history: list[dict], message: str) -> bool:
+    if not history:
+        return False
+    last_turn = history[-1]
+    if not isinstance(last_turn, dict) or last_turn.get("role") != "user":
+        return False
+
+    last_text = "\n".join(
+        sanitize_text((part or {}).get("text", ""))
+        for part in (last_turn.get("parts") or [])
+        if isinstance(part, dict) and (part or {}).get("text") is not None
+    ).strip()
+
+    return last_text == sanitize_text(message)
 
 
 def agent_fn_add_expense(args: dict) -> dict:
@@ -1840,6 +1920,8 @@ def get_relative_date_hints(user_text: str, base_day: date | None = None) -> lis
 
 def call_gemini_agent_chat(history: list[dict]) -> dict:
     """Multi-turn Gemini agent with native Function Calling."""
+    history = _normalize_client_history(history, AI_MAX_HISTORY_TURNS)
+
     api_key = get_gemini_api_key()
     if not api_key:
         return {
@@ -1888,11 +1970,14 @@ def call_gemini_agent_chat(history: list[dict]) -> dict:
 
     refresh_needed = False
 
-    for _iteration in range(6):
+    for _iteration in range(AI_MAX_ITERATIONS):
         body = {
             "system_instruction": {"parts": [{"text": system_text}]},
             "tools": [AGENT_TOOL_DECLARATIONS],
             "contents": history,
+            "generationConfig": {
+                "maxOutputTokens": AI_MAX_OUTPUT_TOKENS,
+            },
         }
         req = urllib.request.Request(
             endpoint,
@@ -1997,12 +2082,15 @@ def ai_agent_chat():
     message = sanitize_text(payload.get("message", ""))
     raw_history = payload.get("history")
     history: list[dict] = raw_history if isinstance(raw_history, list) else []
+    history = _normalize_client_history(history, AI_MAX_HISTORY_TURNS)
 
     if not message:
-        return jsonify({"reply": "Scrivi un messaggio.", "history": history, "refresh": False})
+        return jsonify({"reply": "Scrivi un messaggio.", "history": _build_client_safe_history(history, AI_MAX_HISTORY_TURNS), "refresh": False})
 
-    history = history + [{"role": "user", "parts": [{"text": message}]}]
+    if not _is_same_last_user_turn(history, message):
+        history = history + [{"role": "user", "parts": [{"text": message}]}]
     result = call_gemini_agent_chat(history)
+    result["history"] = _build_client_safe_history(result.get("history") or history, AI_MAX_HISTORY_TURNS)
     return jsonify(result)
 
 @app.route("/sw.js", methods=["GET"])
