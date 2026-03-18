@@ -1432,7 +1432,8 @@
                 }
 
                 if (!window.isSecureContext) {
-                    alert('Il microfono richiede una connessione sicura (HTTPS o localhost).');
+                    agentMicBtn.title = 'Il microfono richiede HTTPS o localhost.';
+                    console.warn('Microfono non disponibile fuori da contesto sicuro (HTTPS/localhost).');
                     return false;
                 }
 
@@ -1440,17 +1441,33 @@
                     return true;
                 }
 
+                if (navigator.permissions && typeof navigator.permissions.query === 'function') {
+                    try {
+                        const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+                        if (permissionStatus && permissionStatus.state === 'denied') {
+                            agentMicBtn.title = 'Permesso microfono negato. Riabilitalo dall\'icona lucchetto del browser.';
+                            console.warn('Permesso microfono in stato denied: il browser non mostra più il prompt automatico.');
+                            return false;
+                        }
+                    } catch (_) {
+                        // Ignore unsupported Permission API details and fallback to getUserMedia.
+                    }
+                }
+
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     hasMicPermission = true;
+                    agentMicBtn.title = 'Ascolta comando vocale';
                     (stream.getTracks() || []).forEach((track) => track.stop());
                     return true;
                 } catch (err) {
                     const errName = (err && err.name) || '';
                     if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError' || errName === 'SecurityError') {
-                        alert('Permesso microfono negato. Abilita il microfono nelle impostazioni del browser.');
+                        agentMicBtn.title = 'Permesso microfono negato. Riabilitalo dall\'icona lucchetto del browser.';
+                        console.warn('Permesso microfono negato.');
                     } else {
-                        alert('Impossibile accedere al microfono. Controlla dispositivo e permessi del browser.');
+                        agentMicBtn.title = 'Impossibile accedere al microfono. Controlla dispositivo e permessi browser.';
+                        console.warn('Impossibile accedere al microfono.', err);
                     }
                     return false;
                 }
@@ -1481,21 +1498,17 @@
                 recognition.onerror = (event) => {
                     console.error('Speech recognition error:', event.error);
                     let errorMsg = 'Errore microfono: ';
-                    let shouldAlert = false;
                     switch(event.error) {
                         case 'network': errorMsg += 'connessione'; break;
                         case 'no-speech': errorMsg += 'nessun audio rilevato'; break;
                         case 'audio-capture': errorMsg += 'microfono non disponibile'; break;
                         case 'not-allowed':
                             errorMsg = 'Permesso negato. Abilita il microfono nelle impostazioni del browser.';
-                            shouldAlert = true;
+                            agentMicBtn.title = 'Permesso microfono negato. Riabilitalo dall\'icona lucchetto del browser.';
                             break;
                         default: errorMsg += event.error;
                     }
                     console.warn(errorMsg);
-                    if (shouldAlert) {
-                        alert(errorMsg);
-                    }
                 };
 
                 recognition.onend = () => {
@@ -1518,7 +1531,7 @@
                             recognition.start();
                         } catch (err) {
                             console.error('Speech recognition start error:', err);
-                            alert('Errore avvio microfono: ' + (err.message || 'errore sconosciuto'));
+                            agentMicBtn.title = 'Errore avvio microfono: ' + (err.message || 'errore sconosciuto');
                         }
                     }
                 });
