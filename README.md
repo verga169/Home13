@@ -1,143 +1,22 @@
 # Home13
 
-Home13 e una web app Flask per monitorare i costi legati a casa e ristrutturazione, con tracciamento di prestiti/rimborsi e report export.
+Home13 è una web app Flask per gestire spese di casa/ristrutturazione, prestiti ricevuti e rimborsi, con export Excel/PDF e assistente AI.
 
-## Funzionalita
+## Funzionalità principali
 
-- Sezioni separate per:
-	- `Acquisto casa`
-	- `Ristrutturazione`
-	- `Prestiti ricevuti`
-	- `Rimborsi`
-- Dashboard con 2 grafici:
-	- `Totali per categoria` (zoom disabilitato)
-	- `Andamento operazioni` (zoom pinch a 2 dita su touch, timeframe 1Y/6M/3M/1M)
-- Filtri rimborsi per prestatore con sezione dedicata `Storico Rimborsi`.
-- Formattazione numeri italiana (migliaia `.` e decimali `,`).
-- Date mostrate in formato italiano (`gg/mm/aaaa`).
-- UI responsive desktop/mobile con attenzione a overflow e touch interactions.
-- Dopo submit form (aggiunta/modifica/eliminazione) la pagina mantiene la posizione di scroll.
-- Assistente AI con area chat a altezza dinamica (compatta con pochi messaggi, crescita progressiva fino a limite con scroll verticale).
-- Favicon da `static/favicon.ico`.
-- Installabile come PWA su smartphone (manifest + service worker).
+- Sezioni: `Acquisto casa`, `Ristrutturazione`, `Prestiti ricevuti`, `Rimborsi`.
+- Dashboard con grafici totali/timeline e filtro rimborsi per prestatore.
+- Formattazione italiana di importi e date.
+- Gestione utenti applicativi (solo superadmin, con DB attivo).
+- Assistente AI (`/ai-agent-chat`) con function-calling su operazioni CRUD.
+- Supporto PWA (manifest + service worker).
 
-## Test List (Eseguita il 10/03/2026)
+## Requisiti
 
-### Controlli automatici
+- Python 3.11+ (consigliato 3.11/3.12)
+- Dipendenze in `requirements.txt`
 
-- `python -m pytest -q`: nessun test presente nel repository.
-- `python -m compileall -q app.py`: OK (nessun errore di sintassi).
-- Analisi editor (`Problems`): nessun errore rilevato.
-- Verifica import inutilizzati su `app.py` (`source.unusedImports`): nessuna rimozione necessaria.
-
-### Smoke test funzionali (Flask test client)
-
-- `GET /login` -> `200`
-- `GET /` senza autenticazione -> `302` redirect login
-- `GET /` con sessione autenticata -> `200`
-- `GET /health` -> `200`
-- `GET /export/excel` -> `200` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`)
-- `GET /export/pdf` -> `200` (`application/pdf`)
-
-### Verifiche UI/manuali eseguite
-
-- Tabelle prestiti/rimborsi riallineate (colonne e azioni coerenti).
-- Bottoni modifica/elimina mobile resi quadrati e con dimensioni uniformi.
-- Grafico `Totali per categoria`: reset zoom rimosso e interazioni zoom/pan disabilitate.
-- Grafico `Andamento operazioni`: zoom touch consentito solo con gesto pinch a due dita.
-
-## Persistenza Dati
-
-### Produzione (Render + Neon)
-
-Quando `DATABASE_URL` e impostata, l'app usa PostgreSQL (Neon) come storage principale.
-
-Tabelle gestite automaticamente all'avvio:
-- `expenses`
-- `loans`
-- `repayments`
-
-### Locale
-
-- Se `DATABASE_URL` e presente (anche in `.env.local`), l'app usa PostgreSQL.
-- Se `DATABASE_URL` non e presente, usa il file locale `data_store.json`.
-
-L'app carica automaticamente variabili da `.env.local` e `.env` (se presenti).
-
-Esempio `.env.local`:
-
-```env
-DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
-```
-
-## Export
-
-- `GET /export/excel`
-	- export `.xlsx` con fogli separati per sezione e riepilogo.
-	- colonne importi formattate come numeri monetari (`#,##0.00`) per visualizzazione con separatori locali (es. `1.234,56` in locale italiano).
-- `GET /export/pdf`
-	- report PDF con layout premium/minimal: header/footer paginati, metric cards, sintesi categorie e tabelle dettagliate.
-
-## PWA (Installazione Smartphone)
-
-- Manifest statico: `GET /static/site.webmanifest`
-- Service worker: `static/sw.js` registrato su scope `/`
-- Endpoint service worker: `GET /sw.js`
-- Health check: `GET /health`
-
-## Assistente AI (Gemini Flash)
-
-- Endpoint: `POST /ai-agent-chat`
-- Configurazione via env:
-	- `GEMINI_API_KEY=<chiave_api_gemini>`
-	- `GEMINI_MODEL=gemini-2.5-flash-lite` (opzionale, default)
-	- `HOME13_AI_MAX_HISTORY_TURNS=12` (opzionale: numero massimo di turni passati al modello)
-	- `HOME13_AI_MAX_OUTPUT_TOKENS=380` (opzionale: limite massimo token output per risposta)
-	- `HOME13_AI_MAX_ITERATIONS=4` (opzionale: massimo loop function-calling per singola richiesta)
-- Comportamento:
-	- usa sempre Gemini per interpretare i comandi (nessun fallback locale)
-	- supporta inserimento e rimozione movimenti per: rimborsi, prestiti, acquisto casa, ristrutturazione
-	- per le rimozioni richiede conferma esplicita (`si`/`no`) prima di eliminare
-	- in caso di ambiguita chiede dettagli aggiuntivi (es. importo/data/soggetto)
-	- in UI mostra stato di elaborazione (busy indicator) dopo invio comando
-	- messaggio iniziale chat: `Ciao! Sono l'agente AI. Come posso aiutarti?`
-	- cronologia chat non persistente tra refresh: ad ogni ricarica pagina la conversazione riparte da zero
-	- cronologia inviata all'API ottimizzata: solo ultimi turni utili, con esclusione dei dettagli tecnici interni di function-calling
-	- deduplica dei messaggi utente tra client/server per evitare doppio invio dello stesso testo
-	- altezza chat dinamica su desktop/mobile: cresce con il contenuto fino a un massimo, poi usa scroll verticale
-	- errori API Gemini mostrati in modo esplicito (es. quota 429, key/permessi 401/403, timeout rete)
-
-## Login e Sicurezza
-
-- L'app richiede autenticazione per tutte le route applicative.
-- Route pubbliche senza login: `GET /health`, asset statici, `GET /sw.js`.
-- Endpoint login: `GET/POST /login`
-- Logout: `POST /logout`
-- Pagina gestione utenti (solo superadmin): `GET /admin/users`
-- Ruoli:
-	- `superadmin`:
-		- in locale: username `admin` (bootstrap), puo gestire utenze applicative.
-		- su Render deploy: utente definito da variabili ambiente (`HOME13_AUTH_USERNAME` + password/hash), puo gestire utenze applicative.
-	- `user`: utente salvato su tabella DB `users`, puo usare l'app ma non vede la sezione gestione utenze.
-
-Variabili ambiente consigliate:
-
-- `FLASK_SECRET_KEY=<chiave_random_lunga>`
-- `HOME13_AUTH_USERNAME=<username_login>`
-- una delle due password:
-	- `HOME13_AUTH_PASSWORD=<password_plaintext>`
-	- `HOME13_AUTH_PASSWORD_HASH=<hash_werkzeug_pbkdf2>`
-
-Note:
-
-- Se non imposti la password, fallback locale: `admin` (da usare solo per bootstrap).
-- In produzione imposta sempre `FLASK_SECRET_KEY` e credenziali dedicate.
-- Con database attivo, il superadmin puo creare/aggiornare/eliminare utenze dalla pagina dedicata `Gestione Utenze`.
-- Le password degli utenti DB sono salvate hashate (Werkzeug PBKDF2).
-- La sessione login e persistente anche dopo chiusura browser (utile su mobile) fino a `POST /logout` oppure scadenza cookie.
-- Scadenza sessione configurabile con `HOME13_SESSION_DAYS` (default `90`).
-
-## Avvio Locale (Windows)
+## Avvio locale (Windows)
 
 1. Installa dipendenze:
 
@@ -145,65 +24,79 @@ Note:
 py -m pip install -r requirements.txt
 ```
 
-2. Avvia l'app:
+1. Avvia l'app:
 
 ```bash
 py app.py
 ```
 
-oppure con script:
+In alternativa:
 
 ```bat
 start_app.bat
 ```
 
-`start_app.bat`:
-- verifica/install dipendenze mancanti
-- sceglie una porta libera tra `5000` e `5010`
-- apre browser automaticamente su `http://127.0.0.1:<PORT>/`
+## Variabili ambiente
+
+### Core
+
+- `FLASK_SECRET_KEY`
+- `HOME13_SESSION_DAYS` (default `90`)
+
+### Autenticazione
+
+- `HOME13_AUTH_USERNAME`
+- Una tra:
+  - `HOME13_AUTH_PASSWORD`
+  - `HOME13_AUTH_PASSWORD_HASH`
+
+### Database
+
+- `DATABASE_URL` (se assente, fallback su `data_store.json`)
+
+### AI (Gemini)
+
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL` (default `gemini-2.5-flash-lite`)
+- `HOME13_AI_MAX_HISTORY_TURNS` (default `12`)
+- `HOME13_AI_MAX_OUTPUT_TOKENS` (default `380`)
+- `HOME13_AI_MAX_ITERATIONS` (default `4`)
+
+## Persistenza dati
+
+- Con `DATABASE_URL`: PostgreSQL (tabelle auto-create: `expenses`, `loans`, `repayments`, `users`).
+- Senza `DATABASE_URL`: storage locale su `data_store.json`.
+
+## Export
+
+- `GET /export/excel`: report `.xlsx` con riepilogo e fogli per sezione.
+- `GET /export/pdf`: report PDF con metriche e dettaglio movimenti.
 
 ## Deploy su Render
 
-- Runtime: Python
 - Build command: `pip install -r requirements.txt`
 - Start command: `bash render-start.sh`
-- Variabili ambiente minime consigliate:
-	- `DATABASE_URL=<url_neon>`
-	- `FLASK_SECRET_KEY=<chiave_random_lunga>`
-	- `HOME13_AUTH_USERNAME=<username_login>`
-	- `HOME13_AUTH_PASSWORD=<password_login>`
+- `Procfile` e `gunicorn.conf.py` inclusi.
+- Health endpoint: `GET /health`
 
-Repository include anche:
-- `Procfile` con entry web su Gunicorn
-- `render-start.sh` (avvio robusto: prova Gunicorn, fallback automatico a `python app.py`)
-- `runtime.txt` (`python-3.11.10`) per fissare una versione Python compatibile
+## Sicurezza e accessi
 
-L'app include `gunicorn.conf.py` per bind su `0.0.0.0:$PORT`.
+- Route app protette da login.
+- Route pubbliche: `GET /health`, asset statici, `GET /sw.js`.
+- Login: `GET/POST /login`
+- Logout: `POST /logout`
+- Admin utenti: `GET /admin/users` (solo superadmin)
 
-### Troubleshooting Porta su Render
+## Verifiche rapide (18/03/2026)
 
-Se vedi `No open HTTP ports detected on 0.0.0.0`, verifica:
+- `python -m compileall -q app.py`: OK
+- Smoke test Flask test client:
+  - `GET /login` -> `200`
+  - `GET /health` -> `200`
+  - `GET /` senza login -> `302`
+- `python -m pytest -q`: non eseguibile perché `pytest` non è installato nell'ambiente corrente.
 
-- Tipo servizio: `Web Service` (non `Background Worker`)
-- Start command effettivo: `gunicorn --config gunicorn.conf.py app:app`
-- Python runtime: `3.11.x` (coerente con `runtime.txt`)
-- Health check path: `/health`
+## Note tecniche
 
-Il repository include anche un `Procfile` con start command web esplicito per evitare configurazioni ambigue.
-
-### Troubleshooting Installazione PWA su Mobile
-
-Se il popup di installazione compare ma l'app non viene installata:
-
-- apri il sito nel browser principale del dispositivo (Chrome su Android, Safari su iOS), non dentro app come Instagram/Facebook/Teams
-- verifica che il dominio sia HTTPS (su Render lo e)
-- su Android prova anche da menu browser `Installa app`
-- su iOS usa `Condividi -> Aggiungi alla schermata Home`
-
-## Dipendenze Principali
-
-- `flask`
-- `gunicorn` (non-Windows)
-- `psycopg[binary]`
-- `openpyxl`
-- `reportlab`
+- L'app legge automaticamente `.env.local` e `.env` (se presenti).
+- In produzione usare sempre credenziali dedicate e `FLASK_SECRET_KEY` robusta.

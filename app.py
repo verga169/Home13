@@ -950,6 +950,21 @@ def index():
     )
 
 
+def render_index_error(error_message: str):
+    vm = build_view_model()
+    return render_template(
+        "index.html",
+        data=vm["data"],
+        summary=vm["summary"],
+        chart_data=vm["chart_data"],
+        today=vm["today"],
+        repayment_lenders=vm["repayment_lenders"],
+        selected_repayment_lender=vm["selected_repayment_lender"],
+        filtered_repayments=vm["filtered_repayments"],
+        error=error_message,
+    )
+
+
 @app.route("/health", methods=["GET"])
 def health_check():
     return Response("OK", status=200, mimetype="text/plain")
@@ -1946,11 +1961,10 @@ def call_gemini_agent_chat(history: list[dict]) -> dict:
         f":generateContent?key={api_key}"
     )
     today_str = date.today().isoformat()
-    from datetime import timedelta as _td
-    yesterday_str = (date.today() - _td(days=1)).isoformat()
-    tomorrow_str = (date.today() + _td(days=1)).isoformat()
-    day_after_tomorrow_str = (date.today() + _td(days=2)).isoformat()
-    day_before_yesterday_str = (date.today() - _td(days=2)).isoformat()
+    yesterday_str = (date.today() - timedelta(days=1)).isoformat()
+    tomorrow_str = (date.today() + timedelta(days=1)).isoformat()
+    day_after_tomorrow_str = (date.today() + timedelta(days=2)).isoformat()
+    day_before_yesterday_str = (date.today() - timedelta(days=2)).isoformat()
     system_text = AGENT_SYSTEM_INSTRUCTION.format(
         today=today_str,
         yesterday=yesterday_str,
@@ -2141,18 +2155,7 @@ def add_expense():
             save_data(data)
         return redirect(url_for("index"))
     except ValueError as exc:
-        vm = build_view_model()
-        return render_template(
-            "index.html",
-            data=vm["data"],
-            summary=vm["summary"],
-            chart_data=vm["chart_data"],
-            today=vm["today"],
-            repayment_lenders=vm["repayment_lenders"],
-            selected_repayment_lender=vm["selected_repayment_lender"],
-            filtered_repayments=vm["filtered_repayments"],
-            error=str(exc),
-        )
+        return render_index_error(str(exc))
 
 
 @app.route("/add-loan", methods=["POST"])
@@ -2183,18 +2186,7 @@ def add_loan():
             save_data(data)
         return redirect(url_for("index"))
     except ValueError as exc:
-        vm = build_view_model()
-        return render_template(
-            "index.html",
-            data=vm["data"],
-            summary=vm["summary"],
-            chart_data=vm["chart_data"],
-            today=vm["today"],
-            repayment_lenders=vm["repayment_lenders"],
-            selected_repayment_lender=vm["selected_repayment_lender"],
-            filtered_repayments=vm["filtered_repayments"],
-            error=str(exc),
-        )
+        return render_index_error(str(exc))
 
 
 @app.route("/add-repayment", methods=["POST"])
@@ -2224,18 +2216,7 @@ def add_repayment():
             save_data(data)
         return redirect(url_for("index"))
     except ValueError as exc:
-        vm = build_view_model()
-        return render_template(
-            "index.html",
-            data=vm["data"],
-            summary=vm["summary"],
-            chart_data=vm["chart_data"],
-            today=vm["today"],
-            repayment_lenders=vm["repayment_lenders"],
-            selected_repayment_lender=vm["selected_repayment_lender"],
-            filtered_repayments=vm["filtered_repayments"],
-            error=str(exc),
-        )
+        return render_index_error(str(exc))
 
 
 @app.route("/delete-item", methods=["POST"])
@@ -2286,32 +2267,10 @@ def edit_item():
         amount = parse_amount(request.form.get("amount"))
         operation_date = parse_iso_date(date_raw).isoformat()
     except ValueError as exc:
-        vm = build_view_model()
-        return render_template(
-            "index.html",
-            data=vm["data"],
-            summary=vm["summary"],
-            chart_data=vm["chart_data"],
-            today=vm["today"],
-            repayment_lenders=vm["repayment_lenders"],
-            selected_repayment_lender=vm["selected_repayment_lender"],
-            filtered_repayments=vm["filtered_repayments"],
-            error=str(exc),
-        )
+        return render_index_error(str(exc))
 
     if not item_id or not label:
-        vm = build_view_model()
-        return render_template(
-            "index.html",
-            data=vm["data"],
-            summary=vm["summary"],
-            chart_data=vm["chart_data"],
-            today=vm["today"],
-            repayment_lenders=vm["repayment_lenders"],
-            selected_repayment_lender=vm["selected_repayment_lender"],
-            filtered_repayments=vm["filtered_repayments"],
-            error="Compila nome e importo per modificare la voce",
-        )
+        return render_index_error("Compila nome e importo per modificare la voce")
 
     if USE_DATABASE:
         with get_db_connection() as conn:
@@ -2471,18 +2430,7 @@ def export_excel():
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
     except Exception as exc:
-        vm = build_view_model()
-        return render_template(
-            "index.html",
-            data=vm["data"],
-            summary=vm["summary"],
-            chart_data=vm["chart_data"],
-            today=vm["today"],
-            repayment_lenders=vm["repayment_lenders"],
-            selected_repayment_lender=vm["selected_repayment_lender"],
-            filtered_repayments=vm["filtered_repayments"],
-            error=f"Errore export Excel: {exc}",
-        )
+        return render_index_error(f"Errore export Excel: {exc}")
 
 
 @app.route("/export/pdf", methods=["GET"])
@@ -2492,18 +2440,7 @@ def export_pdf():
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas
     except Exception as exc:
-        vm = build_view_model()
-        return render_template(
-            "index.html",
-            data=vm["data"],
-            summary=vm["summary"],
-            chart_data=vm["chart_data"],
-            today=vm["today"],
-            repayment_lenders=vm["repayment_lenders"],
-            selected_repayment_lender=vm["selected_repayment_lender"],
-            filtered_repayments=vm["filtered_repayments"],
-            error=f"Errore export PDF: {exc}",
-        )
+        return render_index_error(f"Errore export PDF: {exc}")
 
     data = load_data()
     summary = build_summary(data)
