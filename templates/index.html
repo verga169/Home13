@@ -704,8 +704,35 @@
             background: #b91c1c;
         }
 
+        .ai-agent-mic {
+            background: #6366f1;
+            color: #fff;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .ai-agent-mic:hover {
+            background: #4f46e5;
+        }
+
+        .ai-agent-mic:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .ai-agent-mic.listening {
+            background: #ef4444;
+            animation: micPulse 0.6s ease-in-out infinite;
+        }
+
+        @keyframes micPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
         @media (max-width: 620px) {
-            .ai-agent-form { grid-template-columns: 1fr auto auto; }
+            .ai-agent-form { grid-template-columns: 1fr auto auto auto; }
             .ai-agent-chat-window { --ai-chat-max-height: 320px; }
         }
 
@@ -913,6 +940,7 @@
             <div id="ai-agent-chat-window" class="ai-agent-chat-window" role="log" aria-live="polite" aria-label="Chat agente AI"></div>
             <form id="ai-agent-form" class="ai-agent-form" autocomplete="off">
                 <input id="ai-agent-input" type="text" placeholder="Scrivi qui il comando" autocomplete="off" required>
+                <button class="btn ai-agent-mic" id="ai-agent-mic" type="button" title="Ascolta comando vocale">🎤</button>
                 <button class="btn btn-agent" type="submit">Invia</button>
                 <button class="btn ai-agent-clear" id="ai-agent-clear" type="button">Clear</button>
             </form>
@@ -1388,7 +1416,67 @@
             const agentInput = document.getElementById("ai-agent-input");
             const agentWindow = document.getElementById("ai-agent-chat-window");
             const agentClear = document.getElementById("ai-agent-clear");
+            const agentMicBtn = document.getElementById("ai-agent-mic");
             const agentSubmitBtn = agentForm ? agentForm.querySelector('button[type="submit"]') : null;
+
+            // Web Speech API setup
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            let recognition = null;
+            let isListening = false;
+
+            if (SpeechRecognition) {
+                recognition = new SpeechRecognition();
+                recognition.language = 'it-IT';
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    isListening = true;
+                    agentMicBtn.classList.add('listening');
+                    agentMicBtn.textContent = '🔴';
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = Array.from(event.results)
+                        .map(result => result[0].transcript)
+                        .join('');
+                    if (transcript) {
+                        agentInput.value = transcript;
+                        agentInput.focus();
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    let errorMsg = 'Errore microfono: ';
+                    switch(event.error) {
+                        case 'network': errorMsg += 'connessione'; break;
+                        case 'no-speech': errorMsg += 'nessun audio rilevato'; break;
+                        case 'audio-capture': errorMsg += 'microfono non disponibile'; break;
+                        default: errorMsg += event.error;
+                    }
+                    console.warn(errorMsg);
+                };
+
+                recognition.onend = () => {
+                    isListening = false;
+                    agentMicBtn.classList.remove('listening');
+                    agentMicBtn.textContent = '🎤';
+                };
+
+                agentMicBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (isListening) {
+                        recognition.stop();
+                    } else {
+                        agentInput.value = '';
+                        recognition.start();
+                    }
+                });
+            } else {
+                agentMicBtn.disabled = true;
+                agentMicBtn.title = 'Speech Recognition non supportato in questo browser';
+            }
             const AGENT_HISTORY_STORAGE_KEY = "home13_ai_agent_history_v2";
             const MAX_AGENT_TURNS_STORED = 40;
             const MAX_AGENT_TURNS_FOR_REQUEST = 12;
