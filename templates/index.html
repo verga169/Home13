@@ -726,13 +726,6 @@
             animation: micPulse 0.6s ease-in-out infinite;
         }
 
-        .ai-agent-mic-feedback {
-            min-height: 20px;
-            margin: 6px 2px 0;
-            font-size: 0.88rem;
-            color: #7f1d1d;
-        }
-
         @keyframes micPulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -952,7 +945,6 @@
                 <button class="btn btn-agent" type="submit">Invia</button>
                 <button class="btn ai-agent-clear" id="ai-agent-clear" type="button">Clear</button>
             </form>
-            <p id="ai-agent-mic-feedback" class="ai-agent-mic-feedback" aria-live="polite"></p>
         </section>
 
 
@@ -1426,7 +1418,6 @@
             const agentWindow = document.getElementById("ai-agent-chat-window");
             const agentClear = document.getElementById("ai-agent-clear");
             const agentMicBtn = document.getElementById("ai-agent-mic");
-            const agentMicFeedback = document.getElementById("ai-agent-mic-feedback");
             const agentSubmitBtn = agentForm ? agentForm.querySelector('button[type="submit"]') : null;
 
             // Web Speech API setup
@@ -1434,25 +1425,16 @@
             let recognition = null;
             let isListening = false;
             let hasMicPermission = false;
-            let hasShownMicDeniedWarning = false;
-
-            function setMicFeedback(message) {
-                if (!agentMicFeedback) {
-                    return;
-                }
-                agentMicFeedback.textContent = message || "";
-            }
 
             async function ensureMicrophonePermission() {
                 if (hasMicPermission) {
-                    setMicFeedback("");
                     return true;
                 }
 
                 if (!window.isSecureContext) {
                     agentMicBtn.title = 'Il microfono richiede HTTPS o localhost.';
                     console.warn('Microfono non disponibile fuori da contesto sicuro (HTTPS/localhost).');
-                    setMicFeedback('Microfono non disponibile: apri il sito in HTTPS (o localhost).');
+                    alert('Il microfono richiede una connessione sicura (HTTPS o localhost).');
                     return false;
                 }
 
@@ -1465,11 +1447,8 @@
                         const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
                         if (permissionStatus && permissionStatus.state === 'denied') {
                             agentMicBtn.title = 'Permesso microfono negato. Riabilitalo dall\'icona lucchetto del browser.';
-                            if (!hasShownMicDeniedWarning) {
-                                console.warn('Permesso microfono in stato denied: il browser non mostra più il prompt automatico.');
-                                hasShownMicDeniedWarning = true;
-                            }
-                            setMicFeedback('Permesso negato: clicca il lucchetto vicino all\'URL, abilita Microfono e ricarica la pagina.');
+                            console.warn('Permesso microfono in stato denied: il browser non mostra più il prompt automatico.');
+                            alert('Permesso microfono negato. Abilita il microfono nelle impostazioni del browser.');
                             return false;
                         }
                     } catch (_) {
@@ -1481,7 +1460,6 @@
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     hasMicPermission = true;
                     agentMicBtn.title = 'Ascolta comando vocale';
-                    setMicFeedback('');
                     (stream.getTracks() || []).forEach((track) => track.stop());
                     return true;
                 } catch (err) {
@@ -1489,11 +1467,11 @@
                     if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError' || errName === 'SecurityError') {
                         agentMicBtn.title = 'Permesso microfono negato. Riabilitalo dall\'icona lucchetto del browser.';
                         console.warn('Permesso microfono negato.');
-                        setMicFeedback('Permesso negato: abilita Microfono dalle impostazioni del sito (lucchetto) e ricarica.');
+                        alert('Permesso microfono negato. Abilita il microfono nelle impostazioni del browser.');
                     } else {
                         agentMicBtn.title = 'Impossibile accedere al microfono. Controlla dispositivo e permessi browser.';
                         console.warn('Impossibile accedere al microfono.', err);
-                        setMicFeedback('Impossibile accedere al microfono. Verifica dispositivo e permessi del browser.');
+                        alert('Impossibile accedere al microfono. Controlla dispositivo e permessi del browser.');
                     }
                     return false;
                 }
@@ -1509,7 +1487,6 @@
                     isListening = true;
                     agentMicBtn.classList.add('listening');
                     agentMicBtn.textContent = '🔴';
-                    setMicFeedback('');
                 };
 
                 recognition.onresult = (event) => {
@@ -1532,7 +1509,7 @@
                         case 'not-allowed':
                             errorMsg = 'Permesso negato. Abilita il microfono nelle impostazioni del browser.';
                             agentMicBtn.title = 'Permesso microfono negato. Riabilitalo dall\'icona lucchetto del browser.';
-                            setMicFeedback('Permesso negato: abilita Microfono dalle impostazioni del sito e ricarica.');
+                            alert(errorMsg);
                             break;
                         default: errorMsg += event.error;
                     }
@@ -1560,14 +1537,13 @@
                         } catch (err) {
                             console.error('Speech recognition start error:', err);
                             agentMicBtn.title = 'Errore avvio microfono: ' + (err.message || 'errore sconosciuto');
-                            setMicFeedback('Errore avvio microfono: riprova dopo aver verificato i permessi.');
+                            alert('Errore avvio microfono: ' + (err.message || 'errore sconosciuto'));
                         }
                     }
                 });
             } else {
                 agentMicBtn.disabled = true;
                 agentMicBtn.title = 'Speech Recognition non supportato in questo browser';
-                setMicFeedback('Browser non supportato per dettatura vocale.');
             }
             const AGENT_HISTORY_STORAGE_KEY = "home13_ai_agent_history_v2";
             const MAX_AGENT_TURNS_STORED = 40;
