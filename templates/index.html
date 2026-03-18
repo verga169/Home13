@@ -530,7 +530,7 @@
         }
 
         #timelineChart {
-            touch-action: pan-y;
+            touch-action: pan-y !important;
         }
 
         .chart-grid {
@@ -604,7 +604,7 @@
 
         .ai-agent-chat-window {
             --ai-chat-min-height: 64px;
-            --ai-chat-max-height: 420px;
+            --ai-chat-max-height: 640px;
             border: 1px solid #c4b5fd;
             border-radius: 14px;
             background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
@@ -618,6 +618,39 @@
             flex-direction: column;
             gap: 8px;
             scroll-behavior: smooth;
+        }
+
+        .ai-agent-resize-handle {
+            height: 12px;
+            margin: -4px 0 8px;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            cursor: ns-resize;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ai-agent-resize-handle::before {
+            content: "";
+            width: 44px;
+            height: 5px;
+            border-radius: 999px;
+            background: rgba(124, 58, 237, 0.35);
+            transition: background-color var(--ui-fast) var(--ui-ease), transform var(--ui-fast) var(--ui-ease);
+        }
+
+        .ai-agent-resize-handle:hover::before {
+            background: rgba(124, 58, 237, 0.52);
+            transform: scaleX(1.06);
+        }
+
+        body.ai-chat-resizing,
+        body.ai-chat-resizing * {
+            cursor: ns-resize !important;
+            user-select: none;
         }
 
         .ai-agent-msg {
@@ -734,7 +767,7 @@
         @media (max-width: 620px) {
             .ai-agent-form { grid-template-columns: 1fr 1fr 1fr; }
             #ai-agent-input { grid-column: 1 / -1; }
-            .ai-agent-chat-window { --ai-chat-max-height: 320px; }
+            .ai-agent-chat-window { --ai-chat-max-height: 460px; }
         }
 
         /* ---- end AI Agent ---- */
@@ -939,6 +972,7 @@
         <section class="card">
             <h2>Assistente AI</h2>
             <div id="ai-agent-chat-window" class="ai-agent-chat-window" role="log" aria-live="polite" aria-label="Chat agente AI"></div>
+            <div id="ai-agent-resize-handle" class="ai-agent-resize-handle" role="separator" aria-label="Ridimensiona chat" aria-orientation="horizontal"></div>
             <form id="ai-agent-form" class="ai-agent-form" autocomplete="off">
                 <input id="ai-agent-input" type="text" placeholder="Scrivi qui il comando" autocomplete="off" required>
                 <button class="btn ai-agent-mic" id="ai-agent-mic" type="button" title="Ascolta comando vocale">🎤</button>
@@ -1416,6 +1450,7 @@
             const agentForm = document.getElementById("ai-agent-form");
             const agentInput = document.getElementById("ai-agent-input");
             const agentWindow = document.getElementById("ai-agent-chat-window");
+            const agentResizeHandle = document.getElementById("ai-agent-resize-handle");
             const agentClear = document.getElementById("ai-agent-clear");
             const agentMicBtn = document.getElementById("ai-agent-mic");
             const agentSubmitBtn = agentForm ? agentForm.querySelector('button[type="submit"]') : null;
@@ -1521,6 +1556,15 @@
 
             let agentHistory = [];
             let agentHistoryCreatedAt = Date.now();
+            let agentManualHeight = null;
+            let isAgentResizing = false;
+            let resizePointerId = null;
+            let resizeStartY = 0;
+            let resizeStartHeight = 0;
+            let resizeMoved = false;
+            let lastHandleTapAt = 0;
+            const RESIZE_DOUBLE_TAP_MS = 320;
+            const RESIZE_TAP_MOVE_TOLERANCE = 10;
 
             function normalizeAgentHistoryTurns(turns, maxTurns) {
                 if (!Array.isArray(turns)) return [];
@@ -1618,12 +1662,30 @@
             function getChatHeightLimits() {
                 const styles = window.getComputedStyle(agentWindow);
                 const minHeight = parseFloat(styles.getPropertyValue("--ai-chat-min-height")) || 64;
-                const maxHeight = parseFloat(styles.getPropertyValue("--ai-chat-max-height")) || 420;
+                const configuredMax = parseFloat(styles.getPropertyValue("--ai-chat-max-height")) || 640;
+                const viewportMax = Math.max(minHeight, window.innerHeight - 220);
+                const maxHeight = Math.max(minHeight, Math.min(configuredMax, viewportMax));
                 return { minHeight, maxHeight };
+            }
+
+            function clampChatHeight(heightValue) {
+                const { minHeight, maxHeight } = getChatHeightLimits();
+                return Math.min(maxHeight, Math.max(minHeight, heightValue));
             }
 
             function adjustAgentWindowHeight(scrollToBottom = false) {
                 const { minHeight, maxHeight } = getChatHeightLimits();
+                if (agentManualHeight !== null) {
+                    const nextHeight = clampChatHeight(agentManualHeight);
+                    agentManualHeight = nextHeight;
+                    agentWindow.style.height = `${nextHeight}px`;
+                    agentWindow.style.overflowY = agentWindow.scrollHeight > (nextHeight + 1) ? "auto" : "hidden";
+                    if (scrollToBottom) {
+                        agentWindow.scrollTop = agentWindow.scrollHeight;
+                    }
+                    return;
+                }
+
                 agentWindow.style.height = "auto";
                 const contentHeight = agentWindow.scrollHeight;
                 const shouldEnableScroll = contentHeight > (maxHeight + 1);
@@ -1633,6 +1695,11 @@
                 if (scrollToBottom) {
                     agentWindow.scrollTop = agentWindow.scrollHeight;
                 }
+            }
+
+            function resetAgentWindowHeightToDefault(scrollToBottom = true) {
+                agentManualHeight = null;
+                adjustAgentWindowHeight(scrollToBottom);
             }
 
             function appendMsg(text, role) {
@@ -1687,6 +1754,65 @@
             }
             adjustAgentWindowHeight();
             window.addEventListener("resize", () => adjustAgentWindowHeight());
+
+            function stopAgentResize(event) {
+                if (!isAgentResizing) return;
+                if (event && resizePointerId !== null && event.pointerId !== resizePointerId) return;
+                isAgentResizing = false;
+                resizePointerId = null;
+                document.body.classList.remove("ai-chat-resizing");
+            }
+
+            if (agentResizeHandle) {
+                agentResizeHandle.addEventListener("pointerdown", (event) => {
+                    if (event.button !== 0) return;
+                    event.preventDefault();
+                    isAgentResizing = true;
+                    resizeMoved = false;
+                    resizePointerId = event.pointerId;
+                    resizeStartY = event.clientY;
+                    resizeStartHeight = agentWindow.getBoundingClientRect().height;
+                    document.body.classList.add("ai-chat-resizing");
+                    agentResizeHandle.setPointerCapture(event.pointerId);
+                });
+
+                agentResizeHandle.addEventListener("pointermove", (event) => {
+                    if (!isAgentResizing || event.pointerId !== resizePointerId) return;
+                    const deltaY = event.clientY - resizeStartY;
+                    if (Math.abs(deltaY) > 2) {
+                        resizeMoved = true;
+                    }
+                    agentManualHeight = clampChatHeight(resizeStartHeight + deltaY);
+                    adjustAgentWindowHeight(false);
+                });
+
+                agentResizeHandle.addEventListener("pointerup", (event) => {
+                    if (isAgentResizing && event.pointerId === resizePointerId && event.pointerType === "touch") {
+                        const deltaY = Math.abs(event.clientY - resizeStartY);
+                        const isTapLike = !resizeMoved || deltaY <= RESIZE_TAP_MOVE_TOLERANCE;
+                        if (isTapLike) {
+                            const currentTapAt = Date.now();
+                            if (lastHandleTapAt > 0 && (currentTapAt - lastHandleTapAt) <= RESIZE_DOUBLE_TAP_MS) {
+                                lastHandleTapAt = 0;
+                                resetAgentWindowHeightToDefault(true);
+                            } else {
+                                lastHandleTapAt = currentTapAt;
+                            }
+                        } else {
+                            lastHandleTapAt = 0;
+                        }
+                    }
+                    stopAgentResize(event);
+                });
+
+                agentResizeHandle.addEventListener("dblclick", (event) => {
+                    event.preventDefault();
+                    resetAgentWindowHeightToDefault(true);
+                });
+
+                agentResizeHandle.addEventListener("pointercancel", stopAgentResize);
+                agentResizeHandle.addEventListener("lostpointercapture", stopAgentResize);
+            }
 
             agentForm.addEventListener("submit", async (event) => {
                 event.preventDefault();
@@ -1962,6 +2088,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                events: ["mousemove", "mouseout", "click"],
                 interaction: { mode: "nearest", intersect: true, axis: "xy" },
                 scales: {
                     x: {
@@ -2032,6 +2159,10 @@
                 },
             },
         });
+
+        // Keep native page scrolling with one finger on mobile.
+        // Two-finger pinch-to-zoom remains handled by chartjs-plugin-zoom.
+        timelineCanvas.style.touchAction = "pan-y";
 
         function setTimelineWindow(days) {
             const windowIdx = computeInitialWindow(timelineLabels, days);
