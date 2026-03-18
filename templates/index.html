@@ -1430,7 +1430,27 @@
             }
 
             function buildHistoryForRequest() {
-                return normalizeAgentHistoryTurns(agentHistory, MAX_AGENT_TURNS_FOR_REQUEST);
+                // Ensure the last model response is always included for context.
+                // This allows the agent to understand what was just registered/searched.
+                if (agentHistory.length === 0) return [];
+                
+                let toSend = normalizeAgentHistoryTurns(agentHistory, MAX_AGENT_TURNS_FOR_REQUEST);
+                
+                // If we have more history than max turns and the history was truncated,
+                // but the second-to-last turn is a model response, try to keep the last pair intact.
+                if (agentHistory.length > MAX_AGENT_TURNS_FOR_REQUEST) {
+                    // Last turn is always the new user message (not in history yet when called)
+                    // Second-to-last should be the model response from previous turn.
+                    // Make sure it's included.
+                    const lastModelIdx = agentHistory.findIndex((t, i) => i === agentHistory.length - 2 && t.role === "model");
+                    if (lastModelIdx >= 0) {
+                        // Rebuild: take from lastModelIdx onwards, but respect max turns
+                        toSend = agentHistory.slice(Math.max(0, agentHistory.length - MAX_AGENT_TURNS_FOR_REQUEST + 1));
+                        toSend = normalizeAgentHistoryTurns(toSend, MAX_AGENT_TURNS_FOR_REQUEST);
+                    }
+                }
+                
+                return toSend;
             }
 
             function loadStoredAgentHistory() {
