@@ -993,6 +993,10 @@ AGENT_SYSTEM_INSTRUCTION = (
     "- Per identificare una voce usa solo riferimenti umani: data, importo, descrizione, prestatore.\n"
     "- Non inventare mai dati: se non trovi una voce, dichiaralo chiaramente.\n"
     "- Se mancano dati obbligatori, chiedi solo il minimo indispensabile.\n\n"
+    "COERENZA NUMERICA (OBBLIGATORIA):\n"
+    "- Per richieste su un prestatore specifico ('saldo', 'totale con X', 'quanto devo a X'), usa SEMPRE get_lender_metrics.\n"
+    "- Per domande di verifica/conferma numerica ('e giusto?', 'confermi?', 'corretto?') usa SEMPRE verify_lender_amount prima di rispondere.\n"
+    "- NON riutilizzare importi dalla memoria conversazionale senza ricalcolo via funzione.\n\n"
     "GESTIONE DATE (obbligatoria):\n"
     "- Nei parametri funzione usa sempre formato ISO YYYY-MM-DD.\n"
     "- Converte automaticamente: 'oggi'={today}, 'ieri'={yesterday}, 'domani'={tomorrow}, "
@@ -1097,6 +1101,58 @@ AGENT_TOOL_DECLARATIONS: dict = {
                     },
                 },
                 "required": ["section"],
+            },
+        },
+        {
+            "name": "get_lender_metrics",
+            "description": (
+                "Restituisce metriche affidabili per un singolo prestatore: totale prestiti ricevuti, "
+                "totale rimborsi e saldo residuo (prestiti-rimborsi)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lender": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Nome del prestatore da analizzare.",
+                    },
+                },
+                "required": ["lender"],
+            },
+        },
+        {
+            "name": "verify_lender_amount",
+            "description": (
+                "Verifica se un importo citato dall'utente e coerente con i dati reali "
+                "di un prestatore (saldo o totali)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lender": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Nome del prestatore da verificare.",
+                    },
+                    "expected_amount": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "Importo dichiarato dall'utente da verificare.",
+                    },
+                    "metric": {
+                        "type": "string",
+                        "enum": ["balance", "loans_total", "repayments_total"],
+                        "description": "Tipo di metrica da confrontare.",
+                    },
+                    "tolerance": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1000,
+                        "description": "Tolleranza ammessa in euro (default 0.01).",
+                    },
+                },
+                "required": ["lender", "expected_amount", "metric"],
             },
         },
         {
@@ -1405,6 +1461,123 @@ def agent_fn_get_summary() -> dict:
             "debito_residuo": f"{format_euro(summary['debito_residuo'])} €",
             "saldo_per_prestatore": summary["lender_balance"],
         },
+    }
+
+
+def _compute_lender_metrics(lender_name: str) -> dict:
+    candidate = sanitize_text(lender_name)
+    if not candidate:
+        return {
+            "found": False,
+            "lender": "",
+            "loans_total": 0.0,
+            "repayments_total": 0.0,
+            "balance": 0.0,
+        }
+
+    normalized_candidate = normalize_text(candidate)
+    data = load_data()
+
+    loans_total = 0.0
+    repayments_total = 0.0
+    matched_names: list[str] = []
+
+    for item in data["loans"]:
+        lender = sanitize_text(item.get("lender", ""))
+        if lender and normalize_text(lender) == normalized_candidate:
+            loans_total += float(item.get("amount", 0.0) or 0.0)
+            matched_names.append(lender)
+
+    for item in data["repayments"]:
+        lender = sanitize_text(item.get("lender", ""))
+        if lender and normalize_text(lender) == normalized_candidate:
+            repayments_total += float(item.get("amount", 0.0) or 0.0)
+            matched_names.append(lender)
+
+    canonical_lender = matched_names[0] if matched_names else candidate
+    loans_total = round(loans_total, 2)
+    repayments_total = round(repayments_total, 2)
+    balance = round(loans_total - repayments_total, 2)
+
+    return {
+        "found": bool(matched_names),
+        "lender": canonical_lender,
+        "loans_total": loans_total,
+        "repayments_total": repayments_total,
+        "balance": balance,
+    }
+
+
+def agent_fn_get_lender_metrics(args: dict) -> dict:
+    lender = sanitize_text(args.get("lender", ""))
+    if not lender:
+        return {"success": False, "error": "Prestatore mancante."}
+
+    metrics = _compute_lender_metrics(lender)
+    return {
+        "success": True,
+        "found": metrics["found"],
+        "lender": metrics["lender"],
+        "metrics": {
+            "loans_total": metrics["loans_total"],
+            "repayments_total": metrics["repayments_total"],
+            "balance": metrics["balance"],
+            "loans_total_formatted": f"{format_euro(metrics['loans_total'])} €",
+            "repayments_total_formatted": f"{format_euro(metrics['repayments_total'])} €",
+            "balance_formatted": f"{format_euro(metrics['balance'])} €",
+        },
+    }
+
+
+def agent_fn_verify_lender_amount(args: dict) -> dict:
+    lender = sanitize_text(args.get("lender", ""))
+    metric = sanitize_text(args.get("metric", "")).casefold()
+    if not lender:
+        return {"success": False, "error": "Prestatore mancante."}
+    if metric not in {"balance", "loans_total", "repayments_total"}:
+        return {"success": False, "error": "Metrica non valida."}
+
+    expected_raw = args.get("expected_amount")
+    try:
+        expected_amount = round(float(expected_raw), 2)
+    except (TypeError, ValueError):
+        return {"success": False, "error": "Importo atteso non valido."}
+
+    tolerance_raw = args.get("tolerance")
+    try:
+        tolerance = float(tolerance_raw) if tolerance_raw is not None else 0.01
+    except (TypeError, ValueError):
+        tolerance = 0.01
+    tolerance = max(0.0, min(1000.0, tolerance))
+
+    metrics = _compute_lender_metrics(lender)
+    if not metrics["found"]:
+        return {
+            "success": True,
+            "found": False,
+            "lender": lender,
+            "metric": metric,
+            "is_match": False,
+            "message": "Prestatore non trovato.",
+        }
+
+    actual_amount = round(float(metrics[metric]), 2)
+    difference = round(actual_amount - expected_amount, 2)
+    is_match = abs(difference) <= tolerance
+
+    return {
+        "success": True,
+        "found": True,
+        "lender": metrics["lender"],
+        "metric": metric,
+        "expected_amount": expected_amount,
+        "actual_amount": actual_amount,
+        "difference": difference,
+        "tolerance": round(tolerance, 2),
+        "is_match": is_match,
+        "expected_amount_formatted": f"{format_euro(expected_amount)} €",
+        "actual_amount_formatted": f"{format_euro(actual_amount)} €",
+        "difference_formatted": f"{format_euro(abs(difference))} €",
     }
 
 
@@ -1869,6 +2042,8 @@ def agent_fn_update_repayment(args: dict) -> dict:
 _AGENT_DISPATCH: dict = {
     "get_summary": agent_fn_get_summary,
     "search_entries": agent_fn_search_entries,
+    "get_lender_metrics": agent_fn_get_lender_metrics,
+    "verify_lender_amount": agent_fn_verify_lender_amount,
     "add_expense": agent_fn_add_expense,
     "add_loan": agent_fn_add_loan,
     "add_repayment": agent_fn_add_repayment,
