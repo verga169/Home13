@@ -1,5 +1,4 @@
 import io
-import base64
 import json
 import os
 import re
@@ -87,7 +86,6 @@ def _read_env_int(var_name: str, default_value: int, min_value: int, max_value: 
 AI_MAX_HISTORY_TURNS = _read_env_int("HOME13_AI_MAX_HISTORY_TURNS", 12, 2, 80)
 AI_MAX_OUTPUT_TOKENS = _read_env_int("HOME13_AI_MAX_OUTPUT_TOKENS", 380, 64, 2048)
 AI_MAX_ITERATIONS = _read_env_int("HOME13_AI_MAX_ITERATIONS", 4, 1, 10)
-AI_STT_MODEL = (os.environ.get("HOME13_STT_MODEL") or "gemini-2.5-flash").strip()
 
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=SESSION_DAYS)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
@@ -2086,70 +2084,6 @@ def call_gemini_agent_chat(history: list[dict]) -> dict:
     }
 
 
-def transcribe_audio_with_gemini(audio_bytes: bytes, mime_type: str) -> str:
-    if not audio_bytes:
-        return ""
-
-    api_key = get_gemini_api_key()
-    if not api_key:
-        return ""
-
-    model = (AI_STT_MODEL or get_gemini_model() or "gemini-2.5-flash").strip()
-    endpoint = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/{model}"
-        f":generateContent?key={api_key}"
-    )
-
-    encoded_audio = base64.b64encode(audio_bytes).decode("ascii")
-    body = {
-        "contents": [
-            {
-                "role": "user",
-                "parts": [
-                    {
-                        "text": (
-                            "Trascrivi fedelmente l'audio in italiano. "
-                            "Restituisci solo il testo trascritto, senza commenti aggiuntivi."
-                        )
-                    },
-                    {
-                        "inline_data": {
-                            "mime_type": mime_type or "audio/webm",
-                            "data": encoded_audio,
-                        }
-                    },
-                ],
-            }
-        ],
-        "generationConfig": {
-            "temperature": 0,
-            "maxOutputTokens": 320,
-        },
-    }
-
-    req = urllib.request.Request(
-        endpoint,
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(req, timeout=45) as resp:
-            raw = resp.read().decode("utf-8", errors="replace")
-        parsed = json.loads(raw)
-    except Exception:
-        return ""
-
-    candidates = parsed.get("candidates") or []
-    if not candidates:
-        return ""
-
-    parts = ((candidates[0] or {}).get("content") or {}).get("parts") or []
-    text = "\n".join(sanitize_text((part or {}).get("text", "")) for part in parts if isinstance(part, dict)).strip()
-    return text
-
-
 @app.route("/ai-agent-chat", methods=["POST"])
 def ai_agent_chat():
     if not is_authenticated():
@@ -2168,31 +2102,6 @@ def ai_agent_chat():
     result = call_gemini_agent_chat(history)
     result["history"] = _build_client_safe_history(result.get("history") or history, AI_MAX_HISTORY_TURNS)
     return jsonify(result)
-
-
-@app.route("/ai-agent-transcribe", methods=["POST"])
-def ai_agent_transcribe():
-    if not is_authenticated():
-        return jsonify({"error": "Non autenticato"}), 401
-
-    audio_file = request.files.get("audio")
-    if not audio_file:
-        return jsonify({"error": "File audio mancante"}), 400
-
-    try:
-        audio_bytes = audio_file.read()
-    except Exception:
-        audio_bytes = b""
-
-    if not audio_bytes:
-        return jsonify({"error": "Audio vuoto"}), 400
-
-    mime_type = sanitize_text(getattr(audio_file, "mimetype", "")) or "audio/webm"
-    text = transcribe_audio_with_gemini(audio_bytes, mime_type)
-    if not text:
-        return jsonify({"error": "Trascrizione non disponibile. Riprova tra poco."}), 502
-
-    return jsonify({"text": text})
 
 @app.route("/sw.js", methods=["GET"])
 def service_worker():

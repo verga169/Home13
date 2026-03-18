@@ -94,7 +94,6 @@ DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 	- `HOME13_AI_MAX_HISTORY_TURNS=12` (opzionale: numero massimo di turni passati al modello)
 	- `HOME13_AI_MAX_OUTPUT_TOKENS=380` (opzionale: limite massimo token output per risposta)
 	- `HOME13_AI_MAX_ITERATIONS=4` (opzionale: massimo loop function-calling per singola richiesta)
-	- `HOME13_STT_MODEL=gemini-2.5-flash` (opzionale: modello usato per trascrizione audio fallback microfono)
 - Comportamento:
 	- usa sempre Gemini per interpretare i comandi (nessun fallback locale)
 	- supporta inserimento e rimozione movimenti per: rimborsi, prestiti, acquisto casa, ristrutturazione
