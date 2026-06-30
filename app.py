@@ -1242,6 +1242,7 @@ def build_excel_workbook(data: dict):
     append_sheet("Prestiti ricevuti", data["loans"], include_lender=True, include_note=True)
     append_sheet("Rimborsi", data["repayments"], include_lender=True)
 
+    wb.properties.creator = "Valerio Vergari"
     return wb
 
 
