@@ -54,14 +54,6 @@ start_app.bat
 
 - `DATABASE_URL` (se assente, fallback su `data_store.json`)
 
-### AI (Gemini)
-
-- `GEMINI_API_KEY`
-- `GEMINI_MODEL` (default `gemini-2.5-flash-lite`)
-- `HOME13_AI_MAX_HISTORY_TURNS` (default `12`)
-- `HOME13_AI_MAX_OUTPUT_TOKENS` (default `380`)
-- `HOME13_AI_MAX_ITERATIONS` (default `4`)
-
 ## Persistenza dati
 
 - Con `DATABASE_URL`: PostgreSQL (tabelle auto-create: `expenses`, `loans`, `repayments`, `users`).
