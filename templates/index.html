@@ -646,15 +646,6 @@
             }
         }
 
-        @keyframes aiSpin {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
         @media (max-width: 980px) {
             .top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .grid-2 { grid-template-columns: 1fr; }
@@ -1245,7 +1236,11 @@
 
             input.addEventListener("input", () => {
                 // Keep only digits and decimal separators while typing.
-                input.value = input.value.replace(/[^
+                input.value = input.value.replace(/[^0-9.,]/g, "");
+            });
+        });
+
+        const payload = JSON.parse(document.getElementById("chart-data").textContent || "{}");
         const isMobile = window.matchMedia("(max-width: 620px)").matches;
         const moneyFormatter = new Intl.NumberFormat("it-IT", {
             minimumFractionDigits: 2,

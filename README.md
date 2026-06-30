@@ -1,6 +1,6 @@
 # Home13
 
-Home13 è una web app Flask per gestire spese di casa/ristrutturazione, prestiti ricevuti e rimborsi, con export Excel/PDF e assistente AI.
+Home13 è una web app Flask per gestire spese di casa/ristrutturazione, prestiti ricevuti e rimborsi, con export Excel/PDF.
 
 ## Funzionalità principali
 
@@ -8,7 +8,6 @@ Home13 è una web app Flask per gestire spese di casa/ristrutturazione, prestiti
 - Dashboard con grafici totali/timeline e filtro rimborsi per prestatore.
 - Formattazione italiana di importi e date.
 - Gestione utenti applicativi (solo superadmin, con DB attivo).
-- Assistente AI (`/ai-agent-chat`) con function-calling su operazioni CRUD.
 - Supporto PWA (manifest + service worker).
 
 ## Requisiti
