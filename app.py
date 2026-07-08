@@ -1350,12 +1350,12 @@ def export_pdf():
     def draw_section_header(text: str, current_y: float) -> float:
         current_y = new_page(current_y)
         pdf.setFillColor(palette["brand_dark"])
-        pdf.setFont("Helvetica-Bold", 13)
+        pdf.setFont("Helvetica-Bold", 14)
         pdf.drawString(left, current_y, text)
         pdf.setStrokeColor(palette["line_soft"])
-        pdf.setLineWidth(0.8)
-        pdf.line(left, current_y - 3, right, current_y - 3)
-        return current_y - 20
+        pdf.setLineWidth(1)
+        pdf.line(left, current_y - 4, right, current_y - 4)
+        return current_y - 24
 
     def draw_metric_card(x: float, top_y: float, card_w: float, label: str, value: str) -> None:
         card_h = 56
@@ -1392,28 +1392,41 @@ def export_pdf():
         bar_width = bar_right - bar_left
 
         series = [
-            ("Acquisto casa", summary["acquisto_total"], colors.HexColor("#4c89e8")),
-            ("Ristrutturazione", summary["ristr_total"], colors.HexColor("#ef5c58")),
-            ("Prestiti ricevuti", summary["loans_total"], colors.HexColor("#21a77f")),
+            (
+                f"Acquisto casa (spese + rate mutuo versate al {format_date_it(date.today().isoformat())})",
+                summary["acquisto_total"],
+                colors.HexColor("#4c89e8"),
+            ),
+            ("Ristrutturazione", summary["ristr_total"], colors.HexColor("#f2c94c")),
+            ("Prestiti ricevuti", summary["loans_total"], colors.HexColor("#21a77e")),
             ("Rimborsi", summary["repayments_total"], colors.HexColor("#f08c4a")),
+            ("Debito residuo", summary["debito_residuo"], colors.HexColor("#e63946")),
         ]
         max_value = max((row[1] for row in series), default=1.0) or 1.0
+
+        def format_bar_label(text: str) -> str:
+            if "(" in text:
+                prefix, sep, suffix = text.partition("(")
+                return f"{prefix.strip().upper()} ({suffix}"
+            return text.upper()
 
         y_pos = current_y
         for label, value, color in series:
             y_pos = new_page(y_pos)
-            pdf.setFillColor(palette["ink_soft"])
-            pdf.setFont("Helvetica", 9)
-            pdf.drawString(bar_left, y_pos, label)
+            pdf.setFillColor(palette["brand_dark"])
+            pdf.setFont("Helvetica-Bold", 10)
+            pdf.drawString(bar_left, y_pos, format_bar_label(label))
+            pdf.setFillColor(palette["brand_dark"])
+            pdf.setFont("Helvetica-Bold", 10)
             pdf.drawRightString(right, y_pos, f"EUR {format_euro(value)}")
 
-            y_pos -= 8
+            y_pos -= 10
             pdf.setFillColor(palette["header_bg"])
-            pdf.roundRect(bar_left, y_pos - 8, bar_width, 8, 3, fill=1, stroke=0)
+            pdf.roundRect(bar_left, y_pos - 10, bar_width, 10, 4, fill=1, stroke=0)
             scaled_w = max((value / max_value) * bar_width, 0.0)
             pdf.setFillColor(color)
-            pdf.roundRect(bar_left, y_pos - 8, scaled_w, 8, 3, fill=1, stroke=0)
-            y_pos -= 18
+            pdf.roundRect(bar_left, y_pos - 10, scaled_w, 10, 4, fill=1, stroke=0)
+            y_pos -= 30
 
         return y_pos - 12
 
@@ -1498,7 +1511,6 @@ def export_pdf():
 
     y = content_top
     y = draw_title("Report Home13", y)
-    y = draw_summary_cards(y)
     y = draw_category_bars(y)
 
     acquisto_rows = [

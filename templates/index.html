@@ -161,6 +161,10 @@
             letter-spacing: 0.07em;
         }
 
+        .metric .label .label-subtext {
+            text-transform: none;
+        }
+
         .metric .value {
             font-size: 1.25rem;
             margin-top: 6px;
@@ -747,8 +751,8 @@
 
         <section class="top-grid">
             <article class="metric">
-                <div class="label">Spese Totali</div>
-                <div class="value">{{ summary.spese_total|euro }} €</div>
+                <div class="label">ACQUISTO CASA <span class="label-subtext">(spese + rate mutuo versate al {{ today|date_it }})</span></div>
+                <div class="value">{{ summary.acquisto_total|euro }} €</div>
             </article>
             <article class="metric">
                 <div class="label">Prestiti Ricevuti</div>
