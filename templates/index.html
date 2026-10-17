@@ -210,7 +210,7 @@
             border: 0;
             border-radius: 13px;
             padding: 10px 14px;
-            font-weight: 700;
+            font-weight: 500;
             cursor: pointer;
             text-decoration: none;
             font-size: 0.95rem;
@@ -585,6 +585,15 @@
 
         .lender-balance-title { margin-top: 16px; }
 
+        .repayment-history {
+            margin-top: 24px;
+            padding-top: 2px;
+        }
+
+        .repayment-history-title {
+            margin: 18px 0 12px;
+        }
+
         .expenses-layout .table-wrap {
             flex: 1 1 auto;
             min-height: 0;
@@ -809,7 +818,7 @@
             padding: 6px 10px;
             font-size: 0.82rem;
             cursor: pointer;
-            font-weight: 700;
+            font-weight: 500;
             -webkit-backdrop-filter: blur(14px) saturate(180%);
             backdrop-filter: blur(14px) saturate(180%);
             box-shadow: 0 2px 7px rgba(0, 80, 70, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95);
@@ -1204,9 +1213,25 @@
 
         .hero h1,
         .card h2,
+        .card h3,
+        .chart-head h2,
         .install-title {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             letter-spacing: -0.035em;
+        }
+
+        .card h2,
+        .card h3,
+        .chart-head h2 {
+            color: rgba(20, 36, 58, 0.88);
+            font-weight: 350;
+            letter-spacing: -0.03em;
+        }
+
+        th {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-weight: 400;
+            letter-spacing: -0.015em;
         }
 
         .hero h1 {
@@ -1244,7 +1269,48 @@
         }
 
         .card h2 {
-            font-weight: 700;
+            font-weight: 350;
+        }
+
+        .loans-section-title {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            margin: 0 0 20px;
+            padding: 11px 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.82);
+            border-radius: 16px;
+            color: #193d5d;
+            background:
+                linear-gradient(115deg, rgba(248, 252, 255, 0.8), rgba(217, 235, 249, 0.56) 52%, rgba(198, 222, 241, 0.62));
+            box-shadow:
+                0 8px 22px rgba(20, 44, 71, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.96),
+                inset 0 -1px 0 rgba(65, 104, 139, 0.08);
+            font-size: 1.18rem;
+            font-weight: 500;
+            letter-spacing: -0.025em;
+            -webkit-backdrop-filter: blur(24px) saturate(175%);
+            backdrop-filter: blur(24px) saturate(175%);
+        }
+
+        .card .loans-section-title {
+            color: #193d5d;
+            font-weight: 500;
+        }
+
+        .loans-section-title::before {
+            position: absolute;
+            top: 0;
+            left: 12%;
+            width: 76%;
+            height: 1px;
+            content: "";
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.96), transparent);
+            pointer-events: none;
         }
 
         .btn {
@@ -1347,6 +1413,191 @@
             backdrop-filter: blur(16px);
         }
 
+        @media (min-width: 981px) {
+            .hero {
+                border-color: rgba(255, 255, 255, 0.62);
+                background: linear-gradient(125deg, rgba(30, 62, 94, 0.72), rgba(59, 106, 147, 0.58) 56%, rgba(107, 151, 188, 0.52));
+                box-shadow: 0 24px 60px rgba(20, 67, 108, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+                -webkit-backdrop-filter: blur(32px) saturate(185%);
+                backdrop-filter: blur(32px) saturate(185%);
+            }
+
+            .metric,
+            .card {
+                border-color: rgba(255, 255, 255, 0.82);
+                background:
+                    linear-gradient(145deg, rgba(255, 255, 255, 0.18), transparent 46%),
+                    radial-gradient(ellipse at 12% 0%, rgba(255, 255, 255, 0.2), transparent 55%),
+                    rgba(232, 244, 253, 0.42);
+                box-shadow:
+                    0 18px 48px rgba(20, 44, 71, 0.14),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+                    inset 0 -1px 0 rgba(65, 104, 139, 0.08);
+                -webkit-backdrop-filter: blur(30px) saturate(180%);
+                backdrop-filter: blur(30px) saturate(180%);
+            }
+
+            .card:hover,
+            .metric:hover {
+                border-color: rgba(255, 255, 255, 0.96);
+                box-shadow:
+                    0 22px 54px rgba(20, 44, 71, 0.18),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+                    inset 0 -1px 0 rgba(65, 104, 139, 0.1);
+            }
+
+            .table-wrap {
+                border-color: rgba(255, 255, 255, 0.82);
+                background: rgba(230, 243, 253, 0.25);
+                box-shadow:
+                    0 8px 24px rgba(20, 44, 71, 0.07),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+                -webkit-backdrop-filter: blur(24px) saturate(170%);
+                backdrop-filter: blur(24px) saturate(170%);
+            }
+
+            table {
+                background: rgba(239, 247, 253, 0.18);
+            }
+
+            th {
+                background: rgba(221, 235, 247, 0.52);
+            }
+
+            input,
+            select {
+                border-color: rgba(255, 255, 255, 0.72);
+                background: rgba(247, 251, 255, 0.52);
+                box-shadow:
+                    inset 0 1px 2px rgba(20, 44, 71, 0.04),
+                    0 4px 12px rgba(20, 44, 71, 0.06);
+                -webkit-backdrop-filter: blur(20px) saturate(165%);
+                backdrop-filter: blur(20px) saturate(165%);
+            }
+
+            .btn,
+            .btn-ghost {
+                position: relative;
+                isolation: isolate;
+                overflow: hidden;
+                border-color: rgba(255, 255, 255, 0.86);
+                box-shadow:
+                    0 8px 20px rgba(20, 44, 71, 0.14),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+                    inset 0 -1px 0 rgba(48, 87, 122, 0.1);
+                -webkit-backdrop-filter: blur(24px) saturate(190%);
+                backdrop-filter: blur(24px) saturate(190%);
+            }
+
+            .btn::after,
+            .btn-ghost::after {
+                position: absolute;
+                z-index: -1;
+                inset: 0;
+                border-radius: inherit;
+                content: "";
+                background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.7), transparent 68%);
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            .btn:hover,
+            .btn-ghost:hover {
+                transform: translateY(-2px);
+                border-color: rgba(255, 255, 255, 0.98);
+                box-shadow:
+                    0 12px 26px rgba(20, 44, 71, 0.2),
+                    inset 0 1px 0 rgba(255, 255, 255, 1),
+                    inset 0 -1px 0 rgba(48, 87, 122, 0.08);
+            }
+
+            .btn:hover::after,
+            .btn-ghost:hover::after {
+                opacity: 0.42;
+            }
+
+            .btn:active,
+            .btn-ghost:active {
+                transform: scale(0.96);
+                box-shadow:
+                    0 3px 10px rgba(20, 44, 71, 0.2),
+                    inset 0 2px 6px rgba(37, 66, 97, 0.18),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+            }
+
+            .btn:active::after,
+            .btn-ghost:active::after {
+                animation: desktopLiquidBloom 420ms cubic-bezier(0.16, 0.72, 0.24, 1);
+            }
+
+            .btn-brand {
+                border-color: rgba(255, 255, 255, 0.72);
+                background: linear-gradient(180deg, rgba(67, 145, 201, 0.8), rgba(25, 81, 130, 0.72));
+                box-shadow:
+                    0 9px 24px rgba(20, 50, 82, 0.24),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+                    inset 0 -1px 0 rgba(10, 31, 54, 0.14);
+            }
+
+            .btn-brand:hover {
+                background: linear-gradient(180deg, rgba(85, 161, 216, 0.9), rgba(31, 91, 143, 0.84));
+                box-shadow:
+                    0 13px 30px rgba(20, 50, 82, 0.28),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+            }
+
+            .btn-light,
+            .btn-edit,
+            .btn-danger,
+            .btn-ghost {
+                background: linear-gradient(180deg, rgba(248, 252, 255, 0.66), rgba(207, 229, 246, 0.34));
+            }
+
+            .btn-edit,
+            .btn-danger {
+                border-color: rgba(255, 255, 255, 0.9);
+                box-shadow:
+                    0 5px 14px rgba(20, 44, 71, 0.12),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.98);
+            }
+
+            .btn-edit:hover {
+                background: linear-gradient(180deg, rgba(252, 254, 255, 0.88), rgba(215, 234, 249, 0.58));
+            }
+
+            .btn-danger:hover {
+                background: linear-gradient(180deg, rgba(255, 249, 248, 0.9), rgba(255, 224, 221, 0.6));
+                border-color: rgba(255, 255, 255, 0.98);
+            }
+
+            .btn-hero-logout {
+                background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(224, 240, 252, 0.12));
+                -webkit-backdrop-filter: blur(24px) saturate(185%);
+                backdrop-filter: blur(24px) saturate(185%);
+            }
+
+            .install-panel {
+                border-color: rgba(255, 255, 255, 0.86);
+                background: rgba(225, 240, 251, 0.54);
+                box-shadow:
+                    0 14px 36px rgba(20, 44, 71, 0.12),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.94);
+                -webkit-backdrop-filter: blur(28px) saturate(175%);
+                backdrop-filter: blur(28px) saturate(175%);
+            }
+
+            @keyframes desktopLiquidBloom {
+                0% {
+                    opacity: 0.8;
+                    background-size: 12% 12%;
+                }
+                100% {
+                    opacity: 0;
+                    background-size: 240% 240%;
+                }
+            }
+        }
+
         @media (max-width: 620px) {
             :root {
                 --bg: #b8d0e3;
@@ -1391,11 +1642,72 @@
 
             .btn,
             .btn-ghost {
+                position: relative;
+                isolation: isolate;
                 border: 1px solid rgba(255, 255, 255, 0.7);
                 background: linear-gradient(180deg, rgba(242, 249, 255, 0.66), rgba(209, 229, 245, 0.4));
                 box-shadow: 0 7px 18px rgba(20, 44, 71, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.86), inset 0 -1px 0 rgba(48, 87, 122, 0.1);
                 -webkit-backdrop-filter: blur(24px) saturate(180%);
                 backdrop-filter: blur(24px) saturate(180%);
+            }
+
+            .btn::after,
+            .btn-ghost::after {
+                position: absolute;
+                z-index: -1;
+                inset: 0;
+                border-radius: inherit;
+                content: "";
+                background: radial-gradient(
+                    circle at var(--liquid-x, 50%) var(--liquid-y, 50%),
+                    rgba(255, 255, 255, 0.78),
+                    rgba(235, 247, 255, 0.28) 24%,
+                    transparent 58%
+                );
+                opacity: 0;
+                pointer-events: none;
+                filter: blur(5px);
+                background-repeat: no-repeat;
+                background-size: 24% 24%;
+            }
+
+            .btn.mobile-liquid-press,
+            .btn-ghost.mobile-liquid-press {
+                animation: mobileLiquidPress 560ms cubic-bezier(0.2, 0.8, 0.25, 1);
+            }
+
+            .btn.mobile-liquid-press::after,
+            .btn-ghost.mobile-liquid-press::after {
+                animation: mobileLiquidBloom 560ms cubic-bezier(0.16, 0.72, 0.24, 1);
+            }
+
+            @keyframes mobileLiquidPress {
+                0%, 100% {
+                    transform: scale(1);
+                    box-shadow: 0 7px 18px rgba(20, 44, 71, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.86);
+                }
+                24% {
+                    transform: scale(0.965, 0.94);
+                    box-shadow: 0 2px 8px rgba(20, 44, 71, 0.2), inset 0 2px 5px rgba(37, 66, 97, 0.16);
+                }
+                58% {
+                    transform: scale(1.018, 1.035);
+                    box-shadow: 0 12px 26px rgba(20, 44, 71, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.96);
+                }
+            }
+
+            @keyframes mobileLiquidBloom {
+                0% {
+                    opacity: 0;
+                    background-size: 24% 24%;
+                }
+                28% {
+                    opacity: 0.9;
+                }
+                100% {
+                    opacity: 0;
+                    background-size: 240% 240%;
+                }
             }
 
             .btn-brand {
@@ -1844,7 +2156,7 @@
         </section>
 
         <section class="card">
-            <h2>Prestiti e Rimborsi</h2>
+            <h2 class="loans-section-title">Prestiti e Rimborsi</h2>
             <div class="grid-2">
                 <div>
                     <h3>Nuovo prestito ricevuto</h3>
@@ -2023,45 +2335,45 @@
             {% else %}
             <div class="empty">Nessun saldo da mostrare.</div>
             {% endif %}
-        </section>
 
-        <section class="card">
-            <h2>Storico Rimborsi</h2>
-            <form method="get" action="{{ url_for('index') }}" class="filter-bar">
-                <select name="repayment_lender">
-                    <option value="">Tutti i prestatori</option>
-                    {% for lender in repayment_lenders %}
-                    <option value="{{ lender }}" {% if lender == selected_repayment_lender %}selected{% endif %}>{{ lender }}</option>
-                    {% endfor %}
-                </select>
-                <button class="btn btn-brand" type="submit">Filtra</button>
-                <a class="btn btn-light" href="{{ url_for('index') }}">Reset</a>
-            </form>
-
-            {% if filtered_repayments %}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Prestatore</th>
-                            <th>Importo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in filtered_repayments %}
-                        <tr>
-                            <td>{{ row.date|date_it }}</td>
-                            <td>{{ row.lender }}</td>
-                            <td>{{ row.amount|euro }} €</td>
-                        </tr>
+            <div class="repayment-history">
+                <h3 class="repayment-history-title">Storico Rimborsi</h3>
+                <form method="get" action="{{ url_for('index') }}" class="filter-bar">
+                    <select name="repayment_lender">
+                        <option value="">Tutti i prestatori</option>
+                        {% for lender in repayment_lenders %}
+                        <option value="{{ lender }}" {% if lender == selected_repayment_lender %}selected{% endif %}>{{ lender }}</option>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </select>
+                    <button class="btn btn-brand" type="submit">Filtra</button>
+                    <a class="btn btn-light" href="{{ url_for('index') }}">Reset</a>
+                </form>
+
+                {% if filtered_repayments %}
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Prestatore</th>
+                                <th>Importo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in filtered_repayments %}
+                            <tr>
+                                <td>{{ row.date|date_it }}</td>
+                                <td>{{ row.lender }}</td>
+                                <td>{{ row.amount|euro }} €</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty">Nessun rimborso trovato per il filtro selezionato.</div>
+                {% endif %}
             </div>
-            {% else %}
-            <div class="empty">Nessun rimborso trovato per il filtro selezionato.</div>
-            {% endif %}
         </section>
 
     </main>
@@ -2271,6 +2583,40 @@
                 tableWrap.style.maxHeight = matchingHeight;
             });
         }
+
+        const mobileLiquidPressTimers = new WeakMap();
+        document.addEventListener("pointerdown", (event) => {
+            if (
+                !window.matchMedia("(max-width: 620px)").matches
+                || window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                || !event.isPrimary
+                || event.button !== 0
+                || !(event.target instanceof Element)
+            ) return;
+
+            const button = event.target.closest(".btn, .btn-ghost");
+            if (!button) return;
+
+            const previousTimer = mobileLiquidPressTimers.get(button);
+            if (previousTimer) window.clearTimeout(previousTimer);
+            button.classList.remove("mobile-liquid-press");
+
+            const bounds = button.getBoundingClientRect();
+            const x = Math.max(0, Math.min(100, ((event.clientX - bounds.left) / bounds.width) * 100));
+            const y = Math.max(0, Math.min(100, ((event.clientY - bounds.top) / bounds.height) * 100));
+            button.style.setProperty("--liquid-x", `${x}%`);
+            button.style.setProperty("--liquid-y", `${y}%`);
+            void button.offsetWidth;
+            button.classList.add("mobile-liquid-press");
+
+            const timer = window.setTimeout(() => {
+                button.classList.remove("mobile-liquid-press");
+                button.style.removeProperty("--liquid-x");
+                button.style.removeProperty("--liquid-y");
+                mobileLiquidPressTimers.delete(button);
+            }, 560);
+            mobileLiquidPressTimers.set(button, timer);
+        });
 
         document.querySelectorAll(".table-wrap").forEach((tableWrap) => {
             const recordList = tableWrap.querySelector(".mobile-record-list");
