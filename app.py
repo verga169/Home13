@@ -99,8 +99,8 @@ DEFAULT_DATA = {
 
 CATEGORY_DISPLAY_NAMES = {
     "acquisto_casa": "Acquisto Casa",
-    "ristrutturazione": "Ristrutturazione",
-    "ristrutturazione_girs_2001": "Ristrutturazione - GIRS",
+    "ristrutturazione": "Arredo - Altro",
+    "ristrutturazione_girs_2001": "GIRS 2001",
     "loans": "Prestiti",
     "repayments": "Rimborsi",
 }
@@ -111,10 +111,13 @@ SECTION_ALIASES = {
     "acquisto": "acquisto_casa",
     "ristrutturazione": "ristrutturazione",
     "ristrutturazioni": "ristrutturazione",
+    "arredo altro": "ristrutturazione",
+    "arredo - altro": "ristrutturazione",
     "ristrutturazione girs": "ristrutturazione_girs_2001",
     "ristrutturazione - girs": "ristrutturazione_girs_2001",
     "ristrutturazione girs 2001": "ristrutturazione_girs_2001",
     "ristrutturazione - girs 2001": "ristrutturazione_girs_2001",
+    "girs 2001": "ristrutturazione_girs_2001",
     "ristrutturazione_girs_2001": "ristrutturazione_girs_2001",
     "loans": "loans",
     "prestiti": "loans",
@@ -629,15 +632,15 @@ def build_chart_data(data: dict) -> dict:
     totals = {
         "labels": [
             "Acquisto casa",
-            "Ristrutturazione",
             "GIRS 2001",
+            "Arredo - Altro",
             "Prestiti ricevuti",
             "Rimborsi",
         ],
         "values": [
             round(sum_amount(data["expenses"]["acquisto_casa"]), 2),
-            round(sum_amount(data["expenses"]["ristrutturazione"]), 2),
             round(sum_amount(data["expenses"]["ristrutturazione_girs_2001"]), 2),
+            round(sum_amount(data["expenses"]["ristrutturazione"]), 2),
             round(sum_amount(data["loans"]), 2),
             round(sum_amount(data["repayments"]), 2),
         ],
@@ -1228,9 +1231,9 @@ def build_excel_workbook(data: dict):
 
     ws.append(["Voce", "Valore"])
     ws.append(["Spese acquisto casa", summary["acquisto_total"]])
-    ws.append(["Spese ristrutturazione", summary["ristrutturazione_total"]])
-    ws.append(["Spese ristrutturazione - GIRS", summary["ristrutturazione_girs_total"]])
-    ws.append(["Spese ristrutturazione totali", summary["ristr_total"]])
+    ws.append(["GIRS 2001", summary["ristrutturazione_girs_total"]])
+    ws.append(["Arredo - Altro", summary["ristrutturazione_total"]])
+    ws.append(["Spese Arredo e GIRS totali", summary["ristr_total"]])
     ws.append(["Spese totali", summary["spese_total"]])
     ws.append(["Prestiti ricevuti", summary["loans_total"]])
     ws.append(["Rimborsi effettuati", summary["repayments_total"]])
@@ -1284,8 +1287,8 @@ def build_excel_workbook(data: dict):
             apply_amount_style(sheet, column_index=3)
 
     append_sheet("Acquisto casa", data["expenses"]["acquisto_casa"])
-    append_sheet("Ristrutturazione - GIRS", data["expenses"]["ristrutturazione_girs_2001"])
-    append_sheet("Ristrutturazione", data["expenses"]["ristrutturazione"])
+    append_sheet("GIRS 2001", data["expenses"]["ristrutturazione_girs_2001"])
+    append_sheet("Arredo - Altro", data["expenses"]["ristrutturazione"])
     append_sheet("Prestiti ricevuti", data["loans"], include_lender=True, include_note=True)
     append_sheet("Rimborsi", data["repayments"], include_lender=True)
 
@@ -1445,14 +1448,14 @@ def export_pdf():
                 colors.HexColor("#4c89e8"),
             ),
             (
-                "Ristrutturazione",
-                summary["ristrutturazione_total"],
-                colors.HexColor("#f2c94c"),
-            ),
-            (
-                "Ristrutturazione - GIRS",
+                "GIRS 2001",
                 summary["ristrutturazione_girs_total"],
                 colors.HexColor("#8b5cf6"),
+            ),
+            (
+                "Arredo - Altro",
+                summary["ristrutturazione_total"],
+                colors.HexColor("#f2c94c"),
             ),
             ("Prestiti ricevuti", summary["loans_total"], colors.HexColor("#21a77e")),
             ("Rimborsi", summary["repayments_total"], colors.HexColor("#f08c4a")),
@@ -1597,8 +1600,8 @@ def export_pdf():
     saldo_rows = [[row["lender"], f"EUR {format_euro(row['balance'])}"] for row in summary["lender_balance"]]
 
     y = draw_table("Acquisto casa", ["Data", "Voce", "Importo"], acquisto_rows, [110, 300, 110], y)
-    y = draw_table("Ristrutturazione - GIRS", ["Data", "Voce", "Importo"], ristr_girs_rows, [110, 300, 110], y)
-    y = draw_table("Ristrutturazione", ["Data", "Voce", "Importo"], ristr_rows, [110, 300, 110], y)
+    y = draw_table("GIRS 2001", ["Data", "Voce", "Importo"], ristr_girs_rows, [110, 300, 110], y)
+    y = draw_table("Arredo - Altro", ["Data", "Voce", "Importo"], ristr_rows, [110, 300, 110], y)
     y = draw_table("Prestiti ricevuti", ["Data", "Prestatore", "Note", "Importo"], prestiti_rows, [85, 135, 190, 110], y)
     y = draw_table("Rimborsi", ["Data", "Prestatore", "Importo"], rimborsi_rows, [110, 300, 110], y)
     draw_table("Saldo per prestatore", ["Prestatore", "Saldo residuo"], saldo_rows, [380, 140], y)

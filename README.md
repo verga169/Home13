@@ -4,8 +4,8 @@ Home13 è una web app Flask per gestire spese di casa/ristrutturazione, prestiti
 
 ## Funzionalità principali
 
-- Sezioni: `Acquisto casa`, `Ristrutturazione`, `Ristrutturazione - GIRS`, `Prestiti ricevuti`, `Rimborsi`.
-- Le spese di ristrutturazione sono registrate separatamente per categoria e sommate nei totali complessivi.
+- Sezioni: `Acquisto casa`, `GIRS 2001`, `Arredo - Altro`, `Prestiti ricevuti`, `Rimborsi`.
+- Le spese `GIRS 2001` e `Arredo - Altro` sono registrate separatamente e mostrate con totali distinti.
 - Dashboard con grafici totali/timeline e filtro rimborsi per prestatore.
 - Formattazione italiana di importi e date (`gg/mm/aaaa`), con date picker nei moduli.
 - Gestione utenti applicativi (solo superadmin, con DB attivo).

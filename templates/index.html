@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>Home13 - Spese Casa e Ristrutturazione</title>
+    <title>Home13 - Spese Casa, GIRS 2001 e Arredo - Altro</title>
     <meta name="theme-color" content="#0f766e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -18,6 +18,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Syne:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #f5f5f7;
@@ -50,7 +53,7 @@
             margin: 0;
             color: var(--ink);
             background: var(--bg);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", sans-serif;
+            font-family: "DM Sans", sans-serif;
             -webkit-font-smoothing: antialiased;
         }
 
@@ -123,7 +126,7 @@
 
         .hero h1 {
             margin: 0;
-            font-family: inherit;
+            font-family: "Syne", sans-serif;
             font-size: clamp(1.9rem, 5vw, 2.7rem);
             letter-spacing: -0.04em;
             font-weight: 700;
@@ -137,7 +140,7 @@
 
         .top-grid {
             display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
+            grid-template-columns: repeat(6, minmax(0, 1fr));
             gap: 12px;
             margin: 16px 0 24px;
         }
@@ -288,7 +291,7 @@
         }
 
         .date-picker-button:hover {
-            background: #f2f4f5;
+            background: transparent;
             color: var(--brand);
         }
 
@@ -385,7 +388,7 @@
 
         .card h2 {
             margin: 0 0 12px;
-            font-family: inherit;
+            font-family: "Syne", sans-serif;
             font-size: 1.2rem;
             font-weight: 650;
             letter-spacing: -0.025em;
@@ -466,10 +469,12 @@
 
         .date-picker-button {
             position: absolute;
-            top: 0;
+            top: 50%;
             right: 0;
+            z-index: 2;
             width: 42px;
             height: 42px;
+            transform: translateY(calc(-50% + 4px));
             padding: 0;
             border: 0;
             background: transparent;
@@ -513,16 +518,17 @@
 
         .date-picker-input {
             position: absolute;
-            top: 0;
+            top: 50%;
             right: 0;
             z-index: 1;
             width: 42px;
             height: 42px;
             min-height: 42px;
+            transform: translateY(calc(-50% + 4px));
             padding: 0;
             border: 0;
             opacity: 0;
-            cursor: pointer;
+            pointer-events: none;
         }
 
         input:focus,
@@ -791,7 +797,7 @@
             align-items: center;
             gap: 8px;
             margin: 0 0 6px;
-            font-family: inherit;
+            font-family: "Syne", sans-serif;
             font-size: 0.98rem;
             letter-spacing: 0.01em;
             color: #006c60;
@@ -808,7 +814,7 @@
             justify-content: center;
             font-size: 0.82rem;
             font-weight: 700;
-            font-family: inherit;
+            font-family: "DM Sans", sans-serif;
             color: #006c60;
             line-height: 1;
         }
@@ -956,7 +962,7 @@
 
         <section class="top-grid">
             <article class="metric">
-                <div class="label">ACQUISTO CASA <span class="label-subtext">(spese + rate mutuo versate al {{ today|date_it }})</span></div>
+                <div class="label">ACQUISTO CASA <span class="label-subtext">(+ rate mutuo al {{ today|date_it }})</span></div>
                 <div class="value">{{ summary.acquisto_total|euro }} €</div>
             </article>
             <article class="metric">
@@ -968,8 +974,12 @@
                 <div class="value">{{ summary.repayments_total|euro }} €</div>
             </article>
             <article class="metric">
-                <div class="label">Spese Ristrutturazione</div>
-                <div class="value">{{ summary.ristr_total|euro }} €</div>
+                <div class="label">GIRS 2001</div>
+                <div class="value">{{ summary.ristrutturazione_girs_total|euro }} €</div>
+            </article>
+            <article class="metric">
+                <div class="label">Arredo - Altro</div>
+                <div class="value">{{ summary.ristrutturazione_total|euro }} €</div>
             </article>
             <article class="metric">
                 <div class="label">Debito Residuo</div>
@@ -1084,7 +1094,7 @@
 
             <div class="renovation-grid">
             <article class="card">
-                <h2>Ristrutturazione - GIRS</h2>
+                <h2>GIRS 2001</h2>
                 <form method="post" action="{{ url_for('add_expense') }}">
                     <input type="hidden" name="category" value="ristrutturazione_girs_2001">
                     <div class="fields">
@@ -1096,7 +1106,7 @@
                         <input type="text" name="description" placeholder="Descrizione" required>
                         <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
                     </div>
-                    <button class="btn btn-brand btn-full" type="submit">Aggiungi spesa GIRS</button>
+                    <button class="btn btn-brand btn-full" type="submit">Aggiungi spesa GIRS 2001</button>
                 </form>
                 {% if data.expenses.ristrutturazione_girs_2001 %}
                 <div class="table-wrap" style="margin-top: 12px;">
@@ -1152,7 +1162,7 @@
             </article>
 
             <article class="card">
-                <h2>Ristrutturazione</h2>
+                <h2>Arredo - Altro</h2>
                 <form method="post" action="{{ url_for('add_expense') }}">
                     <input type="hidden" name="category" value="ristrutturazione">
                     <div class="fields">
@@ -1487,7 +1497,19 @@
         document.querySelectorAll(".date-field").forEach((field) => {
             const dateInput = field.querySelector(".date-input");
             const pickerInput = field.querySelector(".date-picker-input");
-            if (!dateInput || !pickerInput) return;
+            const pickerButton = field.querySelector(".date-picker-button");
+            if (!dateInput || !pickerInput || !pickerButton) return;
+
+            pickerButton.removeAttribute("aria-hidden");
+            pickerButton.removeAttribute("tabindex");
+            pickerButton.setAttribute("aria-label", "Apri calendario");
+            pickerButton.addEventListener("click", () => {
+                if (typeof pickerInput.showPicker === "function") {
+                    pickerInput.showPicker();
+                } else {
+                    pickerInput.click();
+                }
+            });
 
             pickerInput.addEventListener("change", () => {
                 const [year, month, day] = pickerInput.value.split("-");
@@ -1693,7 +1715,7 @@
                         borderRadius: 5,
                         borderSkipped: false,
                         borderWidth: 1,
-                        borderColor: ["#0a84ff", "#ff9f0a", "#bf5af2", "#ff453a", "#30d158"],
+                        borderColor: ["#0a84ff", "#bf5af2", "#ff9f0a", "#ff453a", "#30d158"],
                         backgroundColor: (context) => {
                             const chart = context.chart;
                             const chartArea = chart.chartArea;
@@ -1702,8 +1724,8 @@
                             }
                             const palette = [
                                 ["rgba(10,132,255,0.84)", "rgba(10,132,255,0.22)"],
-                                ["rgba(255,159,10,0.86)", "rgba(255,159,10,0.22)"],
                                 ["rgba(191,90,242,0.84)", "rgba(191,90,242,0.22)"],
+                                ["rgba(255,159,10,0.86)", "rgba(255,159,10,0.22)"],
                                 ["rgba(255,69,58,0.84)", "rgba(255,69,58,0.22)"],
                                 ["rgba(48,209,88,0.84)", "rgba(48,209,88,0.22)"],
                             ];
@@ -1758,10 +1780,10 @@
                         showLine: false,
                     },
                     {
-                        label: "Ristrutturazione",
-                        data: payload.timeline.ristrutturazione,
-                        borderColor: "#ff9f0a",
-                        backgroundColor: "rgba(255,159,10,0.9)",
+                        label: "GIRS 2001",
+                        data: payload.timeline.ristrutturazioneGirs2001,
+                        borderColor: "#bf5af2",
+                        backgroundColor: "rgba(191,90,242,0.88)",
                         pointRadius: isMobile ? 4 : 5,
                         pointHoverRadius: isMobile ? 7 : 9,
                         pointBorderWidth: 2,
@@ -1769,10 +1791,10 @@
                         showLine: false,
                     },
                     {
-                        label: "GIRS 2001",
-                        data: payload.timeline.ristrutturazioneGirs2001,
-                        borderColor: "#bf5af2",
-                        backgroundColor: "rgba(191,90,242,0.88)",
+                        label: "Arredo - Altro",
+                        data: payload.timeline.ristrutturazione,
+                        borderColor: "#ff9f0a",
+                        backgroundColor: "rgba(255,159,10,0.9)",
                         pointRadius: isMobile ? 4 : 5,
                         pointHoverRadius: isMobile ? 7 : 9,
                         pointBorderWidth: 2,
