@@ -1885,6 +1885,11 @@
                     },
                 },
                 scales: {
+                    x: {
+                        ticks: {
+                            display: !isMobile,
+                        },
+                    },
                     y: {
                         min: totalsYAxisMin,
                         max: getTotalsYAxisMax(totalsValues),
