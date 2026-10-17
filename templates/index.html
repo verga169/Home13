@@ -441,6 +441,10 @@
             align-items: stretch;
         }
 
+        .expenses-layout + .card {
+            margin-top: 16px;
+        }
+
         .expenses-layout .expense-card,
         .renovation-grid > .card {
             display: flex;
@@ -459,6 +463,10 @@
 
         .loan-fields {
             grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .repayment-fields select {
+            height: 43px;
         }
 
         input, select {
@@ -1510,7 +1518,7 @@
             <div class="grid-2">
                 <div>
                     <h3>Nuovo prestito ricevuto</h3>
-                    <form method="post" action="{{ url_for('add_loan') }}">
+                    <form class="loan-form" method="post" action="{{ url_for('add_loan') }}">
                         <div class="fields loan-fields">
                             <div class="date-field">
                                 <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ today|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
@@ -1526,8 +1534,8 @@
                 </div>
                 <div>
                     <h3>Nuovo rimborso effettuato</h3>
-                    <form method="post" action="{{ url_for('add_repayment') }}">
-                        <div class="fields">
+                    <form class="loan-form" method="post" action="{{ url_for('add_repayment') }}">
+                        <div class="fields repayment-fields">
                             <div class="date-field">
                                 <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ today|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
                                 <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
@@ -1918,6 +1926,31 @@
             });
         }
 
+        function updateDesktopLoanTableHeights() {
+            const loanTableWraps = Array.from(
+                document.querySelectorAll(".loans-table, .repayments-table"),
+                (table) => table.closest(".table-wrap"),
+            ).filter(Boolean);
+
+            if (!window.matchMedia("(min-width: 981px)").matches) {
+                loanTableWraps.forEach((tableWrap) => {
+                    tableWrap.style.height = "";
+                    tableWrap.style.maxHeight = "";
+                });
+                return;
+            }
+
+            const referenceWrap = document.querySelector(".expenses-layout .table-wrap");
+            const referenceHeight = referenceWrap?.getBoundingClientRect().height || 0;
+            if (!referenceHeight) return;
+
+            const matchingHeight = `${Math.round(referenceHeight)}px`;
+            loanTableWraps.forEach((tableWrap) => {
+                tableWrap.style.height = matchingHeight;
+                tableWrap.style.maxHeight = matchingHeight;
+            });
+        }
+
         document.querySelectorAll(".table-wrap").forEach((tableWrap) => {
             const recordList = tableWrap.querySelector(".mobile-record-list");
             recordList?.addEventListener("scroll", () => {
@@ -1928,9 +1961,12 @@
             }, { passive: true });
         });
         window.addEventListener("resize", updateMobileRecordScroll);
+        window.addEventListener("resize", updateDesktopLoanTableHeights);
         updateMobileRecordScroll();
+        updateDesktopLoanTableHeights();
         if (document.fonts) {
             document.fonts.ready.then(updateMobileRecordScroll);
+            document.fonts.ready.then(updateDesktopLoanTableHeights);
         }
 
         let longPressTimer = null;
