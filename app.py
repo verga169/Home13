@@ -291,6 +291,8 @@ def inject_asset_urls() -> dict:
     apple_touch_v = _asset_mtime(os.path.join("static", "apple-touch-icon.png"))
     manifest_v = _asset_mtime(os.path.join("static", "site.webmanifest"))
     sw_v = _asset_mtime(os.path.join("static", "sw.js"))
+    mobile_wallpaper_v = _asset_mtime(os.path.join("wallpapers", "Mobile-wallpaper.jpg"))
+    desktop_wallpaper_v = _asset_mtime(os.path.join("wallpapers", "Desktop-wallpaper.jpg"))
     return {
         "favicon_ico_url": url_for("static", filename="favicon.ico", v=favicon_v),
         "favicon_16_url": url_for("static", filename="favicon-16x16.png", v=favicon16_v),
@@ -300,6 +302,8 @@ def inject_asset_urls() -> dict:
         "apple_touch_icon_url": url_for("static", filename="apple-touch-icon.png", v=apple_touch_v),
         "manifest_url": url_for("static", filename="site.webmanifest", v=manifest_v),
         "sw_url": url_for("service_worker", v=sw_v),
+        "mobile_wallpaper_url": url_for("mobile_wallpaper", v=mobile_wallpaper_v),
+        "desktop_wallpaper_url": url_for("desktop_wallpaper", v=desktop_wallpaper_v),
     }
 
 
@@ -919,7 +923,14 @@ def bootstrap_database_if_needed():
 @app.before_request
 def require_login_for_app_routes():
     endpoint = request.endpoint or ""
-    public_endpoints = {"login", "health_check", "static", "service_worker"}
+    public_endpoints = {
+        "login",
+        "health_check",
+        "mobile_wallpaper",
+        "desktop_wallpaper",
+        "static",
+        "service_worker",
+    }
 
     if endpoint in public_endpoints or endpoint.startswith("static"):
         return None
@@ -1125,6 +1136,26 @@ def render_index_error(error_message: str):
 @app.route("/health", methods=["GET"])
 def health_check():
     return Response("OK", status=200, mimetype="text/plain")
+
+
+@app.route("/wallpapers/mobile")
+def mobile_wallpaper():
+    return send_from_directory(
+        os.path.join(BASE_DIR, "wallpapers"),
+        "Mobile-wallpaper.jpg",
+        mimetype="image/jpeg",
+    )
+
+
+@app.route("/wallpapers/desktop")
+def desktop_wallpaper():
+    return send_from_directory(
+        os.path.join(BASE_DIR, "wallpapers"),
+        "Desktop-wallpaper.jpg",
+        mimetype="image/jpeg",
+    )
+
+
 @app.route("/sw.js", methods=["GET"])
 def service_worker():
     response = send_from_directory(os.path.join(BASE_DIR, "static"), "sw.js")
