@@ -913,7 +913,7 @@
             .fields { grid-template-columns: 1fr; }
             .loan-fields { grid-template-columns: 1fr; }
             .top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .chart-area { height: 270px; }
+            .chart-area { height: 320px; }
             .chart-head { align-items: flex-start; }
             .chart-tools { gap: 5px; }
             .btn-ghost { min-height: 40px; font-size: 0.78rem; padding: 6px 8px; }
@@ -973,7 +973,7 @@
         @media (max-width: 420px) {
             table { min-width: 460px; }
             .btn-ghost { font-size: 0.74rem; padding: 5px 7px; }
-            .chart-area { height: 250px; }
+            .chart-area { height: 320px; }
         }
     </style>
 </head>
@@ -1871,10 +1871,10 @@
                         },
                         labels: {
                             color: "#666",
-                            padding: isMobile ? 8 : 14,
-                            boxWidth: isMobile ? 14 : 22,
-                            boxHeight: isMobile ? 8 : 10,
-                            font: { size: isMobile ? 10 : 12 },
+                            padding: 8,
+                            boxWidth: isMobile ? 14 : 16,
+                            boxHeight: 8,
+                            font: { size: 10 },
                             generateLabels: (chart) => chart.data.labels.map((text, index) => ({
                                 text,
                                 fontColor: "#666",
