@@ -18,24 +18,21 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Syne:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #f3f5f4;
+            --bg: #f5f5f7;
             --card: #ffffff;
-            --ink: #1f2c28;
-            --muted: #5f6b66;
-            --line: #d8ddd8;
-            --brand: #0f766e;
-            --brand-dark: #0b4f4a;
-            --accent: #4f9b92;
-            --buy: #3b82f6;
-            --reno: #facc15;
-            --loan: #ff2d2d;
-            --repay: #00d84a;
-            --shadow: 0 12px 30px rgba(20, 36, 31, 0.10);
+            --ink: #1c1c1e;
+            --muted: #6e6e73;
+            --line: #e3e4e8;
+            --brand: #008a7a;
+            --brand-dark: #007568;
+            --accent: #00a18f;
+            --buy: #0a84ff;
+            --reno: #ff9f0a;
+            --loan: #ff453a;
+            --repay: #30d158;
+            --shadow: 0 8px 28px rgba(20, 28, 25, 0.065);
             --ui-fast: 180ms;
             --ui-smooth: 320ms;
             --ui-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -52,11 +49,9 @@
         body {
             margin: 0;
             color: var(--ink);
-            background:
-                radial-gradient(circle at 12% 8%, rgba(136, 182, 174, 0.22) 0%, transparent 42%),
-                radial-gradient(circle at 88% 16%, rgba(173, 194, 191, 0.16) 0%, transparent 34%),
-                linear-gradient(180deg, #f7f8f7 0%, #edf2f0 52%, #eaf0ee 100%);
-            font-family: "DM Sans", sans-serif;
+            background: var(--bg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
         .page {
@@ -92,8 +87,8 @@
         }
 
         .hero {
-            background: linear-gradient(130deg, #134e4a 0%, #0f766e 55%, #0d9488 100%);
-            border-radius: 24px;
+            background: linear-gradient(125deg, #123f3a 0%, #087f73 100%);
+            border-radius: 20px;
             color: #f4fffc;
             padding: 28px;
             box-shadow: var(--shadow);
@@ -113,12 +108,13 @@
         }
 
         .btn-hero-logout {
-            background: rgba(255, 255, 255, 0.16);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.11));
             color: #f4fffc;
-            border: 1px solid rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.42);
             padding: 6px 10px;
             font-size: 0.8rem;
-            border-radius: 10px;
+            border-radius: 11px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
         }
 
         .btn-hero-logout:hover {
@@ -127,9 +123,10 @@
 
         .hero h1 {
             margin: 0;
-            font-family: "Syne", sans-serif;
+            font-family: inherit;
             font-size: clamp(1.9rem, 5vw, 2.7rem);
-            letter-spacing: 0.02em;
+            letter-spacing: -0.04em;
+            font-weight: 700;
         }
 
         .hero p {
@@ -197,13 +194,20 @@
 
         .btn {
             border: 0;
-            border-radius: 12px;
+            border-radius: 13px;
             padding: 10px 14px;
             font-weight: 700;
             cursor: pointer;
             text-decoration: none;
             font-size: 0.95rem;
             white-space: nowrap;
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            backdrop-filter: blur(16px) saturate(180%);
+            transition:
+                transform var(--ui-fast) var(--ui-ease),
+                box-shadow var(--ui-fast) var(--ui-ease),
+                background-color var(--ui-fast) var(--ui-ease),
+                border-color var(--ui-fast) var(--ui-ease);
         }
 
         .btn-small {
@@ -212,31 +216,93 @@
             border-radius: 10px;
         }
 
-        .btn-brand { background: var(--brand); color: #fff; }
-        .btn-brand:hover { background: var(--brand-dark); }
-        .btn-light { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+        .btn-brand {
+            background: linear-gradient(180deg, rgba(0, 154, 137, 0.9), rgba(0, 125, 111, 0.94));
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.42);
+            box-shadow:
+                0 5px 14px rgba(0, 103, 91, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.36),
+                inset 0 -1px 0 rgba(0, 70, 62, 0.12);
+        }
+        .btn-brand:hover {
+            background: linear-gradient(180deg, rgba(0, 164, 145, 0.94), rgba(0, 112, 100, 0.98));
+            box-shadow:
+                0 7px 18px rgba(0, 103, 91, 0.22),
+                inset 0 1px 0 rgba(255, 255, 255, 0.42);
+        }
+        .btn-light {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 249, 251, 0.66));
+            color: var(--ink);
+            border: 1px solid rgba(255, 255, 255, 0.92);
+            box-shadow:
+                0 3px 10px rgba(28, 34, 32, 0.055),
+                inset 0 1px 0 rgba(255, 255, 255, 0.92),
+                inset 0 -1px 0 rgba(34, 45, 40, 0.04);
+        }
+        .btn-light:hover {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(249, 250, 252, 0.86));
+            border-color: #fff;
+            box-shadow: 0 5px 14px rgba(28, 34, 32, 0.09), inset 0 1px 0 #fff;
+        }
         .btn-danger {
-            background: #fee2e2;
-            color: #7f1d1d;
-            border: 1px solid #f0b8b8;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(250, 248, 248, 0.7));
+            color: #c43d36;
+            border: 1px solid rgba(255, 255, 255, 0.96);
             display: inline-flex;
             justify-content: center;
             align-items: center;
-            min-width: 40px;
-            padding: 8px 10px;
+            width: 36px;
+            min-width: 36px;
+            height: 36px;
+            padding: 8px;
             font-weight: 700;
+            box-shadow: 0 2px 7px rgba(28, 34, 32, 0.07), inset 0 1px 0 #fff;
         }
 
         .btn-edit {
-            background: #e6f5f2;
-            color: #0f4f49;
-            border: 1px solid #b7dfd7;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(246, 250, 248, 0.68));
+            color: #4e625b;
+            border: 1px solid rgba(255, 255, 255, 0.96);
             display: inline-flex;
             justify-content: center;
             align-items: center;
-            min-width: 40px;
-            padding: 8px 10px;
+            width: 36px;
+            min-width: 36px;
+            height: 36px;
+            padding: 8px;
             font-weight: 700;
+            box-shadow: 0 2px 7px rgba(28, 34, 32, 0.07), inset 0 1px 0 #fff;
+        }
+
+        .btn-edit:hover,
+        .btn-danger:hover {
+            background: #f7f8fa;
+            border-color: #cbd0d5;
+        }
+
+        .btn-danger:hover {
+            color: #a92f29;
+            background: linear-gradient(180deg, rgba(255, 250, 249, 0.96), rgba(255, 239, 237, 0.88));
+            border-color: rgba(255, 255, 255, 0.98);
+        }
+
+        .date-picker-button:hover {
+            background: #f2f4f5;
+            color: var(--brand);
+        }
+
+        .btn-edit svg,
+        .btn-danger svg,
+        .date-picker-button svg {
+            display: block;
+            width: 17px;
+            height: 17px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 1.6;
         }
 
         .btn-full {
@@ -255,7 +321,7 @@
 
         .inline-edit-row {
             display: none;
-            background: #f4faf8;
+            background: #f3f8f7;
         }
 
         .inline-edit-row.open {
@@ -277,15 +343,38 @@
             min-height: 40px;
         }
 
+        .inline-edit-form .date-input {
+            padding-left: 8px;
+            padding-right: 32px;
+            font-size: 0.86rem;
+        }
+
+        .inline-edit-form .date-picker-button,
+        .inline-edit-form .date-picker-input {
+            width: 30px;
+        }
+
         .btn:hover,
         .btn-ghost:hover {
             transform: translateY(-1px);
         }
 
+        .btn:active,
+        .btn-ghost:active {
+            transform: scale(0.98);
+        }
+
+        .btn:focus-visible,
+        .btn-ghost:focus-visible,
+        .date-picker-button:focus-visible {
+            outline: 3px solid rgba(0, 138, 122, 0.32);
+            outline-offset: 2px;
+        }
+
         .card {
             background: var(--card);
             border: 1px solid var(--line);
-            border-radius: 18px;
+            border-radius: 14px;
             box-shadow: var(--shadow);
             padding: 16px;
             margin-bottom: 16px;
@@ -296,8 +385,10 @@
 
         .card h2 {
             margin: 0 0 12px;
-            font-family: "Syne", sans-serif;
-            font-size: 1.3rem;
+            font-family: inherit;
+            font-size: 1.2rem;
+            font-weight: 650;
+            letter-spacing: -0.025em;
         }
 
         .grid-2 {
@@ -306,8 +397,32 @@
             gap: 14px;
         }
 
+        .renovation-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+        }
+
         .grid-2 > * {
             min-width: 0;
+        }
+
+        .expenses-layout {
+            height: min(88vh, 940px);
+            min-height: min(560px, 88vh);
+            align-items: stretch;
+        }
+
+        .expenses-layout > .expense-card,
+        .renovation-grid > .card {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            margin-bottom: 0;
         }
 
         .fields {
@@ -336,28 +451,85 @@
             min-height: 42px;
         }
 
-        input[type="date"] {
+        .date-input {
             width: 100%;
             max-width: 100%;
             min-width: 0;
-            -webkit-appearance: none;
-            appearance: none;
-            padding-right: 10px;
+            padding-right: 42px;
         }
 
-        input[type="date"]::-webkit-date-and-time-value {
-            text-align: left;
+        .date-field {
+            position: relative;
+            min-width: 0;
+            width: 100%;
         }
 
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            margin: 0;
+        .date-picker-button {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 42px;
+            height: 42px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            display: grid;
+            place-items: center;
+            color: #78857f;
+            font-size: 0;
+            cursor: pointer;
+        }
+
+        .date-picker-button::before,
+        .btn-edit::before,
+        .btn-danger::before {
+            content: "";
+            display: block;
+            width: 17px;
+            height: 17px;
+            margin: auto;
+            background: currentColor;
+        }
+
+        .date-picker-button::before {
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='2.5' fill='none' stroke='%23000' stroke-width='1.6'/%3E%3Cpath d='M7.5 3.5v3M16.5 3.5v3M3.5 9.5h17' fill='none' stroke='%23000' stroke-width='1.6'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='2.5' fill='none' stroke='%23000' stroke-width='1.6'/%3E%3Cpath d='M7.5 3.5v3M16.5 3.5v3M3.5 9.5h17' fill='none' stroke='%23000' stroke-width='1.6'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
+
+        .btn-edit,
+        .btn-danger {
+            font-size: 0;
+        }
+
+        .btn-edit::before {
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m15.5 5.5 3 3M4 20l4.2-.9L19 8.3a2.1 2.1 0 0 0-3-3L5.2 16.1 4 20Z' fill='none' stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.6'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m15.5 5.5 3 3M4 20l4.2-.9L19 8.3a2.1 2.1 0 0 0-3-3L5.2 16.1 4 20Z' fill='none' stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.6'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
+
+        .btn-danger::before {
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4.5 7h15M9 7V4.5h6V7m3 0-.8 13h-10L6.5 7m3.5 3v6m4-6v6' fill='none' stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.6'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4.5 7h15M9 7V4.5h6V7m3 0-.8 13h-10L6.5 7m3.5 3v6m4-6v6' fill='none' stroke='%23000' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.6'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
+
+        .date-picker-input {
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 1;
+            width: 42px;
+            height: 42px;
+            min-height: 42px;
+            padding: 0;
+            border: 0;
+            opacity: 0;
+            cursor: pointer;
         }
 
         input:focus,
         select:focus {
             outline: none;
-            border-color: rgba(15, 118, 110, 0.45);
-            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+            border-color: rgba(0, 138, 122, 0.7);
+            box-shadow: 0 0 0 3px rgba(0, 138, 122, 0.14);
         }
 
         .table-wrap {
@@ -370,6 +542,18 @@
             scrollbar-width: thin;
             width: 100%;
             max-width: 100%;
+        }
+
+        .expenses-layout .table-wrap {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: none;
+        }
+
+        .expenses-layout .empty {
+            flex: 1 1 auto;
+            display: flex;
+            align-items: center;
         }
 
         table {
@@ -514,7 +698,7 @@
             justify-content: flex-end;
         }
 
-        th { background: #f6f9f7; color: #3d4f49; }
+        th { background: #f7f8fa; color: #3f454d; }
 
         .empty {
             color: var(--muted);
@@ -551,10 +735,7 @@
         }
 
         .chart-card {
-            background:
-                radial-gradient(circle at 92% 8%, rgba(127, 166, 160, 0.14), transparent 32%),
-                radial-gradient(circle at 14% 96%, rgba(95, 144, 137, 0.12), transparent 30%),
-                #ffffff;
+            background: #ffffff;
         }
 
         .chart-head {
@@ -574,19 +755,23 @@
         }
 
         .btn-ghost {
-            background: rgba(15, 118, 110, 0.1);
-            color: #0b4f4a;
-            border: 1px solid rgba(15, 118, 110, 0.22);
-            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(232, 246, 243, 0.68));
+            color: #006c60;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
             padding: 6px 10px;
             font-size: 0.82rem;
             cursor: pointer;
             font-weight: 700;
+            -webkit-backdrop-filter: blur(14px) saturate(180%);
+            backdrop-filter: blur(14px) saturate(180%);
+            box-shadow: 0 2px 7px rgba(0, 80, 70, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95);
         }
 
         .error {
-            background: #fee2e2;
-            color: #7f1d1d;
+            background: #fff2f1;
+            color: #a82f28;
+            border: 1px solid #f4d3d0;
             padding: 10px 12px;
             border-radius: 10px;
             margin-bottom: 12px;
@@ -596,9 +781,9 @@
         .install-panel {
             margin: 0 0 20px;
             padding: 12px 14px;
-            border: 1px solid rgba(15, 118, 110, 0.18);
-            border-radius: 12px;
-            background: linear-gradient(180deg, rgba(225, 243, 239, 0.8) 0%, rgba(237, 247, 244, 0.92) 100%);
+            border: 1px solid rgba(0, 138, 122, 0.16);
+            border-radius: 14px;
+            background: #f1f8f6;
         }
 
         .install-title {
@@ -606,25 +791,25 @@
             align-items: center;
             gap: 8px;
             margin: 0 0 6px;
-            font-family: "Syne", sans-serif;
+            font-family: inherit;
             font-size: 0.98rem;
             letter-spacing: 0.01em;
-            color: #0f4f49;
+            color: #006c60;
         }
 
         .install-icon {
             width: 22px;
             height: 22px;
             border-radius: 999px;
-            background: rgba(15, 118, 110, 0.16);
-            border: 1px solid rgba(15, 118, 110, 0.3);
+            background: rgba(0, 138, 122, 0.11);
+            border: 1px solid rgba(0, 138, 122, 0.22);
             display: inline-flex;
             align-items: center;
             justify-content: center;
             font-size: 0.82rem;
             font-weight: 700;
-            font-family: "DM Sans", sans-serif;
-            color: #0b4f4a;
+            font-family: inherit;
+            color: #006c60;
             line-height: 1;
         }
 
@@ -653,6 +838,26 @@
         @media (max-width: 980px) {
             .top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .grid-2 { grid-template-columns: 1fr; }
+            .expenses-layout {
+                height: auto;
+                min-height: 0;
+            }
+            .expenses-layout > .expense-card,
+            .renovation-grid > .card {
+                min-height: initial;
+            }
+            .renovation-grid {
+                grid-template-rows: none;
+                height: auto;
+            }
+            .expenses-layout .table-wrap {
+                flex: initial;
+                max-height: 560px;
+            }
+            .expenses-layout .empty {
+                flex: initial;
+                display: block;
+            }
             .chart-grid { grid-template-columns: 1fr; }
             .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .loan-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -676,7 +881,7 @@
             .btn-ghost { font-size: 0.78rem; padding: 6px 8px; }
             table { min-width: 500px; }
             th, td { font-size: 0.86rem; padding: 8px; }
-            .btn-danger { min-width: 72px; }
+            .btn-danger { min-width: 34px; }
             .actions-cell {
                 flex-direction: row;
                 align-items: center;
@@ -808,13 +1013,17 @@
             </article>
         </section>
 
-        <section class="grid-2">
-            <article class="card">
+        <section class="grid-2 expenses-layout">
+            <article class="card expense-card">
                 <h2>Acquisto Casa</h2>
                 <form method="post" action="{{ url_for('add_expense') }}">
                     <input type="hidden" name="category" value="acquisto_casa">
                     <div class="fields">
-                        <input type="date" name="date" value="{{ today }}" required>
+                        <div class="date-field">
+                            <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ today|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                            <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                            <input class="date-picker-input" type="date" value="{{ today }}" aria-label="Seleziona data">
+                        </div>
                         <input type="text" name="description" placeholder="Descrizione" required>
                         <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
                     </div>
@@ -853,7 +1062,11 @@
                                     <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
                                         <input type="hidden" name="section" value="acquisto_casa">
                                         <input type="hidden" name="item_id" value="{{ row.id }}">
-                                        <input type="date" name="date" value="{{ row.date }}" required>
+                                        <div class="date-field">
+                                            <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ row.date|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                                            <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                                            <input class="date-picker-input" type="date" value="{{ row.date }}" aria-label="Seleziona data">
+                                        </div>
                                         <input type="text" name="label" value="{{ row.description }}" placeholder="Descrizione" required>
                                         <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
                                         <button class="btn btn-brand" type="submit">Salva</button>
@@ -869,12 +1082,85 @@
                 {% endif %}
             </article>
 
+            <div class="renovation-grid">
+            <article class="card">
+                <h2>Ristrutturazione - GIRS</h2>
+                <form method="post" action="{{ url_for('add_expense') }}">
+                    <input type="hidden" name="category" value="ristrutturazione_girs_2001">
+                    <div class="fields">
+                        <div class="date-field">
+                            <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ today|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                            <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                            <input class="date-picker-input" type="date" value="{{ today }}" aria-label="Seleziona data">
+                        </div>
+                        <input type="text" name="description" placeholder="Descrizione" required>
+                        <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
+                    </div>
+                    <button class="btn btn-brand btn-full" type="submit">Aggiungi spesa GIRS</button>
+                </form>
+                {% if data.expenses.ristrutturazione_girs_2001 %}
+                <div class="table-wrap" style="margin-top: 12px;">
+                    <table class="expense-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Voce</th>
+                                <th>Importo</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data.expenses.ristrutturazione_girs_2001 %}
+                            <tr>
+                                <td>{{ row.date|date_it }}</td>
+                                <td>{{ row.description }}</td>
+                                <td>{{ row.amount|euro }} €</td>
+                                <td>
+                                    <div class="actions-cell">
+                                        <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-ristr-girs-{{ row.id }}')">&#9998;</button>
+                                        <form method="post" action="{{ url_for('delete_item') }}">
+                                            <input type="hidden" name="section" value="ristrutturazione_girs_2001">
+                                            <input type="hidden" name="item_id" value="{{ row.id }}">
+                                            <button class="btn btn-danger" type="submit" aria-label="Elimina" title="Elimina">&#128465;</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr id="edit-ristr-girs-{{ row.id }}" class="inline-edit-row">
+                                <td colspan="4">
+                                    <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
+                                        <input type="hidden" name="section" value="ristrutturazione_girs_2001">
+                                        <input type="hidden" name="item_id" value="{{ row.id }}">
+                                        <div class="date-field">
+                                            <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ row.date|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                                            <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                                            <input class="date-picker-input" type="date" value="{{ row.date }}" aria-label="Seleziona data">
+                                        </div>
+                                        <input type="text" name="label" value="{{ row.description }}" placeholder="Descrizione" required>
+                                        <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
+                                        <button class="btn btn-brand" type="submit">Salva</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty">Nessuna spesa GIRS inserita.</div>
+                {% endif %}
+            </article>
+
             <article class="card">
                 <h2>Ristrutturazione</h2>
                 <form method="post" action="{{ url_for('add_expense') }}">
                     <input type="hidden" name="category" value="ristrutturazione">
                     <div class="fields">
-                        <input type="date" name="date" value="{{ today }}" required>
+                        <div class="date-field">
+                            <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ today|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                            <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                            <input class="date-picker-input" type="date" value="{{ today }}" aria-label="Seleziona data">
+                        </div>
                         <input type="text" name="description" placeholder="Descrizione" required>
                         <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
                     </div>
@@ -913,7 +1199,11 @@
                                     <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
                                         <input type="hidden" name="section" value="ristrutturazione">
                                         <input type="hidden" name="item_id" value="{{ row.id }}">
-                                        <input type="date" name="date" value="{{ row.date }}" required>
+                                        <div class="date-field">
+                                            <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ row.date|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                                            <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                                            <input class="date-picker-input" type="date" value="{{ row.date }}" aria-label="Seleziona data">
+                                        </div>
                                         <input type="text" name="label" value="{{ row.description }}" placeholder="Descrizione" required>
                                         <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
                                         <button class="btn btn-brand" type="submit">Salva</button>
@@ -928,6 +1218,7 @@
                 <div class="empty">Nessuna spesa ristrutturazione inserita.</div>
                 {% endif %}
             </article>
+            </div>
         </section>
 
         <section class="card">
@@ -937,7 +1228,11 @@
                     <h3>Nuovo prestito ricevuto</h3>
                     <form method="post" action="{{ url_for('add_loan') }}">
                         <div class="fields loan-fields">
-                            <input type="date" name="date" value="{{ today }}" required>
+                            <div class="date-field">
+                                <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ today|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                                <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                                <input class="date-picker-input" type="date" value="{{ today }}" aria-label="Seleziona data">
+                            </div>
                             <input type="text" name="lender" placeholder="Prestatore" required>
                             <input type="text" name="note" placeholder="Note">
                             <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
@@ -949,7 +1244,11 @@
                     <h3>Nuovo rimborso effettuato</h3>
                     <form method="post" action="{{ url_for('add_repayment') }}">
                         <div class="fields">
-                            <input type="date" name="date" value="{{ today }}" required>
+                            <div class="date-field">
+                                <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ today|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                                <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                                <input class="date-picker-input" type="date" value="{{ today }}" aria-label="Seleziona data">
+                            </div>
                             <select name="lender" required>
                                 <option value="">Prestatore</option>
                                 {% for lender in repayment_lenders %}
@@ -1001,7 +1300,11 @@
                                         <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form loan-inline-edit-form">
                                             <input type="hidden" name="section" value="loans">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
-                                            <input type="date" name="date" value="{{ row.date }}" required>
+                                            <div class="date-field">
+                                                <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ row.date|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                                                <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                                                <input class="date-picker-input" type="date" value="{{ row.date }}" aria-label="Seleziona data">
+                                            </div>
                                             <input type="text" name="label" value="{{ row.lender }}" placeholder="Prestatore" required>
                                             <input type="text" name="note" value="{{ row.note }}" placeholder="Note">
                                             <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
@@ -1054,7 +1357,11 @@
                                         <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
                                             <input type="hidden" name="section" value="repayments">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
-                                            <input type="date" name="date" value="{{ row.date }}" required>
+                                            <div class="date-field">
+                                                <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ row.date|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                                                <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                                                <input class="date-picker-input" type="date" value="{{ row.date }}" aria-label="Seleziona data">
+                                            </div>
                                             <input type="text" name="label" value="{{ row.lender }}" placeholder="Prestatore" required>
                                             <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
                                             <button class="btn btn-brand" type="submit">Salva</button>
@@ -1176,6 +1483,40 @@
         });
 
         restoreScrollPosition();
+
+        document.querySelectorAll(".date-field").forEach((field) => {
+            const dateInput = field.querySelector(".date-input");
+            const pickerInput = field.querySelector(".date-picker-input");
+            if (!dateInput || !pickerInput) return;
+
+            pickerInput.addEventListener("change", () => {
+                const [year, month, day] = pickerInput.value.split("-");
+                if (year && month && day) {
+                    dateInput.value = `${day}/${month}/${year}`;
+                }
+            });
+
+            dateInput.addEventListener("input", () => {
+                const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateInput.value);
+                if (!match) {
+                    pickerInput.value = "";
+                    return;
+                }
+
+                const [, day, month, year] = match;
+                const candidate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+                if (
+                    candidate.getUTCFullYear() !== Number(year)
+                    || candidate.getUTCMonth() !== Number(month) - 1
+                    || candidate.getUTCDate() !== Number(day)
+                ) {
+                    pickerInput.value = "";
+                    return;
+                }
+
+                pickerInput.value = `${year}-${month}-${day}`;
+            });
+        });
 
         function closeAllEditRows(exceptRowId = null) {
             document.querySelectorAll(".inline-edit-row.open").forEach((row) => {
@@ -1349,21 +1690,22 @@
                     {
                         label: "Totale",
                         data: payload.totals.values,
-                        borderRadius: 14,
+                        borderRadius: 5,
                         borderSkipped: false,
                         borderWidth: 1,
-                        borderColor: ["#3b82f6", "#ef4444", "#10b981", "#f97316"],
+                        borderColor: ["#0a84ff", "#ff9f0a", "#bf5af2", "#ff453a", "#30d158"],
                         backgroundColor: (context) => {
                             const chart = context.chart;
                             const chartArea = chart.chartArea;
                             if (!chartArea) {
-                                return "rgba(15,118,110,0.35)";
+                                return "rgba(0,138,122,0.42)";
                             }
                             const palette = [
-                                ["rgba(59,130,246,0.85)", "rgba(59,130,246,0.25)"],
-                                ["rgba(239,68,68,0.85)", "rgba(239,68,68,0.25)"],
-                                ["rgba(16,185,129,0.85)", "rgba(16,185,129,0.25)"],
-                                ["rgba(249,115,22,0.85)", "rgba(249,115,22,0.25)"],
+                                ["rgba(10,132,255,0.84)", "rgba(10,132,255,0.22)"],
+                                ["rgba(255,159,10,0.86)", "rgba(255,159,10,0.22)"],
+                                ["rgba(191,90,242,0.84)", "rgba(191,90,242,0.22)"],
+                                ["rgba(255,69,58,0.84)", "rgba(255,69,58,0.22)"],
+                                ["rgba(48,209,88,0.84)", "rgba(48,209,88,0.22)"],
                             ];
                             const [start, end] = palette[context.dataIndex] || palette[0];
                             return gradient(chart.ctx, chartArea, start, end);
@@ -1407,8 +1749,8 @@
                     {
                         label: "Acquisto casa",
                         data: payload.timeline.acquistoCasa,
-                        borderColor: "#3b82f6",
-                        backgroundColor: "rgba(59,130,246,0.75)",
+                        borderColor: "#0a84ff",
+                        backgroundColor: "rgba(10,132,255,0.86)",
                         pointRadius: isMobile ? 4 : 5,
                         pointHoverRadius: isMobile ? 7 : 9,
                         pointBorderWidth: 2,
@@ -1418,8 +1760,19 @@
                     {
                         label: "Ristrutturazione",
                         data: payload.timeline.ristrutturazione,
-                        borderColor: "#facc15",
-                        backgroundColor: "rgba(250,204,21,0.9)",
+                        borderColor: "#ff9f0a",
+                        backgroundColor: "rgba(255,159,10,0.9)",
+                        pointRadius: isMobile ? 4 : 5,
+                        pointHoverRadius: isMobile ? 7 : 9,
+                        pointBorderWidth: 2,
+                        pointBorderColor: "#ffffff",
+                        showLine: false,
+                    },
+                    {
+                        label: "GIRS 2001",
+                        data: payload.timeline.ristrutturazioneGirs2001,
+                        borderColor: "#bf5af2",
+                        backgroundColor: "rgba(191,90,242,0.88)",
                         pointRadius: isMobile ? 4 : 5,
                         pointHoverRadius: isMobile ? 7 : 9,
                         pointBorderWidth: 2,
@@ -1429,8 +1782,8 @@
                     {
                         label: "Prestiti ricevuti",
                         data: payload.timeline.prestiti,
-                        borderColor: "#ff2d2d",
-                        backgroundColor: "rgba(255,45,45,0.9)",
+                        borderColor: "#ff453a",
+                        backgroundColor: "rgba(255,69,58,0.88)",
                         pointRadius: isMobile ? 4 : 5,
                         pointHoverRadius: isMobile ? 7 : 9,
                         pointBorderWidth: 2,
@@ -1440,8 +1793,8 @@
                     {
                         label: "Rimborsi",
                         data: payload.timeline.rimborsi,
-                        borderColor: "#00d84a",
-                        backgroundColor: "rgba(0,216,74,0.9)",
+                        borderColor: "#30d158",
+                        backgroundColor: "rgba(48,209,88,0.88)",
                         pointRadius: isMobile ? 4 : 5,
                         pointHoverRadius: isMobile ? 7 : 9,
                         pointBorderWidth: 2,
