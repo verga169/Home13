@@ -1392,6 +1392,14 @@ def build_excel_workbook(data: dict):
 
     def append_sheet(title: str, entries: list[dict], include_lender: bool = False, include_note: bool = False):
         sheet = wb.create_sheet(title)
+
+        def excel_date(raw_value: str):
+            raw = sanitize_text(raw_value)
+            try:
+                return datetime.fromisoformat(raw[:10]).date()
+            except ValueError:
+                return format_date_it(raw)
+
         if include_lender and include_note:
             sheet.append(["Data", "Prestatore", "Note", "Importo"])
         elif include_lender:
@@ -1401,11 +1409,34 @@ def build_excel_workbook(data: dict):
 
         for item in sort_entries(entries):
             if include_lender and include_note:
-                sheet.append([item.get("date", ""), item.get("lender", ""), item.get("note", ""), item.get("amount", 0.0)])
+                sheet.append(
+                    [
+                        excel_date(item.get("date", "")),
+                        item.get("lender", ""),
+                        item.get("note", ""),
+                        item.get("amount", 0.0),
+                    ]
+                )
             elif include_lender:
-                sheet.append([item.get("date", ""), item.get("lender", ""), item.get("amount", 0.0)])
+                sheet.append(
+                    [
+                        excel_date(item.get("date", "")),
+                        item.get("lender", ""),
+                        item.get("amount", 0.0),
+                    ]
+                )
             else:
-                sheet.append([item.get("date", ""), item.get("description", ""), item.get("amount", 0.0)])
+                sheet.append(
+                    [
+                        excel_date(item.get("date", "")),
+                        item.get("description", ""),
+                        item.get("amount", 0.0),
+                    ]
+                )
+
+        for row in sheet.iter_rows(min_row=2, min_col=1, max_col=1):
+            if isinstance(row[0].value, date):
+                row[0].number_format = "dd/mm/yyyy"
 
         for cell in sheet[1]:
             cell.font = Font(bold=True)
