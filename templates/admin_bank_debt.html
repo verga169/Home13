@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gestione debito banca - Home13</title>
+    <style>
+        :root {
+            --bg: #f3f5f4;
+            --card: #ffffff;
+            --ink: #1f2c28;
+            --muted: #5f6b66;
+            --line: #d8ddd8;
+            --brand: #0f766e;
+            --brand-dark: #0b4f4a;
+            --shadow: 0 12px 30px rgba(20, 36, 31, 0.10);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--ink);
+            font-family: "DM Sans", "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at 12% 8%, rgba(136, 182, 174, 0.22) 0%, transparent 42%),
+                radial-gradient(circle at 88% 16%, rgba(173, 194, 191, 0.16) 0%, transparent 34%),
+                linear-gradient(180deg, #f7f8f7 0%, #edf2f0 52%, #eaf0ee 100%);
+            background-attachment: fixed;
+        }
+
+        .page { max-width: 900px; margin: 0 auto; padding: 24px 16px 40px; }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 20px;
+            margin-bottom: 18px;
+            color: #f4fffc;
+            background: linear-gradient(130deg, #134e4a 0%, #0f766e 55%, #0d9488 100%);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+        }
+        .header h1 { margin: 0; font-size: clamp(1.3rem, 4vw, 2rem); }
+        .header p { margin: 6px 0 0; color: #d5fff4; }
+        .card {
+            padding: 18px;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+        }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 9px 12px;
+            border: 0;
+            border-radius: 10px;
+            font: inherit;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .btn-brand { color: #fff; background: var(--brand); }
+        .btn-brand:hover { background: var(--brand-dark); }
+        .btn-light { color: var(--ink); background: #fff; border: 1px solid var(--line); }
+        .fields {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin: 18px 0 12px;
+        }
+        label { display: block; margin-bottom: 6px; font-weight: 700; }
+        input {
+            width: 100%;
+            min-height: 44px;
+            padding: 10px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            font: inherit;
+        }
+        .help { color: var(--muted); line-height: 1.5; }
+        .current { margin: 0 0 10px; font-size: 1.1rem; font-weight: 700; }
+        .error, .notice { padding: 10px 12px; margin-bottom: 12px; border-radius: 10px; }
+        .error { color: #7f1d1d; background: #fee2e2; border: 1px solid #fecaca; }
+        .notice { color: #166534; background: #dcfce7; border: 1px solid #bbf7d0; }
+
+        @media (max-width: 600px) {
+            .fields { grid-template-columns: 1fr; }
+            .page { padding: 16px 10px 28px; }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <section class="header">
+            <div>
+                <h1>Gestione debito banca</h1>
+                <p>Imposta il debito residuo e la data da cui conteggiare le rate.</p>
+            </div>
+            <div class="actions">
+                <a class="btn btn-light" href="{{ url_for('index') }}">Torna alla home</a>
+            </div>
+        </section>
+
+        <section class="card">
+            {% if notice %}<div class="notice">{{ notice }}</div>{% endif %}
+            {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+            <p class="current">Residuo calcolato attualmente: {{ current_residual|euro }} €</p>
+            <p class="help">
+                L'importo salvato diventa il nuovo saldo iniziale alla data di decorrenza.
+                Le rate “Mutuo - Rata” con data precedente vengono ignorate; saranno sottratte
+                solo le rate registrate con data uguale o successiva alla decorrenza.
+            </p>
+
+            <form method="post" action="{{ url_for('admin_update_bank_debt') }}">
+                <div class="fields">
+                    <div>
+                        <label for="amount">Nuovo debito residuo (€)</label>
+                        <input id="amount" name="amount" type="text" inputmode="decimal"
+                               value="{{ bank_debt.amount|euro }}" placeholder="es. 250.000,00" required>
+                    </div>
+                    <div>
+                        <label for="start_date">Data di decorrenza</label>
+                        <input id="start_date" name="start_date" type="date"
+                               value="{{ bank_debt.start_date or '' }}" required>
+                    </div>
+                </div>
+                <button class="btn btn-brand" type="submit">Salva nuovo debito</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

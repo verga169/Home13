@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^git diff --check; if \\(\\$\\?\\) \\{ \\.\\\\\\.venv\\\\Scripts\\\\python\\.exe -m compileall -q app\\.py \\}$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

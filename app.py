@@ -1,5 +1,6 @@
 import io
 import json
+import math
 import os
 import re
 import sys
@@ -87,18 +88,33 @@ app.config["SESSION_COOKIE_SECURE"] = bool(
     (os.environ.get("SESSION_COOKIE_SECURE") or "").strip() == "1" or IS_RENDER_DEPLOY
 )
 
+BANK_DEBT_INITIAL = 270727.20
+
 DEFAULT_DATA = {
     "expenses": {
         "acquisto_casa": [],
+        "bonifici_girs": [],
         "ristrutturazione": [],
         "ristrutturazione_girs_2001": [],
     },
     "loans": [],
     "repayments": [],
+    "bank_debt": {
+        "amount": BANK_DEBT_INITIAL,
+        "start_date": None,
+    },
+}
+
+EXPENSE_CATEGORIES = {
+    "acquisto_casa",
+    "bonifici_girs",
+    "ristrutturazione",
+    "ristrutturazione_girs_2001",
 }
 
 CATEGORY_DISPLAY_NAMES = {
     "acquisto_casa": "Acquisto Casa",
+    "bonifici_girs": "Bonifici GIRS",
     "ristrutturazione": "Arredo - Altro",
     "ristrutturazione_girs_2001": "GIRS 2001",
     "loans": "Prestiti",
@@ -109,6 +125,7 @@ SECTION_ALIASES = {
     "acquisto_casa": "acquisto_casa",
     "acquisto casa": "acquisto_casa",
     "acquisto": "acquisto_casa",
+    "bonifici girs": "bonifici_girs",
     "ristrutturazione": "ristrutturazione",
     "ristrutturazioni": "ristrutturazione",
     "arredo altro": "ristrutturazione",
@@ -286,7 +303,7 @@ def inject_asset_urls() -> dict:
     }
 
 
-def parse_amount(raw_value: str) -> float:
+def parse_amount(raw_value: str, allow_zero: bool = False) -> float:
     raw = (raw_value or "").strip().replace(" ", "")
     if not raw:
         raise ValueError("Importo mancante")
@@ -308,7 +325,9 @@ def parse_amount(raw_value: str) -> float:
         normalized = raw
 
     value = float(normalized)
-    if value <= 0:
+    if not math.isfinite(value) or value < 0:
+        raise ValueError("Importo non valido")
+    if value == 0 and not allow_zero:
         raise ValueError("Importo deve essere maggiore di zero")
     return value
 
@@ -388,7 +407,7 @@ def ensure_database_ready() -> None:
                     CREATE TABLE IF NOT EXISTS expenses (
                         id TEXT PRIMARY KEY,
                         category TEXT NOT NULL CONSTRAINT expenses_category_check
-                            CHECK (category IN ('acquisto_casa', 'ristrutturazione', 'ristrutturazione_girs_2001')),
+                            CHECK (category IN ('acquisto_casa', 'bonifici_girs', 'ristrutturazione', 'ristrutturazione_girs_2001')),
                         operation_date DATE NOT NULL,
                         description TEXT NOT NULL,
                         amount NUMERIC(14, 2) NOT NULL CHECK (amount > 0)
@@ -400,7 +419,7 @@ def ensure_database_ready() -> None:
                     """
                     ALTER TABLE expenses
                     ADD CONSTRAINT expenses_category_check
-                    CHECK (category IN ('acquisto_casa', 'ristrutturazione', 'ristrutturazione_girs_2001'))
+                    CHECK (category IN ('acquisto_casa', 'bonifici_girs', 'ristrutturazione', 'ristrutturazione_girs_2001'))
                     """
                 )
                 cur.execute(
@@ -433,6 +452,15 @@ def ensure_database_ready() -> None:
                         is_active BOOLEAN NOT NULL DEFAULT TRUE,
                         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS bank_debt_settings (
+                        id SMALLINT PRIMARY KEY CHECK (id = 1),
+                        amount NUMERIC(14, 2) NOT NULL CHECK (amount >= 0),
+                        start_date DATE NOT NULL
                     )
                     """
                 )
@@ -495,6 +523,20 @@ def load_data() -> dict:
                             }
                         )
 
+                    cur.execute(
+                        """
+                        SELECT amount::DOUBLE PRECISION AS amount, start_date
+                        FROM bank_debt_settings
+                        WHERE id = 1
+                        """
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        data["bank_debt"] = {
+                            "amount": float(row["amount"]),
+                            "start_date": row["start_date"].isoformat(),
+                        }
+
             return data
         except Exception as exc:
             disable_database_mode(f"lettura DB fallita ({exc.__class__.__name__}: {exc})")
@@ -508,6 +550,7 @@ def load_data() -> dict:
 
     data = json.loads(json.dumps(DEFAULT_DATA))
     data["expenses"]["acquisto_casa"] = loaded.get("expenses", {}).get("acquisto_casa", [])
+    data["expenses"]["bonifici_girs"] = loaded.get("expenses", {}).get("bonifici_girs", [])
     data["expenses"]["ristrutturazione"] = loaded.get("expenses", {}).get("ristrutturazione", [])
     data["expenses"]["ristrutturazione_girs_2001"] = loaded.get("expenses", {}).get(
         "ristrutturazione_girs_2001", []
@@ -516,6 +559,7 @@ def load_data() -> dict:
     for loan in data["loans"]:
         loan["note"] = sanitize_text(loan.get("note"))
     data["repayments"] = loaded.get("repayments", [])
+    data["bank_debt"] = loaded.get("bank_debt", data["bank_debt"])
     return data
 
 
@@ -579,6 +623,7 @@ def build_chart_data(data: dict) -> dict:
     daily = defaultdict(
         lambda: {
             "acquisto_casa": 0.0,
+            "bonifici_girs": 0.0,
             "ristrutturazione": 0.0,
             "ristrutturazione_girs_2001": 0.0,
             "prestiti": 0.0,
@@ -588,6 +633,9 @@ def build_chart_data(data: dict) -> dict:
 
     for item in data["expenses"]["acquisto_casa"]:
         daily[item.get("date", "sconosciuto")[:10]]["acquisto_casa"] += float(item.get("amount", 0.0) or 0.0)
+
+    for item in data["expenses"]["bonifici_girs"]:
+        daily[item.get("date", "sconosciuto")[:10]]["bonifici_girs"] += float(item.get("amount", 0.0) or 0.0)
 
     for item in data["expenses"]["ristrutturazione"]:
         daily[item.get("date", "sconosciuto")[:10]]["ristrutturazione"] += float(item.get("amount", 0.0) or 0.0)
@@ -632,23 +680,28 @@ def build_chart_data(data: dict) -> dict:
     totals = {
         "labels": [
             "Acquisto casa",
+            "Bonifici GIRS",
             "GIRS 2001",
             "Arredo - Altro",
             "Prestiti ricevuti",
             "Rimborsi",
+            "Debito residuo banca",
         ],
         "values": [
             round(sum_amount(data["expenses"]["acquisto_casa"]), 2),
+            round(sum_amount(data["expenses"]["bonifici_girs"]), 2),
             round(sum_amount(data["expenses"]["ristrutturazione_girs_2001"]), 2),
             round(sum_amount(data["expenses"]["ristrutturazione"]), 2),
             round(sum_amount(data["loans"]), 2),
             round(sum_amount(data["repayments"]), 2),
+            build_summary(data)["debito_residuo_banca"],
         ],
     }
 
     timeline = {
         "labels": labels,
         "acquistoCasa": build_timeline_points(data["expenses"]["acquisto_casa"], "description"),
+        "bonificiGirs": build_timeline_points(data["expenses"]["bonifici_girs"], "description"),
         "ristrutturazione": build_timeline_points(data["expenses"]["ristrutturazione"], "description"),
         "ristrutturazioneGirs2001": build_timeline_points(
             data["expenses"]["ristrutturazione_girs_2001"], "description"
@@ -682,22 +735,42 @@ def build_lender_balance(loans: list[dict], repayments: list[dict]) -> list[dict
 
 def build_summary(data: dict) -> dict:
     acquisto_total = sum_amount(data["expenses"]["acquisto_casa"])
+    bonifici_girs_total = sum_amount(data["expenses"]["bonifici_girs"])
     ristrutturazione_total = sum_amount(data["expenses"]["ristrutturazione"])
     ristrutturazione_girs_total = sum_amount(data["expenses"]["ristrutturazione_girs_2001"])
     ristr_total = round(ristrutturazione_total + ristrutturazione_girs_total, 2)
     loans_total = sum_amount(data["loans"])
     repayments_total = sum_amount(data["repayments"])
+    bank_debt = data.get("bank_debt") or DEFAULT_DATA["bank_debt"]
+    bank_debt_amount = float(bank_debt.get("amount", BANK_DEBT_INITIAL))
+    bank_debt_start_date = sanitize_text(bank_debt.get("start_date"))
+    mutuo_rate_total = sum_amount(
+        [
+            item
+            for item in data["expenses"]["acquisto_casa"]
+            if normalize_text(item.get("description", "")) == "mutuo - rata"
+            and (
+                not bank_debt_start_date
+                or sanitize_text(item.get("date", ""))[:10] >= bank_debt_start_date
+            )
+        ]
+    )
 
     return {
         "acquisto_total": acquisto_total,
+        "bonifici_girs_total": bonifici_girs_total,
         "ristr_total": ristr_total,
         "ristrutturazione_total": ristrutturazione_total,
         "ristrutturazione_girs_total": ristrutturazione_girs_total,
-        "spese_total": round(acquisto_total + ristr_total, 2),
+        "spese_total": round(acquisto_total + bonifici_girs_total + ristr_total, 2),
         "loans_total": loans_total,
         "repayments_total": repayments_total,
         "debito_residuo": round(loans_total - repayments_total, 2),
-        "cash_netto": round(loans_total - repayments_total - acquisto_total - ristr_total, 2),
+        "debito_residuo_banca": max(0.0, round(bank_debt_amount - mutuo_rate_total, 2)),
+        "cash_netto": round(
+            loans_total - repayments_total - acquisto_total - bonifici_girs_total - ristr_total,
+            2,
+        ),
         "lender_balance": build_lender_balance(data["loans"], data["repayments"]),
     }
 
@@ -705,6 +778,7 @@ def build_summary(data: dict) -> dict:
 def build_view_model(selected_repayment_lender: str | None = None) -> dict:
     data = load_data()
     data["expenses"]["acquisto_casa"] = sort_entries(data["expenses"]["acquisto_casa"])
+    data["expenses"]["bonifici_girs"] = sort_entries(data["expenses"]["bonifici_girs"])
     data["expenses"]["ristrutturazione"] = sort_entries(data["expenses"]["ristrutturazione"])
     data["expenses"]["ristrutturazione_girs_2001"] = sort_entries(
         data["expenses"]["ristrutturazione_girs_2001"]
@@ -959,6 +1033,64 @@ def admin_delete_user():
     return redirect(url_for("admin_users_page"))
 
 
+@app.route("/admin/bank-debt", methods=["GET"])
+def admin_bank_debt_page():
+    if not is_superadmin_session():
+        return Response("Forbidden", status=403)
+
+    data = load_data()
+    bank_debt = data.get("bank_debt") or DEFAULT_DATA["bank_debt"]
+    return render_template(
+        "admin_bank_debt.html",
+        bank_debt=bank_debt,
+        current_residual=build_summary(data)["debito_residuo_banca"],
+        notice=sanitize_text(session.pop("bank_debt_notice", "")),
+        error=sanitize_text(session.pop("bank_debt_error", "")),
+    )
+
+
+@app.route("/admin/bank-debt", methods=["POST"])
+def admin_update_bank_debt():
+    if not is_superadmin_session():
+        return Response("Forbidden", status=403)
+
+    try:
+        amount = round(parse_amount(request.form.get("amount"), allow_zero=True), 2)
+        raw_start_date = sanitize_text(request.form.get("start_date"))
+        if not raw_start_date:
+            raise ValueError("La data di decorrenza è obbligatoria")
+        start_date = parse_iso_date(raw_start_date).isoformat()
+
+        if USE_DATABASE:
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO bank_debt_settings (id, amount, start_date)
+                        VALUES (1, %s, %s)
+                        ON CONFLICT (id) DO UPDATE
+                        SET amount = EXCLUDED.amount, start_date = EXCLUDED.start_date
+                        """,
+                        (amount, start_date),
+                    )
+                conn.commit()
+        else:
+            data = load_data()
+            data["bank_debt"] = {"amount": amount, "start_date": start_date}
+            save_data(data)
+
+        session["bank_debt_notice"] = (
+            f"Debito residuo impostato a {format_euro(amount)} € "
+            f"con decorrenza {format_date_it(start_date)}."
+        )
+    except ValueError as exc:
+        session["bank_debt_error"] = str(exc)
+    except Exception as exc:
+        session["bank_debt_error"] = f"Errore salvataggio debito banca: {exc}"
+
+    return redirect(url_for("admin_bank_debt_page"))
+
+
 @app.route("/", methods=["GET"])
 def index():
     vm = build_view_model(request.args.get("repayment_lender"))
@@ -1004,7 +1136,7 @@ def service_worker():
 def add_expense():
     try:
         category = sanitize_text(request.form.get("category"))
-        if category not in {"acquisto_casa", "ristrutturazione", "ristrutturazione_girs_2001"}:
+        if category not in EXPENSE_CATEGORIES:
             raise ValueError("Categoria non valida")
 
         item = {
@@ -1106,7 +1238,7 @@ def delete_item():
         deleted = False
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                if section in {"acquisto_casa", "ristrutturazione", "ristrutturazione_girs_2001"}:
+                if section in EXPENSE_CATEGORIES:
                     cur.execute("DELETE FROM expenses WHERE id = %s AND category = %s", (item_id, section))
                 elif section == "loans":
                     cur.execute("DELETE FROM loans WHERE id = %s", (item_id,))
@@ -1119,7 +1251,7 @@ def delete_item():
         data = load_data()
         deleted = False
 
-        if section in {"acquisto_casa", "ristrutturazione", "ristrutturazione_girs_2001"}:
+        if section in EXPENSE_CATEGORIES:
             deleted = remove_by_id(data["expenses"][section], item_id)
         elif section == "loans":
             deleted = remove_by_id(data["loans"], item_id)
@@ -1151,7 +1283,7 @@ def edit_item():
     if USE_DATABASE:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                if section in {"acquisto_casa", "ristrutturazione", "ristrutturazione_girs_2001"}:
+                if section in EXPENSE_CATEGORIES:
                     cur.execute(
                         """
                         UPDATE expenses
@@ -1186,7 +1318,7 @@ def edit_item():
     else:
         data = load_data()
         updated = False
-        if section in {"acquisto_casa", "ristrutturazione", "ristrutturazione_girs_2001"}:
+        if section in EXPENSE_CATEGORIES:
             updated = update_local_item(
                 data["expenses"][section],
                 item_id,
@@ -1231,6 +1363,7 @@ def build_excel_workbook(data: dict):
 
     ws.append(["Voce", "Valore"])
     ws.append(["Spese acquisto casa", summary["acquisto_total"]])
+    ws.append(["Bonifici GIRS", summary["bonifici_girs_total"]])
     ws.append(["GIRS 2001", summary["ristrutturazione_girs_total"]])
     ws.append(["Arredo - Altro", summary["ristrutturazione_total"]])
     ws.append(["Spese Arredo e GIRS totali", summary["ristr_total"]])
@@ -1238,6 +1371,7 @@ def build_excel_workbook(data: dict):
     ws.append(["Prestiti ricevuti", summary["loans_total"]])
     ws.append(["Rimborsi effettuati", summary["repayments_total"]])
     ws.append(["Debito residuo prestiti", summary["debito_residuo"]])
+    ws.append(["Debito residuo banca", summary["debito_residuo_banca"]])
 
     for cell in ws[1]:
         cell.font = Font(bold=True)
@@ -1287,6 +1421,7 @@ def build_excel_workbook(data: dict):
             apply_amount_style(sheet, column_index=3)
 
     append_sheet("Acquisto casa", data["expenses"]["acquisto_casa"])
+    append_sheet("Bonifici GIRS", data["expenses"]["bonifici_girs"])
     append_sheet("GIRS 2001", data["expenses"]["ristrutturazione_girs_2001"])
     append_sheet("Arredo - Altro", data["expenses"]["ristrutturazione"])
     append_sheet("Prestiti ricevuti", data["loans"], include_lender=True, include_note=True)
@@ -1457,6 +1592,16 @@ def export_pdf():
                 summary["ristrutturazione_total"],
                 colors.HexColor("#f2c94c"),
             ),
+            (
+                "Bonifici GIRS",
+                summary["bonifici_girs_total"],
+                colors.HexColor("#17a398"),
+            ),
+            (
+                "Debito residuo banca",
+                summary["debito_residuo_banca"],
+                colors.HexColor("#e63946"),
+            ),
             ("Prestiti ricevuti", summary["loans_total"], colors.HexColor("#21a77e")),
             ("Rimborsi", summary["repayments_total"], colors.HexColor("#f08c4a")),
             ("Debito residuo", summary["debito_residuo"], colors.HexColor("#e63946")),
@@ -1584,6 +1729,10 @@ def export_pdf():
         [format_date_it(item.get("date", "")), item.get("description", ""), f"EUR {format_euro(item.get('amount', 0.0))}"]
         for item in sort_entries(data["expenses"]["ristrutturazione_girs_2001"])
     ]
+    bonifici_girs_rows = [
+        [format_date_it(item.get("date", "")), item.get("description", ""), f"EUR {format_euro(item.get('amount', 0.0))}"]
+        for item in sort_entries(data["expenses"]["bonifici_girs"])
+    ]
     prestiti_rows = [
         [
             format_date_it(item.get("date", "")),
@@ -1600,6 +1749,7 @@ def export_pdf():
     saldo_rows = [[row["lender"], f"EUR {format_euro(row['balance'])}"] for row in summary["lender_balance"]]
 
     y = draw_table("Acquisto casa", ["Data", "Voce", "Importo"], acquisto_rows, [110, 300, 110], y)
+    y = draw_table("Bonifici GIRS", ["Data", "Voce", "Importo"], bonifici_girs_rows, [110, 300, 110], y)
     y = draw_table("GIRS 2001", ["Data", "Voce", "Importo"], ristr_girs_rows, [110, 300, 110], y)
     y = draw_table("Arredo - Altro", ["Data", "Voce", "Importo"], ristr_rows, [110, 300, 110], y)
     y = draw_table("Prestiti ricevuti", ["Data", "Prestatore", "Note", "Importo"], prestiti_rows, [85, 135, 190, 110], y)

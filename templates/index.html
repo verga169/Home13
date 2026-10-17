@@ -140,7 +140,7 @@
 
         .top-grid {
             display: grid;
-            grid-template-columns: repeat(6, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 12px;
             margin: 16px 0 24px;
         }
@@ -410,6 +410,16 @@
             min-height: 0;
         }
 
+        .expense-stack {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+        }
+
         .grid-2 > * {
             min-width: 0;
         }
@@ -420,7 +430,7 @@
             align-items: stretch;
         }
 
-        .expenses-layout > .expense-card,
+        .expenses-layout .expense-card,
         .renovation-grid > .card {
             display: flex;
             flex-direction: column;
@@ -848,9 +858,14 @@
                 height: auto;
                 min-height: 0;
             }
-            .expenses-layout > .expense-card,
+            .expense-stack,
+            .expenses-layout .expense-card,
             .renovation-grid > .card {
                 min-height: initial;
+            }
+            .expense-stack {
+                height: auto;
+                grid-template-rows: none;
             }
             .renovation-grid {
                 grid-template-rows: none;
@@ -972,6 +987,10 @@
                 <div class="value">{{ summary.acquisto_total|euro }} €</div>
             </article>
             <article class="metric">
+                <div class="label">Bonifici GIRS</div>
+                <div class="value">{{ summary.bonifici_girs_total|euro }} €</div>
+            </article>
+            <article class="metric">
                 <div class="label">Prestiti Ricevuti</div>
                 <div class="value">{{ summary.loans_total|euro }} €</div>
             </article>
@@ -991,6 +1010,10 @@
                 <div class="label">Debito Residuo</div>
                 <div class="value">{{ summary.debito_residuo|euro }} €</div>
             </article>
+            <article class="metric">
+                <div class="label">Debito Residuo Banca</div>
+                <div class="value">{{ summary.debito_residuo_banca|euro }} €</div>
+            </article>
         </section>
 
         <section class="actions">
@@ -998,6 +1021,7 @@
             <a class="btn btn-light" href="{{ url_for('export_pdf') }}">Export PDF</a>
             {% if can_manage_users %}
             <a class="btn btn-light" href="{{ url_for('admin_users_page') }}">Gestione utenze</a>
+            <a class="btn btn-light" href="{{ url_for('admin_bank_debt_page') }}">Gestione debito banca</a>
             {% endif %}
             <button class="btn btn-light hidden" id="install-app-btn" type="button">Installa app</button>
         </section>
@@ -1030,6 +1054,7 @@
         </section>
 
         <section class="grid-2 expenses-layout">
+            <div class="expense-stack">
             <article class="card expense-card">
                 <h2>Acquisto Casa</h2>
                 <form method="post" action="{{ url_for('add_expense') }}">
@@ -1097,6 +1122,75 @@
                 <div class="empty">Nessuna spesa acquisto inserita.</div>
                 {% endif %}
             </article>
+
+            <article class="card expense-card">
+                <h2>Bonifici GIRS</h2>
+                <form method="post" action="{{ url_for('add_expense') }}">
+                    <input type="hidden" name="category" value="bonifici_girs">
+                    <div class="fields">
+                        <div class="date-field">
+                            <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ today|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                            <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                            <input class="date-picker-input" type="date" value="{{ today }}" aria-label="Seleziona data">
+                        </div>
+                        <input type="text" name="description" placeholder="Descrizione" required>
+                        <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
+                    </div>
+                    <button class="btn btn-brand btn-full" type="submit">Aggiungi bonifico GIRS</button>
+                </form>
+                {% if data.expenses.bonifici_girs %}
+                <div class="table-wrap" style="margin-top: 12px;">
+                    <table class="expense-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Voce</th>
+                                <th>Importo</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in data.expenses.bonifici_girs %}
+                            <tr>
+                                <td>{{ row.date|date_it }}</td>
+                                <td>{{ row.description }}</td>
+                                <td>{{ row.amount|euro }} €</td>
+                                <td>
+                                    <div class="actions-cell">
+                                        <button class="btn btn-edit" type="button" aria-label="Modifica" title="Modifica" onclick="toggleEditRow('edit-bonifici-girs-{{ row.id }}')">&#9998;</button>
+                                        <form method="post" action="{{ url_for('delete_item') }}">
+                                            <input type="hidden" name="section" value="bonifici_girs">
+                                            <input type="hidden" name="item_id" value="{{ row.id }}">
+                                            <button class="btn btn-danger" type="submit" aria-label="Elimina" title="Elimina">&#128465;</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr id="edit-bonifici-girs-{{ row.id }}" class="inline-edit-row">
+                                <td colspan="4">
+                                    <form method="post" action="{{ url_for('edit_item') }}" class="inline-edit-form">
+                                        <input type="hidden" name="section" value="bonifici_girs">
+                                        <input type="hidden" name="item_id" value="{{ row.id }}">
+                                        <div class="date-field">
+                                            <input type="text" name="date" class="date-input" inputmode="numeric" placeholder="gg/mm/aaaa" value="{{ row.date|date_it }}" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" title="Inserisci la data in formato gg/mm/aaaa" required>
+                                            <button class="date-picker-button" type="button" tabindex="-1" aria-hidden="true">&#128197;</button>
+                                            <input class="date-picker-input" type="date" value="{{ row.date }}" aria-label="Seleziona data">
+                                        </div>
+                                        <input type="text" name="label" value="{{ row.description }}" placeholder="Descrizione" required>
+                                        <input type="text" name="amount" class="amount-input" inputmode="decimal" value="{{ row.amount|euro }}" placeholder="Importo" required>
+                                        <button class="btn btn-brand" type="submit">Salva</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty">Nessun bonifico GIRS inserito.</div>
+                {% endif %}
+            </article>
+            </div>
 
             <div class="renovation-grid">
             <article class="card">
@@ -1709,6 +1803,19 @@
         const hasNegativeTotals = totalsValues.some((value) => value < 0);
         const totalsMinValue = totalsValues.length ? Math.min(...totalsValues) : 0;
         const totalsYAxisMin = hasNegativeTotals ? totalsMinValue : 0;
+        function getTotalsYAxisMax(values) {
+            return Math.max(...values, 0) * 1.2 || 1;
+        }
+
+        const totalsPalette = [
+            ["#0a84ff", "rgba(10,132,255,0.86)"],
+            ["#17a398", "rgba(23,163,152,0.88)"],
+            ["#bf5af2", "rgba(191,90,242,0.88)"],
+            ["#ff9f0a", "rgba(255,159,10,0.9)"],
+            ["#ff453a", "rgba(255,69,58,0.88)"],
+            ["#30d158", "rgba(48,209,88,0.88)"],
+            ["#9b3d63", "rgba(155,61,99,0.88)"],
+        ];
 
         const totalsCanvas = document.getElementById("totalsChart");
         const totalsCtx = totalsCanvas.getContext("2d");
@@ -1724,23 +1831,8 @@
                         borderRadius: 5,
                         borderSkipped: false,
                         borderWidth: 1,
-                        borderColor: ["#0a84ff", "#bf5af2", "#ff9f0a", "#ff453a", "#30d158"],
-                        backgroundColor: (context) => {
-                            const chart = context.chart;
-                            const chartArea = chart.chartArea;
-                            if (!chartArea) {
-                                return "rgba(0,138,122,0.42)";
-                            }
-                            const palette = [
-                                ["rgba(10,132,255,0.84)", "rgba(10,132,255,0.22)"],
-                                ["rgba(191,90,242,0.84)", "rgba(191,90,242,0.22)"],
-                                ["rgba(255,159,10,0.86)", "rgba(255,159,10,0.22)"],
-                                ["rgba(255,69,58,0.84)", "rgba(255,69,58,0.22)"],
-                                ["rgba(48,209,88,0.84)", "rgba(48,209,88,0.22)"],
-                            ];
-                            const [start, end] = palette[context.dataIndex] || palette[0];
-                            return gradient(chart.ctx, chartArea, start, end);
-                        },
+                        borderColor: totalsPalette.map(([borderColor]) => borderColor),
+                        backgroundColor: totalsPalette.map(([, backgroundColor]) => backgroundColor),
                     },
                 ],
             },
@@ -1748,7 +1840,33 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false },
+                    legend: {
+                        display: true,
+                        position: "bottom",
+                        onClick: (event, legendItem, legend) => {
+                            const chart = legend.chart;
+                            chart.toggleDataVisibility(legendItem.index);
+                            const visibleValues = chart.data.datasets[0].data.filter(
+                                (_, index) => chart.getDataVisibility(index)
+                            );
+                            chart.options.scales.y.max = getTotalsYAxisMax(visibleValues);
+                            chart.update();
+                        },
+                        labels: {
+                            color: "#5d746e",
+                            padding: 12,
+                            boxWidth: 14,
+                            boxHeight: 10,
+                            generateLabels: (chart) => chart.data.labels.map((text, index) => ({
+                                text,
+                                fillStyle: totalsPalette[index][0],
+                                strokeStyle: totalsPalette[index][0],
+                                lineWidth: 1,
+                                hidden: !chart.getDataVisibility(index),
+                                index,
+                            })),
+                        },
+                    },
                     tooltip: {
                         callbacks: {
                             label: (context) => `Totale: ${asMoney(context.parsed.y)}`,
@@ -1758,6 +1876,7 @@
                 scales: {
                     y: {
                         min: totalsYAxisMin,
+                        max: getTotalsYAxisMax(totalsValues),
                         beginAtZero: true,
                         ticks: {
                             maxTicksLimit: isMobile ? 5 : 8,
@@ -1782,6 +1901,17 @@
                         data: payload.timeline.acquistoCasa,
                         borderColor: "#0a84ff",
                         backgroundColor: "rgba(10,132,255,0.86)",
+                        pointRadius: isMobile ? 4 : 5,
+                        pointHoverRadius: isMobile ? 7 : 9,
+                        pointBorderWidth: 2,
+                        pointBorderColor: "#ffffff",
+                        showLine: false,
+                    },
+                    {
+                        label: "Bonifici GIRS",
+                        data: payload.timeline.bonificiGirs,
+                        borderColor: "#17a398",
+                        backgroundColor: "rgba(23,163,152,0.88)",
                         pointRadius: isMobile ? 4 : 5,
                         pointHoverRadius: isMobile ? 7 : 9,
                         pointBorderWidth: 2,

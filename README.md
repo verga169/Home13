@@ -4,8 +4,10 @@ Home13 è una web app Flask per gestire spese di casa/ristrutturazione, prestiti
 
 ## Funzionalità principali
 
-- Sezioni: `Acquisto casa`, `GIRS 2001`, `Arredo - Altro`, `Prestiti ricevuti`, `Rimborsi`.
+- Sezioni: `Acquisto casa`, `Bonifici GIRS`, `GIRS 2001`, `Arredo - Altro`, `Prestiti ricevuti`, `Rimborsi`.
 - Le spese `GIRS 2001` e `Arredo - Altro` sono registrate separatamente e mostrate con totali distinti.
+- `Bonifici GIRS` consente di registrare, modificare ed eliminare movimenti dedicati. Il residuo banca parte da € 270.727,20 e si riduce con le voci `Mutuo - Rata` in `Acquisto casa`.
+- L'amministratore può impostare `Gestione debito banca` con importo residuo e data di decorrenza; le rate precedenti alla decorrenza vengono ignorate.
 - Dashboard con grafici totali/timeline e filtro rimborsi per prestatore.
 - Formattazione italiana di importi e date (`gg/mm/aaaa`), con date picker nei moduli.
 - Gestione utenti applicativi (solo superadmin, con DB attivo).
