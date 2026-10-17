@@ -114,7 +114,7 @@ EXPENSE_CATEGORIES = {
 
 CATEGORY_DISPLAY_NAMES = {
     "acquisto_casa": "Acquisto Casa",
-    "bonifici_girs": "Bonifici GIRS",
+    "bonifici_girs": "BONIFICI PER DETRAZIONE",
     "ristrutturazione": "Arredo - Altro",
     "ristrutturazione_girs_2001": "GIRS 2001",
     "loans": "Prestiti",
@@ -680,7 +680,7 @@ def build_chart_data(data: dict) -> dict:
     totals = {
         "labels": [
             "Acquisto casa",
-            "Bonifici GIRS",
+            "BONIFICI PER DETRAZIONE",
             "GIRS 2001",
             "Arredo - Altro",
             "Prestiti ricevuti",
@@ -1363,7 +1363,7 @@ def build_excel_workbook(data: dict):
 
     ws.append(["Voce", "Valore"])
     ws.append(["Spese acquisto casa", summary["acquisto_total"]])
-    ws.append(["Bonifici GIRS", summary["bonifici_girs_total"]])
+    ws.append(["BONIFICI PER DETRAZIONE", summary["bonifici_girs_total"]])
     ws.append(["GIRS 2001", summary["ristrutturazione_girs_total"]])
     ws.append(["Arredo - Altro", summary["ristrutturazione_total"]])
     ws.append(["Spese Arredo e GIRS totali", summary["ristr_total"]])
@@ -1452,7 +1452,7 @@ def build_excel_workbook(data: dict):
             apply_amount_style(sheet, column_index=3)
 
     append_sheet("Acquisto casa", data["expenses"]["acquisto_casa"])
-    append_sheet("Bonifici GIRS", data["expenses"]["bonifici_girs"])
+    append_sheet("BONIFICI PER DETRAZIONE", data["expenses"]["bonifici_girs"])
     append_sheet("GIRS 2001", data["expenses"]["ristrutturazione_girs_2001"])
     append_sheet("Arredo - Altro", data["expenses"]["ristrutturazione"])
     append_sheet("Prestiti ricevuti", data["loans"], include_lender=True, include_note=True)
@@ -1624,7 +1624,7 @@ def export_pdf():
                 colors.HexColor("#f2c94c"),
             ),
             (
-                "Bonifici GIRS",
+                "BONIFICI PER DETRAZIONE",
                 summary["bonifici_girs_total"],
                 colors.HexColor("#17a398"),
             ),
@@ -1780,7 +1780,7 @@ def export_pdf():
     saldo_rows = [[row["lender"], f"EUR {format_euro(row['balance'])}"] for row in summary["lender_balance"]]
 
     y = draw_table("Acquisto casa", ["Data", "Voce", "Importo"], acquisto_rows, [110, 300, 110], y)
-    y = draw_table("Bonifici GIRS", ["Data", "Voce", "Importo"], bonifici_girs_rows, [110, 300, 110], y)
+    y = draw_table("BONIFICI PER DETRAZIONE", ["Data", "Voce", "Importo"], bonifici_girs_rows, [110, 300, 110], y)
     y = draw_table("GIRS 2001", ["Data", "Voce", "Importo"], ristr_girs_rows, [110, 300, 110], y)
     y = draw_table("Arredo - Altro", ["Data", "Voce", "Importo"], ristr_rows, [110, 300, 110], y)
     y = draw_table("Prestiti ricevuti", ["Data", "Prestatore", "Note", "Importo"], prestiti_rows, [85, 135, 190, 110], y)

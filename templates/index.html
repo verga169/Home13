@@ -987,7 +987,7 @@
                 <div class="value">{{ summary.acquisto_total|euro }} €</div>
             </article>
             <article class="metric">
-                <div class="label">Bonifici GIRS</div>
+                <div class="label">BONIFICI PER DETRAZIONE</div>
                 <div class="value">{{ summary.bonifici_girs_total|euro }} €</div>
             </article>
             <article class="metric">
@@ -1124,7 +1124,7 @@
             </article>
 
             <article class="card expense-card">
-                <h2>Bonifici GIRS</h2>
+                <h2>BONIFICI PER DETRAZIONE</h2>
                 <form method="post" action="{{ url_for('add_expense') }}">
                     <input type="hidden" name="category" value="bonifici_girs">
                     <div class="fields">
@@ -1136,7 +1136,7 @@
                         <input type="text" name="description" placeholder="Descrizione" required>
                         <input type="text" name="amount" class="amount-input" inputmode="decimal" placeholder="Importo" required>
                     </div>
-                    <button class="btn btn-brand btn-full" type="submit">Aggiungi bonifico GIRS</button>
+                    <button class="btn btn-brand btn-full" type="submit">Aggiungi bonifico per detrazione</button>
                 </form>
                 {% if data.expenses.bonifici_girs %}
                 <div class="table-wrap" style="margin-top: 12px;">
@@ -1187,7 +1187,7 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="empty">Nessun bonifico GIRS inserito.</div>
+                <div class="empty">Nessun bonifico per detrazione inserito.</div>
                 {% endif %}
             </article>
             </div>
@@ -1804,7 +1804,7 @@
         const totalsMinValue = totalsValues.length ? Math.min(...totalsValues) : 0;
         const totalsYAxisMin = hasNegativeTotals ? totalsMinValue : 0;
         function getTotalsYAxisMax(values) {
-            return Math.max(...values, 0) * 1.2 || 1;
+            return Math.max(...values, 0) || 1;
         }
 
         const totalsPalette = [
@@ -1908,7 +1908,7 @@
                         showLine: false,
                     },
                     {
-                        label: "Bonifici GIRS",
+                        label: "BONIFICI PER DETRAZIONE",
                         data: payload.timeline.bonificiGirs,
                         borderColor: "#17a398",
                         backgroundColor: "rgba(23,163,152,0.88)",
