@@ -18,6 +18,16 @@
 
         * { box-sizing: border-box; }
 
+        button,
+        a {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
         html, body {
             width: 100%;
             min-height: 100%;
@@ -86,6 +96,10 @@
         .btn-brand:hover { background: var(--brand-dark); }
         .btn-light { background: #fff; color: var(--ink); border: 1px solid var(--line); }
         .btn-danger { background: #fee2e2; color: #7f1d1d; }
+        .btn:active {
+            transform: scale(0.98);
+            filter: brightness(0.94);
+        }
 
         .card {
             background: var(--card);
