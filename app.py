@@ -114,7 +114,7 @@ EXPENSE_CATEGORIES = {
 
 CATEGORY_DISPLAY_NAMES = {
     "acquisto_casa": "Acquisto Casa",
-    "bonifici_girs": "BONIFICI PER DETRAZIONE",
+    "bonifici_girs": "Bonifici per Detrazione",
     "ristrutturazione": "Arredo - Altro",
     "ristrutturazione_girs_2001": "GIRS 2001",
     "loans": "Prestiti",
@@ -679,13 +679,13 @@ def build_chart_data(data: dict) -> dict:
 
     totals = {
         "labels": [
-            "Acquisto casa",
-            "BONIFICI PER DETRAZIONE",
+            "Acquisto Casa",
+            "Bonifici per Detrazione",
             "GIRS 2001",
             "Arredo - Altro",
             "Prestiti ricevuti",
             "Rimborsi",
-            "Debito residuo banca",
+            "Debito residuo Banca",
         ],
         "values": [
             round(sum_amount(data["expenses"]["acquisto_casa"]), 2),
@@ -1363,7 +1363,7 @@ def build_excel_workbook(data: dict):
 
     ws.append(["Voce", "Valore"])
     ws.append(["Spese acquisto casa", summary["acquisto_total"]])
-    ws.append(["BONIFICI PER DETRAZIONE", summary["bonifici_girs_total"]])
+    ws.append(["Bonifici per Detrazione", summary["bonifici_girs_total"]])
     ws.append(["GIRS 2001", summary["ristrutturazione_girs_total"]])
     ws.append(["Arredo - Altro", summary["ristrutturazione_total"]])
     ws.append(["Spese Arredo e GIRS totali", summary["ristr_total"]])
@@ -1371,7 +1371,7 @@ def build_excel_workbook(data: dict):
     ws.append(["Prestiti ricevuti", summary["loans_total"]])
     ws.append(["Rimborsi effettuati", summary["repayments_total"]])
     ws.append(["Debito residuo prestiti", summary["debito_residuo"]])
-    ws.append(["Debito residuo banca", summary["debito_residuo_banca"]])
+    ws.append(["Debito residuo Banca", summary["debito_residuo_banca"]])
 
     for cell in ws[1]:
         cell.font = Font(bold=True)
@@ -1451,8 +1451,8 @@ def build_excel_workbook(data: dict):
             sheet.column_dimensions["C"].width = 14
             apply_amount_style(sheet, column_index=3)
 
-    append_sheet("Acquisto casa", data["expenses"]["acquisto_casa"])
-    append_sheet("BONIFICI PER DETRAZIONE", data["expenses"]["bonifici_girs"])
+    append_sheet("Acquisto Casa", data["expenses"]["acquisto_casa"])
+    append_sheet("Bonifici per Detrazione", data["expenses"]["bonifici_girs"])
     append_sheet("GIRS 2001", data["expenses"]["ristrutturazione_girs_2001"])
     append_sheet("Arredo - Altro", data["expenses"]["ristrutturazione"])
     append_sheet("Prestiti ricevuti", data["loans"], include_lender=True, include_note=True)
@@ -1609,7 +1609,7 @@ def export_pdf():
 
         series = [
             (
-                f"Acquisto casa (spese + rate mutuo versate al {format_date_it(date.today().isoformat())})",
+                f"Acquisto Casa (spese + rate mutuo versate al {format_date_it(date.today().isoformat())})",
                 summary["acquisto_total"],
                 colors.HexColor("#4c89e8"),
             ),
@@ -1624,12 +1624,12 @@ def export_pdf():
                 colors.HexColor("#f2c94c"),
             ),
             (
-                "BONIFICI PER DETRAZIONE",
+                "Bonifici per Detrazione",
                 summary["bonifici_girs_total"],
                 colors.HexColor("#17a398"),
             ),
             (
-                "Debito residuo banca",
+                "Debito residuo Banca",
                 summary["debito_residuo_banca"],
                 colors.HexColor("#e63946"),
             ),
@@ -1779,8 +1779,8 @@ def export_pdf():
     ]
     saldo_rows = [[row["lender"], f"EUR {format_euro(row['balance'])}"] for row in summary["lender_balance"]]
 
-    y = draw_table("Acquisto casa", ["Data", "Voce", "Importo"], acquisto_rows, [110, 300, 110], y)
-    y = draw_table("BONIFICI PER DETRAZIONE", ["Data", "Voce", "Importo"], bonifici_girs_rows, [110, 300, 110], y)
+    y = draw_table("Acquisto Casa", ["Data", "Voce", "Importo"], acquisto_rows, [110, 300, 110], y)
+    y = draw_table("Bonifici per Detrazione", ["Data", "Voce", "Importo"], bonifici_girs_rows, [110, 300, 110], y)
     y = draw_table("GIRS 2001", ["Data", "Voce", "Importo"], ristr_girs_rows, [110, 300, 110], y)
     y = draw_table("Arredo - Altro", ["Data", "Voce", "Importo"], ristr_rows, [110, 300, 110], y)
     y = draw_table("Prestiti ricevuti", ["Data", "Prestatore", "Note", "Importo"], prestiti_rows, [85, 135, 190, 110], y)

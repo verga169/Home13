@@ -765,6 +765,12 @@
             background: #ffffff;
         }
 
+        @media (min-width: 981px) and (max-width: 1164px) {
+            .totals-chart-card .chart-area {
+                height: 399px;
+            }
+        }
+
         .chart-head {
             display: flex;
             align-items: center;
@@ -994,7 +1000,7 @@
 
         <section class="top-grid">
             <article class="metric">
-                <div class="label">ACQUISTO CASA <span class="label-subtext">(+ rate mutuo al {{ today|date_it }})</span></div>
+                <div class="label">Acquisto Casa <span class="label-subtext">(+ rate mutuo al {{ today|date_it }})</span></div>
                 <div class="value">{{ summary.acquisto_total|euro }} €</div>
             </article>
             <article class="metric">
@@ -1022,7 +1028,7 @@
                 <div class="value">{{ summary.debito_residuo|euro }} €</div>
             </article>
             <article class="metric">
-                <div class="label">Debito Residuo Banca</div>
+                <div class="label">Debito residuo Banca</div>
                 <div class="value">{{ summary.debito_residuo_banca|euro }} €</div>
             </article>
         </section>
@@ -1038,7 +1044,7 @@
         </section>
 
         <section class="chart-grid">
-            <article class="card chart-card">
+            <article class="card chart-card totals-chart-card">
                 <div class="chart-head">
                     <h2>Totali per Categoria</h2>
                 </div>
@@ -1135,7 +1141,7 @@
             </article>
 
             <article class="card expense-card">
-                <h2>BONIFICI PER DETRAZIONE</h2>
+                <h2>Bonifici per Detrazione</h2>
                 <form method="post" action="{{ url_for('add_expense') }}">
                     <input type="hidden" name="category" value="bonifici_girs">
                     <div class="fields">
@@ -1864,15 +1870,17 @@
                             chart.update();
                         },
                         labels: {
-                            color: "#5d746e",
-                            padding: 12,
-                            boxWidth: 14,
-                            boxHeight: 10,
+                            color: "#666",
+                            padding: isMobile ? 8 : 14,
+                            boxWidth: isMobile ? 14 : 22,
+                            boxHeight: isMobile ? 8 : 10,
+                            font: { size: isMobile ? 10 : 12 },
                             generateLabels: (chart) => chart.data.labels.map((text, index) => ({
                                 text,
-                                fillStyle: totalsPalette[index][0],
-                                strokeStyle: totalsPalette[index][0],
-                                lineWidth: 1,
+                                fontColor: "#666",
+                                fillStyle: totalsPalette[index][1],
+                                strokeStyle: "#ffffff",
+                                lineWidth: 2,
                                 hidden: !chart.getDataVisibility(index),
                                 index,
                             })),
@@ -1887,7 +1895,7 @@
                 scales: {
                     x: {
                         ticks: {
-                            display: !isMobile,
+                            display: false,
                         },
                     },
                     y: {
@@ -1913,7 +1921,7 @@
             data: {
                 datasets: [
                     {
-                        label: "Acquisto casa",
+                        label: "Acquisto Casa",
                         data: payload.timeline.acquistoCasa,
                         borderColor: "#0a84ff",
                         backgroundColor: "rgba(10,132,255,0.86)",
@@ -1924,7 +1932,7 @@
                         showLine: false,
                     },
                     {
-                        label: "BONIFICI PER DETRAZIONE",
+                        label: "Bonifici per Detrazione",
                         data: payload.timeline.bonificiGirs,
                         borderColor: "#17a398",
                         backgroundColor: "rgba(23,163,152,0.88)",
