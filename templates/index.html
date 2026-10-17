@@ -917,8 +917,84 @@
             .chart-head { align-items: flex-start; }
             .chart-tools { gap: 5px; }
             .btn-ghost { min-height: 40px; font-size: 0.78rem; padding: 6px 8px; }
-            table { min-width: 500px; }
-            th, td { font-size: 0.86rem; padding: 8px; }
+            .table-wrap {
+                overflow: visible;
+                max-height: none;
+                border: 0;
+            }
+            table {
+                display: block;
+                min-width: 0;
+                background: transparent;
+            }
+            thead { display: none; }
+            tbody {
+                display: grid;
+                gap: 10px;
+            }
+            tbody > tr:not(.inline-edit-row) {
+                display: block;
+                padding: 4px 10px;
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                background: #fff;
+                box-shadow: 0 3px 10px rgba(20, 28, 25, 0.04);
+                user-select: none;
+                -webkit-user-select: none;
+                touch-action: pan-y;
+            }
+            .table-wrap table tbody > tr:not(.inline-edit-row) td {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 12px;
+                min-width: 0;
+                width: auto;
+                padding: 9px 0;
+                border-bottom: 1px solid var(--line);
+                font-size: 0.86rem;
+                white-space: normal;
+                overflow-wrap: anywhere;
+                text-align: right;
+            }
+            tbody > tr:not(.inline-edit-row) td::before {
+                content: attr(data-label);
+                flex: 0 0 36%;
+                color: var(--muted);
+                font-size: 0.76rem;
+                font-weight: 700;
+                text-align: left;
+                overflow-wrap: anywhere;
+            }
+            tbody > tr:not(.inline-edit-row) td:last-child {
+                min-width: 0;
+                white-space: normal;
+                border-bottom: 0;
+            }
+            tbody > tr:not(.inline-edit-row) td:empty,
+            tbody > tr:not(.inline-edit-row) td.repayments-note-gap {
+                display: none;
+            }
+            .mobile-action-table::before {
+                content: "Tieni premuto su un record per mostrare le azioni.";
+                display: block;
+                padding: 0 0 8px;
+                color: var(--muted);
+                font-size: 0.78rem;
+            }
+            .mobile-action-table tbody > tr:not(.inline-edit-row) > td:last-child {
+                display: none;
+            }
+            .mobile-action-table tbody > tr:not(.inline-edit-row) > td:nth-last-child(2) {
+                border-bottom: 0;
+            }
+            .mobile-action-table tbody > tr.mobile-actions-visible:not(.inline-edit-row) > td:nth-last-child(2) {
+                border-bottom: 1px solid var(--line);
+            }
+            .mobile-action-table tbody > tr.mobile-actions-visible > td:last-child {
+                display: flex;
+                border-bottom: 0;
+            }
             .btn-danger { min-width: 34px; }
             .actions-cell {
                 flex-direction: row;
@@ -935,8 +1011,24 @@
             }
             .inline-edit-form {
                 grid-template-columns: 1fr;
-                width: calc(100vw - 80px);
-                max-width: calc(100vw - 80px);
+                width: 100%;
+                max-width: 100%;
+            }
+            .inline-edit-row.open {
+                display: block;
+                padding: 10px;
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                background: #f3f8f7;
+            }
+            .inline-edit-row.open td {
+                display: block;
+                width: 100%;
+                padding: 0;
+                border: 0;
+            }
+            .inline-edit-row.open td::before {
+                content: none;
             }
             .card h2 { font-size: 1.15rem; }
             .metric .value { font-size: 1.16rem; }
@@ -971,7 +1063,6 @@
         }
 
         @media (max-width: 420px) {
-            table { min-width: 460px; }
             .btn-ghost { font-size: 0.74rem; padding: 5px 7px; }
             .chart-area { height: 320px; }
         }
@@ -1089,7 +1180,7 @@
                 </form>
                 {% if data.expenses.acquisto_casa %}
                 <div class="table-wrap" style="margin-top: 12px;">
-                    <table class="expense-table">
+                    <table class="expense-table mobile-action-table">
                         <thead>
                             <tr>
                                 <th>Data</th>
@@ -1157,7 +1248,7 @@
                 </form>
                 {% if data.expenses.bonifici_girs %}
                 <div class="table-wrap" style="margin-top: 12px;">
-                    <table class="expense-table">
+                    <table class="expense-table mobile-action-table">
                         <thead>
                             <tr>
                                 <th>Data</th>
@@ -1227,7 +1318,7 @@
                 </form>
                 {% if data.expenses.ristrutturazione_girs_2001 %}
                 <div class="table-wrap" style="margin-top: 12px;">
-                    <table class="expense-table">
+                    <table class="expense-table mobile-action-table">
                         <thead>
                             <tr>
                                 <th>Data</th>
@@ -1295,7 +1386,7 @@
                 </form>
                 {% if data.expenses.ristrutturazione %}
                 <div class="table-wrap" style="margin-top: 12px;">
-                    <table class="expense-table">
+                    <table class="expense-table mobile-action-table">
                         <thead>
                             <tr>
                                 <th>Data</th>
@@ -1394,7 +1485,7 @@
                     <h3>Prestiti ricevuti</h3>
                     {% if data.loans %}
                     <div class="table-wrap">
-                        <table class="loans-table">
+                        <table class="loans-table mobile-action-table">
                             <thead>
                                 <tr>
                                     <th>Data</th>
@@ -1451,7 +1542,7 @@
                     <h3>Rimborsi</h3>
                     {% if data.repayments %}
                     <div class="table-wrap">
-                        <table class="repayments-table">
+                        <table class="repayments-table mobile-action-table">
                             <thead>
                                 <tr>
                                     <th>Data</th>
@@ -1670,6 +1761,7 @@
 
             const isOpen = target.classList.contains("open");
             closeAllEditRows(isOpen ? null : rowId);
+            target.previousElementSibling?.classList.remove("mobile-actions-visible");
             if (!isOpen) {
                 target.classList.add("open");
                 if (window.matchMedia("(max-width: 620px)").matches) {
@@ -1677,6 +1769,67 @@
                 }
             }
         }
+
+        document.querySelectorAll("table").forEach((table) => {
+            const labels = Array.from(table.querySelectorAll("thead th"), (header) => header.textContent.trim());
+            table.querySelectorAll("tbody tr:not(.inline-edit-row)").forEach((row) => {
+                Array.from(row.cells).forEach((cell, index) => {
+                    if (labels[index]) {
+                        cell.dataset.label = labels[index];
+                    }
+                });
+            });
+        });
+
+        let longPressTimer = null;
+        let longPressPointerId = null;
+        let longPressStart = null;
+
+        function cancelMobileLongPress() {
+            if (longPressTimer !== null) {
+                window.clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            longPressPointerId = null;
+            longPressStart = null;
+        }
+
+        document.addEventListener("pointerdown", (event) => {
+            if (!window.matchMedia("(max-width: 620px)").matches || !event.isPrimary || event.button !== 0) return;
+
+            const target = event.target;
+            const row = target.closest("table.mobile-action-table tbody > tr:not(.inline-edit-row)");
+            if (!row || target.closest("button, a, input, select, textarea, form")) return;
+
+            cancelMobileLongPress();
+            longPressPointerId = event.pointerId;
+            longPressStart = { x: event.clientX, y: event.clientY };
+            longPressTimer = window.setTimeout(() => {
+                row.closest("tbody").querySelectorAll(".mobile-actions-visible").forEach((activeRow) => {
+                    if (activeRow !== row) activeRow.classList.remove("mobile-actions-visible");
+                });
+                row.classList.toggle("mobile-actions-visible");
+                longPressTimer = null;
+            }, 550);
+        });
+
+        document.addEventListener("pointermove", (event) => {
+            if (event.pointerId !== longPressPointerId || !longPressStart) return;
+            if (Math.hypot(event.clientX - longPressStart.x, event.clientY - longPressStart.y) > 10) {
+                cancelMobileLongPress();
+            }
+        });
+
+        document.addEventListener("pointerup", cancelMobileLongPress);
+        document.addEventListener("pointercancel", cancelMobileLongPress);
+        document.addEventListener("contextmenu", (event) => {
+            if (
+                window.matchMedia("(max-width: 620px)").matches
+                && event.target.closest("table.mobile-action-table tbody > tr:not(.inline-edit-row)")
+            ) {
+                event.preventDefault();
+            }
+        });
 
         document.addEventListener("pointerdown", (event) => {
             const insideEditRow = event.target.closest(".inline-edit-row");
