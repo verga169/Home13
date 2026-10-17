@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Home13 - Spese Casa, GIRS 2001 e Arredo - Altro</title>
     <meta name="theme-color" content="#0f766e">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -880,11 +880,11 @@
             .filter-bar .btn { flex: 1 1 auto; text-align: center; }
             .fields { grid-template-columns: 1fr; }
             .loan-fields { grid-template-columns: 1fr; }
-            .top-grid { grid-template-columns: 1fr; }
+            .top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .chart-area { height: 270px; }
             .chart-head { align-items: flex-start; }
             .chart-tools { gap: 5px; }
-            .btn-ghost { font-size: 0.78rem; padding: 6px 8px; }
+            .btn-ghost { min-height: 40px; font-size: 0.78rem; padding: 6px 8px; }
             table { min-width: 500px; }
             th, td { font-size: 0.86rem; padding: 8px; }
             .btn-danger { min-width: 34px; }
@@ -894,15 +894,17 @@
             }
             .actions-cell .btn-edit,
             .actions-cell .btn-danger {
-                width: 34px;
-                min-width: 34px;
-                height: 34px;
-                min-height: 34px;
+                width: 40px;
+                min-width: 40px;
+                height: 40px;
+                min-height: 40px;
                 padding: 0;
-                font-size: 0.78rem;
+                font-size: 0;
             }
             .inline-edit-form {
                 grid-template-columns: 1fr;
+                width: calc(100vw - 80px);
+                max-width: calc(100vw - 80px);
             }
             .card h2 { font-size: 1.15rem; }
             .metric .value { font-size: 1.16rem; }
@@ -930,6 +932,10 @@
                 justify-content: center;
                 align-items: center;
             }
+        }
+
+        @media (max-width: 360px) {
+            .top-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 420px) {
@@ -1058,7 +1064,7 @@
                                 <td>{{ row.amount|euro }} €</td>
                                 <td>
                                     <div class="actions-cell">
-                                        <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-acquisto-{{ row.id }}')">&#9998;</button>
+                                        <button class="btn btn-edit" type="button" aria-label="Modifica" title="Modifica" onclick="toggleEditRow('edit-acquisto-{{ row.id }}')">&#9998;</button>
                                         <form method="post" action="{{ url_for('delete_item') }}">
                                             <input type="hidden" name="section" value="acquisto_casa">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
@@ -1127,7 +1133,7 @@
                                 <td>{{ row.amount|euro }} €</td>
                                 <td>
                                     <div class="actions-cell">
-                                        <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-ristr-girs-{{ row.id }}')">&#9998;</button>
+                                        <button class="btn btn-edit" type="button" aria-label="Modifica" title="Modifica" onclick="toggleEditRow('edit-ristr-girs-{{ row.id }}')">&#9998;</button>
                                         <form method="post" action="{{ url_for('delete_item') }}">
                                             <input type="hidden" name="section" value="ristrutturazione_girs_2001">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
@@ -1195,7 +1201,7 @@
                                 <td>{{ row.amount|euro }} €</td>
                                 <td>
                                     <div class="actions-cell">
-                                        <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-ristr-{{ row.id }}')">&#9998;</button>
+                                        <button class="btn btn-edit" type="button" aria-label="Modifica" title="Modifica" onclick="toggleEditRow('edit-ristr-{{ row.id }}')">&#9998;</button>
                                         <form method="post" action="{{ url_for('delete_item') }}">
                                             <input type="hidden" name="section" value="ristrutturazione">
                                             <input type="hidden" name="item_id" value="{{ row.id }}">
@@ -1296,7 +1302,7 @@
                                     <td>{{ row.amount|euro }} €</td>
                                     <td>
                                         <div class="actions-cell">
-                                            <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-loan-{{ row.id }}')">&#9998;</button>
+                                            <button class="btn btn-edit" type="button" aria-label="Modifica" title="Modifica" onclick="toggleEditRow('edit-loan-{{ row.id }}')">&#9998;</button>
                                             <form method="post" action="{{ url_for('delete_item') }}">
                                                 <input type="hidden" name="section" value="loans">
                                                 <input type="hidden" name="item_id" value="{{ row.id }}">
@@ -1353,7 +1359,7 @@
                                     <td>{{ row.amount|euro }} €</td>
                                     <td>
                                         <div class="actions-cell">
-                                            <button class="btn btn-edit" type="button" onclick="toggleEditRow('edit-repay-{{ row.id }}')">&#9998;</button>
+                                            <button class="btn btn-edit" type="button" aria-label="Modifica" title="Modifica" onclick="toggleEditRow('edit-repay-{{ row.id }}')">&#9998;</button>
                                             <form method="post" action="{{ url_for('delete_item') }}">
                                                 <input type="hidden" name="section" value="repayments">
                                                 <input type="hidden" name="item_id" value="{{ row.id }}">
@@ -1555,6 +1561,9 @@
             closeAllEditRows(isOpen ? null : rowId);
             if (!isOpen) {
                 target.classList.add("open");
+                if (window.matchMedia("(max-width: 620px)").matches) {
+                    target.closest(".table-wrap")?.scrollTo({ left: 0 });
+                }
             }
         }
 
