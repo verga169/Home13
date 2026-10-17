@@ -571,6 +571,16 @@
             max-width: 100%;
         }
 
+        .mobile-scroll-cue {
+            display: none;
+        }
+
+        .mobile-scroll-hint {
+            display: none;
+        }
+
+        .lender-balance-title { margin-top: 16px; }
+
         .expenses-layout .table-wrap {
             flex: 1 1 auto;
             min-height: 0;
@@ -922,6 +932,66 @@
                 max-height: none;
                 border: 0;
             }
+            .table-wrap.mobile-record-scroll {
+                position: relative;
+                overflow: visible;
+                max-height: none;
+                overscroll-behavior: contain;
+                scrollbar-width: thin;
+            }
+            .mobile-record-list {
+                width: 100%;
+                min-width: 0;
+            }
+            .table-wrap.mobile-record-scroll > .mobile-record-list {
+                min-height: 0;
+                overflow-x: hidden;
+                overflow-y: auto;
+                scrollbar-width: thin;
+                -webkit-overflow-scrolling: touch;
+            }
+            .mobile-scroll-cue {
+                position: absolute;
+                z-index: 3;
+                right: 10px;
+                bottom: 8px;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                color: var(--brand-dark);
+                background: rgba(255, 255, 255, 0.96);
+                box-shadow: 0 2px 8px rgba(20, 28, 25, 0.18);
+                font-size: 1.2rem;
+                font-weight: 700;
+                pointer-events: none;
+            }
+            .mobile-has-more:not(.mobile-scroll-at-end) > .mobile-scroll-cue {
+                display: flex;
+            }
+            .mobile-scroll-hint {
+                display: block;
+                width: 100%;
+                max-width: 100%;
+                padding: 0 0 8px;
+                color: var(--muted);
+                font-size: 0.78rem;
+                line-height: 1.4;
+                text-align: center;
+                white-space: normal;
+                overflow-wrap: anywhere;
+            }
+            .card h2,
+            .card h3 {
+                width: 100%;
+                text-align: center;
+            }
+            .lender-balance-title { margin-top: 24px; }
+            .chart-head h2 {
+                flex: 1 0 100%;
+            }
+            .expenses-layout + .card { margin-top: 18px; }
             table {
                 display: block;
                 min-width: 0;
@@ -966,7 +1036,7 @@
                 text-align: left;
                 overflow-wrap: anywhere;
             }
-            tbody > tr:not(.inline-edit-row) td:last-child {
+            .table-wrap table tbody > tr:not(.inline-edit-row) > td:last-child {
                 min-width: 0;
                 white-space: normal;
                 border-bottom: 0;
@@ -975,12 +1045,8 @@
             tbody > tr:not(.inline-edit-row) td.repayments-note-gap {
                 display: none;
             }
-            .mobile-action-table::before {
-                content: "Tieni premuto su un record per mostrare le azioni.";
-                display: block;
-                padding: 0 0 8px;
-                color: var(--muted);
-                font-size: 0.78rem;
+            .table-wrap table tbody > tr:not(.inline-edit-row) td.repayments-note-gap {
+                display: none;
             }
             .mobile-action-table tbody > tr:not(.inline-edit-row) > td:last-child {
                 display: none;
@@ -1596,7 +1662,7 @@
                 </div>
             </div>
 
-            <h3 style="margin-top: 16px;">Saldo Residuo per Prestatore</h3>
+            <h3 class="lender-balance-title">Saldo Residuo per Prestatore</h3>
             {% if summary.lender_balance %}
             <div class="table-wrap">
                 <table>
@@ -1753,6 +1819,7 @@
                 if (exceptRowId && row.id === exceptRowId) return;
                 row.classList.remove("open");
             });
+            window.requestAnimationFrame(updateMobileRecordScroll);
         }
 
         function toggleEditRow(rowId) {
@@ -1780,6 +1847,91 @@
                 });
             });
         });
+
+        document.querySelectorAll(".table-wrap").forEach((tableWrap) => {
+            const table = tableWrap.querySelector("table");
+            if (!table) return;
+
+            const recordList = document.createElement("div");
+            recordList.className = "mobile-record-list";
+            table.before(recordList);
+            recordList.append(table);
+
+            if (table.classList.contains("mobile-action-table")) {
+                const scrollHint = document.createElement("div");
+                scrollHint.className = "mobile-scroll-hint";
+                scrollHint.textContent = "Tieni premuto su un record per mostrare le azioni.";
+                tableWrap.insertBefore(scrollHint, recordList);
+            }
+
+            const scrollCue = document.createElement("span");
+            scrollCue.className = "mobile-scroll-cue";
+            scrollCue.setAttribute("aria-hidden", "true");
+            scrollCue.textContent = "\u2193";
+            tableWrap.append(scrollCue);
+        });
+
+        function updateMobileRecordScroll() {
+            const isMobile = window.matchMedia("(max-width: 620px)").matches;
+            document.querySelectorAll(".table-wrap").forEach((tableWrap) => {
+                const table = tableWrap.querySelector("table");
+                const body = table?.tBodies[0];
+                const recordList = table?.parentElement;
+                const records = body
+                    ? Array.from(body.rows).filter((row) => !row.classList.contains("inline-edit-row"))
+                    : [];
+
+                if (!isMobile || !table || !body || !recordList || records.length <= 3) {
+                    tableWrap.classList.remove("mobile-record-scroll", "mobile-has-more");
+                    tableWrap.style.maxHeight = "";
+                    if (recordList) {
+                        recordList.style.height = "";
+                        recordList.scrollTop = 0;
+                    }
+                    return;
+                }
+
+                const visibleRecords = records.slice(0, 3);
+                const bodyStyle = window.getComputedStyle(body);
+                const rowGap = Number.parseFloat(bodyStyle.rowGap) || 0;
+                const visibleHeight = visibleRecords.reduce(
+                    (height, row) => height + row.getBoundingClientRect().height,
+                    0,
+                );
+                const tableChromeHeight = Math.max(
+                    0,
+                    table.getBoundingClientRect().height - body.getBoundingClientRect().height,
+                );
+                const hintHeight = tableWrap.querySelector(".mobile-scroll-hint")
+                    ?.getBoundingClientRect().height || 0;
+                const maxHeight = tableChromeHeight + visibleHeight
+                    + rowGap * (visibleRecords.length - 1);
+
+                recordList.style.height = `${Math.ceil(maxHeight)}px`;
+                tableWrap.style.maxHeight = `${Math.ceil(maxHeight + hintHeight)}px`;
+                tableWrap.classList.add("mobile-record-scroll");
+                tableWrap.classList.toggle("mobile-has-more", records.length > 3);
+                tableWrap.classList.toggle(
+                    "mobile-scroll-at-end",
+                    recordList.scrollTop + recordList.clientHeight >= recordList.scrollHeight - 2,
+                );
+            });
+        }
+
+        document.querySelectorAll(".table-wrap").forEach((tableWrap) => {
+            const recordList = tableWrap.querySelector(".mobile-record-list");
+            recordList?.addEventListener("scroll", () => {
+                tableWrap.classList.toggle(
+                    "mobile-scroll-at-end",
+                    recordList.scrollTop + recordList.clientHeight >= recordList.scrollHeight - 2,
+                );
+            }, { passive: true });
+        });
+        window.addEventListener("resize", updateMobileRecordScroll);
+        updateMobileRecordScroll();
+        if (document.fonts) {
+            document.fonts.ready.then(updateMobileRecordScroll);
+        }
 
         let longPressTimer = null;
         let longPressPointerId = null;
@@ -1810,6 +1962,7 @@
                 });
                 row.classList.toggle("mobile-actions-visible");
                 longPressTimer = null;
+                window.requestAnimationFrame(updateMobileRecordScroll);
             }, 550);
         });
 
