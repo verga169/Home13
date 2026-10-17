@@ -1871,10 +1871,10 @@
                         },
                         labels: {
                             color: "#666",
-                            padding: 8,
-                            boxWidth: isMobile ? 14 : 16,
-                            boxHeight: 8,
-                            font: { size: 10 },
+                            padding: isMobile ? 8 : 14,
+                            boxWidth: isMobile ? 14 : 22,
+                            boxHeight: isMobile ? 8 : 10,
+                            font: { size: isMobile ? 10 : 12 },
                             generateLabels: (chart) => chart.data.labels.map((text, index) => ({
                                 text,
                                 fontColor: "#666",
