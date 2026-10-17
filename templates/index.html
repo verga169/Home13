@@ -1506,6 +1506,10 @@
                     inset 0 -1px 0 rgba(65, 104, 139, 0.1);
             }
 
+            .chart-grid .chart-card {
+                background: rgba(232, 244, 253, 0.78);
+            }
+
             .table-wrap {
                 border-color: rgba(255, 255, 255, 0.82);
                 background: rgba(230, 243, 253, 0.25);
@@ -2900,6 +2904,8 @@
 
         const TIMELINE_ZOOM_SPEED = 0.015;
         const totalsValues = (payload.totals.values || []).map((value) => Number(value) || 0);
+        const chartTextColor = isMobile ? "#666" : "#29435b";
+        const chartGridColor = isMobile ? "#e0e0e0" : "rgba(41, 67, 91, 0.22)";
         const hasNegativeTotals = totalsValues.some((value) => value < 0);
         const totalsMinValue = totalsValues.length ? Math.min(...totalsValues) : 0;
         const totalsYAxisMin = hasNegativeTotals ? totalsMinValue : 0;
@@ -2953,14 +2959,14 @@
                             chart.update();
                         },
                         labels: {
-                            color: "#666",
+                            color: chartTextColor,
                             padding: isMobile ? 8 : 14,
                             boxWidth: isMobile ? 14 : 22,
                             boxHeight: isMobile ? 8 : 10,
-                            font: { size: isMobile ? 10 : 12 },
+                            font: { size: isMobile ? 10 : 12, weight: isMobile ? "normal" : "600" },
                             generateLabels: (chart) => chart.data.labels.map((text, index) => ({
                                 text,
-                                fontColor: "#666",
+                                fontColor: chartTextColor,
                                 fillStyle: totalsPalette[index][1],
                                 strokeStyle: "#ffffff",
                                 lineWidth: 2,
@@ -2980,6 +2986,9 @@
                         ticks: {
                             display: false,
                         },
+                        grid: {
+                            color: chartGridColor,
+                        },
                     },
                     y: {
                         min: totalsYAxisMin,
@@ -2987,7 +2996,12 @@
                         beginAtZero: true,
                         ticks: {
                             maxTicksLimit: isMobile ? 5 : 8,
+                            color: chartTextColor,
+                            font: { weight: isMobile ? "normal" : "600" },
                             callback: (value) => moneyFormatter.format(value),
+                        },
+                        grid: {
+                            color: chartGridColor,
                         },
                     },
                 },
@@ -3087,17 +3101,27 @@
                         ticks: {
                             maxRotation: 0,
                             minRotation: 0,
+                            color: chartTextColor,
+                            font: { weight: isMobile ? "normal" : "600" },
                             callback: (value) => {
                                 const idx = Math.round(Number(value));
                                 return formatTimelineDateLabel(timelineLabels[idx] || "");
                             },
+                        },
+                        grid: {
+                            color: chartGridColor,
                         },
                     },
                     y: {
                         beginAtZero: true,
                         ticks: {
                             maxTicksLimit: isMobile ? 5 : 8,
+                            color: chartTextColor,
+                            font: { weight: isMobile ? "normal" : "600" },
                             callback: (value) => moneyFormatter.format(value),
+                        },
+                        grid: {
+                            color: chartGridColor,
                         },
                     },
                 },
@@ -3108,7 +3132,8 @@
                             boxWidth: isMobile ? 14 : 22,
                             boxHeight: isMobile ? 8 : 10,
                             padding: isMobile ? 8 : 14,
-                            font: { size: isMobile ? 10 : 12 },
+                            color: chartTextColor,
+                            font: { size: isMobile ? 10 : 12, weight: isMobile ? "normal" : "600" },
                         },
                     },
                     zoom: {
