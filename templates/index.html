@@ -588,6 +588,10 @@
             display: none;
         }
 
+        .mobile-hold-hint {
+            display: none;
+        }
+
         .expenses-layout .table-wrap {
             flex: 1 1 auto;
             min-height: 0;
@@ -1027,6 +1031,21 @@
                 font-size: 1.2rem;
                 font-weight: 700;
                 pointer-events: none;
+            }
+            .table-wrap.mobile-hold-hint-visible > .mobile-hold-hint {
+                display: block;
+                width: 100%;
+                padding: 6px 0 8px;
+                color: var(--brand-dark);
+                font-size: 0.68rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                line-height: 1.2;
+                text-align: center;
+                pointer-events: auto;
+                user-select: none;
+                -webkit-user-select: none;
+                touch-action: pan-y;
             }
             .mobile-has-more.mobile-interaction-enabled:not(.mobile-scroll-at-end) > .mobile-scroll-cue {
                 display: flex;
@@ -1482,10 +1501,6 @@
             background: rgba(239, 247, 253, 0.52);
         }
 
-        .mobile-interaction-notice {
-            display: none;
-        }
-
         .install-panel {
             border-color: rgba(255, 255, 255, 0.8);
             background: rgba(225, 240, 251, 0.72);
@@ -1759,21 +1774,6 @@
                 background: rgba(239, 247, 253, 0.85);
             }
 
-            .mobile-interaction-notice {
-                display: block;
-                margin: 0 0 14px;
-                padding: 10px 13px;
-                border: 1px solid rgba(255, 255, 255, 0.76);
-                border-radius: 14px;
-                color: #2f455a;
-                background: rgba(239, 247, 253, 0.85);
-                box-shadow: 0 5px 16px rgba(20, 44, 71, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.84);
-                font-size: 0.86rem;
-                line-height: 1.4;
-                -webkit-backdrop-filter: blur(10px) saturate(140%);
-                backdrop-filter: blur(10px) saturate(140%);
-            }
-
             .hero {
                 -webkit-backdrop-filter: blur(14px) saturate(150%);
                 backdrop-filter: blur(14px) saturate(150%);
@@ -1946,6 +1946,7 @@
                 outline-offset: 0;
             }
         }
+
     </style>
 </head>
 <body>
@@ -1962,10 +1963,6 @@
                 Attiva effetto parallasse
             </button>
         </section>
-
-        <p id="mobile-interaction-notice" class="mobile-interaction-notice" role="status" aria-live="polite">
-            Tieni premuto su una tabella o un grafico: l'interazione resta attiva per alcuni secondi.
-        </p>
 
         <div id="install-panel" class="install-panel hidden">
             <p class="install-title"><span class="install-icon" aria-hidden="true">i</span>Installazione app</p>
@@ -2763,6 +2760,12 @@
             scrollCue.setAttribute("aria-hidden", "true");
             scrollCue.textContent = "\u2193";
             tableWrap.append(scrollCue);
+
+            const holdHint = document.createElement("span");
+            holdHint.className = "mobile-hold-hint";
+            holdHint.setAttribute("aria-hidden", "true");
+            holdHint.textContent = "TIENI PREMUTO";
+            tableWrap.append(holdHint);
         });
 
         function updateMobileRecordScroll() {
@@ -2792,7 +2795,7 @@
                 });
 
                 if (!isMobile || !table || !body || !recordList || records.length <= 3) {
-                    tableWrap.classList.remove("mobile-record-scroll", "mobile-has-more");
+                    tableWrap.classList.remove("mobile-record-scroll", "mobile-has-more", "mobile-hold-hint-visible");
                     tableWrap.style.maxHeight = "";
                     if (recordList) {
                         recordList.style.height = "";
@@ -2815,10 +2818,12 @@
                 const maxHeight = tableChromeHeight + visibleHeight
                     + rowGap * (visibleRecords.length - 1);
 
-                recordList.style.height = `${Math.ceil(maxHeight)}px`;
-                tableWrap.style.maxHeight = `${Math.ceil(maxHeight)}px`;
                 tableWrap.classList.add("mobile-record-scroll");
                 tableWrap.classList.toggle("mobile-has-more", records.length > 3);
+                tableWrap.classList.toggle("mobile-hold-hint-visible", records.length >= 3);
+                recordList.style.height = `${Math.ceil(maxHeight)}px`;
+                const holdHintHeight = tableWrap.querySelector(".mobile-hold-hint")?.getBoundingClientRect().height || 0;
+                tableWrap.style.maxHeight = `${Math.ceil(maxHeight + holdHintHeight)}px`;
                 tableWrap.classList.toggle(
                     "mobile-scroll-at-end",
                     recordList.scrollTop + recordList.clientHeight >= recordList.scrollHeight - 2,
@@ -2853,17 +2858,7 @@
 
         const mobileLiquidPressTimers = new WeakMap();
         const mobileInteractionTimers = new WeakMap();
-        const activeMobileInteractions = new Set();
-        const mobileInteractionNotice = document.getElementById("mobile-interaction-notice");
-        const mobileInteractionDefaultMessage = mobileInteractionNotice.textContent.trim();
         let pendingMobileInteraction = null;
-
-        function updateMobileInteractionNotice() {
-            if (!mobileInteractionNotice) return;
-            mobileInteractionNotice.textContent = activeMobileInteractions.size
-                ? "Interazione attiva: puoi scorrere la tabella o usare il grafico."
-                : mobileInteractionDefaultMessage;
-        }
 
         function scheduleMobileInteractionExpiry(region) {
             const existingTimer = mobileInteractionTimers.get(region);
@@ -2871,18 +2866,16 @@
 
             mobileInteractionTimers.set(region, window.setTimeout(() => {
                 region.classList.remove("mobile-interaction-enabled");
-                activeMobileInteractions.delete(region);
+                region.querySelectorAll(".mobile-actions-visible").forEach((row) => {
+                    row.classList.remove("mobile-actions-visible");
+                });
                 mobileInteractionTimers.delete(region);
-                updateMobileInteractionNotice();
             }, 6000));
         }
 
         function activateMobileInteraction(region) {
-            const wasActive = activeMobileInteractions.has(region);
             region.classList.add("mobile-interaction-enabled");
-            activeMobileInteractions.add(region);
             scheduleMobileInteractionExpiry(region);
-            if (!wasActive) updateMobileInteractionNotice();
         }
 
         function cancelPendingMobileInteraction(pointerId) {
