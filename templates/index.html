@@ -1715,6 +1715,27 @@
                 background-attachment: scroll;
             }
 
+            body::before {
+                transform: translate3d(var(--parallax-x, 0px), var(--parallax-y, 0px), 0) scale(1.04);
+                transform-origin: center;
+                transition: transform 180ms ease-out;
+            }
+
+            .parallax-permission:not(.hidden) {
+                display: inline-flex;
+                align-items: center;
+                position: relative;
+                z-index: 1;
+                margin-top: 10px;
+                padding: 7px 10px;
+                border: 1px solid rgba(255, 255, 255, 0.52);
+                border-radius: 10px;
+                color: #f4faff;
+                background: rgba(255, 255, 255, 0.14);
+                font: inherit;
+                font-size: 0.82rem;
+            }
+
             .page {
                 padding-top: 12px;
             }
@@ -1937,6 +1958,9 @@
                 </form>
             </div>
             <p>Gestisci spese casa, prestiti e rimborsi</p>
+            <button class="parallax-permission hidden" id="parallax-permission" type="button">
+                Attiva effetto parallasse
+            </button>
         </section>
 
         <p id="mobile-interaction-notice" class="mobile-interaction-notice" role="status" aria-live="polite">
@@ -2522,6 +2546,50 @@
 
     <script id="chart-data" type="application/json">{{ chart_data | tojson }}</script>
     <script>
+        const parallaxPermissionButton = document.getElementById("parallax-permission");
+        const parallaxMobileQuery = window.matchMedia("(max-width: 620px)");
+        const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+        if (parallaxMobileQuery.matches && !reducedMotionQuery.matches && window.DeviceOrientationEvent) {
+            let initialOrientation = null;
+            const handleDeviceOrientation = (event) => {
+                if (event.beta === null || event.gamma === null) return;
+                if (!initialOrientation) {
+                    initialOrientation = { beta: event.beta, gamma: event.gamma };
+                }
+
+                const limit = (value) => Math.max(-25, Math.min(25, value));
+                const x = -limit(event.gamma - initialOrientation.gamma) * 0.32;
+                const y = -limit(event.beta - initialOrientation.beta) * 0.32;
+                document.body.style.setProperty("--parallax-x", `${x.toFixed(1)}px`);
+                document.body.style.setProperty("--parallax-y", `${y.toFixed(1)}px`);
+            };
+            const startParallax = () => {
+                window.addEventListener("deviceorientation", handleDeviceOrientation, { passive: true });
+            };
+
+            if (typeof window.DeviceOrientationEvent.requestPermission === "function") {
+                parallaxPermissionButton.classList.remove("hidden");
+                parallaxPermissionButton.addEventListener("click", async () => {
+                    try {
+                        const permission = await window.DeviceOrientationEvent.requestPermission();
+                        if (permission !== "granted") {
+                            parallaxPermissionButton.textContent = "Permesso sensori non concesso";
+                            parallaxPermissionButton.disabled = true;
+                            return;
+                        }
+                        startParallax();
+                        parallaxPermissionButton.classList.add("hidden");
+                    } catch (error) {
+                        parallaxPermissionButton.textContent = "Impossibile attivare il parallasse";
+                        parallaxPermissionButton.disabled = true;
+                    }
+                }, { once: true });
+            } else {
+                startParallax();
+            }
+        }
+
         const SCROLL_RESTORE_KEY = "home13:scrollY";
 
         function saveScrollPosition() {
