@@ -9,7 +9,17 @@
 				"app.py"
 			],
 			"isBackground": true,
-			"problemMatcher": [],
+			"problemMatcher": {
+				"owner": "custom",
+				"pattern": {
+					"regexp": "^$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": ".*Serving Flask app.*",
+					"endsPattern": ".*Running on http://127\\.0\\.0\\.1:5000.*"
+				}
+			},
 			"group": "build"
 		}
 	]

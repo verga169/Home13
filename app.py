@@ -20,6 +20,7 @@ except Exception:
     dict_row = None
 
 app = Flask(__name__)
+_SERVER_INSTANCE_ID = uuid4().hex
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(BASE_DIR, "data_store.json")
@@ -301,10 +302,18 @@ def inject_asset_urls() -> dict:
         "android_512_url": url_for("static", filename="android-chrome-512x512.png", v=android512_v),
         "apple_touch_icon_url": url_for("static", filename="apple-touch-icon.png", v=apple_touch_v),
         "manifest_url": url_for("static", filename="site.webmanifest", v=manifest_v),
-        "sw_url": url_for("service_worker", v=sw_v),
+        "sw_url": url_for("service_worker", v=f"{sw_v}-{_SERVER_INSTANCE_ID}"),
         "mobile_wallpaper_url": url_for("mobile_wallpaper", v=mobile_wallpaper_v),
         "desktop_wallpaper_url": url_for("desktop_wallpaper", v=desktop_wallpaper_v),
     }
+
+
+@app.after_request
+def disable_browser_cache(response: Response) -> Response:
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 def parse_amount(raw_value: str, allow_zero: bool = False) -> float:
