@@ -767,7 +767,7 @@
         }
 
         #totalsChart {
-            touch-action: none;
+            touch-action: pan-y;
         }
 
         #timelineChart {
@@ -960,10 +960,25 @@
             }
             .table-wrap.mobile-record-scroll > .mobile-record-list {
                 min-height: 0;
-                overflow-x: hidden;
-                overflow-y: auto;
+                overflow: hidden;
                 scrollbar-width: thin;
                 -webkit-overflow-scrolling: touch;
+            }
+            .table-wrap.mobile-record-scroll.mobile-interaction-enabled > .mobile-record-list {
+                overflow-y: auto;
+            }
+            .chart-area canvas,
+            #timelineChart {
+                touch-action: pan-y !important;
+            }
+            .chart-card.mobile-interaction-enabled #totalsChart,
+            .chart-card.mobile-interaction-enabled #timelineChart {
+                touch-action: none !important;
+            }
+            .chart-card.mobile-interaction-enabled,
+            .table-wrap.mobile-interaction-enabled {
+                outline: 2px solid rgba(25, 119, 189, 0.58);
+                outline-offset: 2px;
             }
             .mobile-scroll-cue {
                 position: absolute;
@@ -982,7 +997,7 @@
                 font-weight: 700;
                 pointer-events: none;
             }
-            .mobile-has-more:not(.mobile-scroll-at-end) > .mobile-scroll-cue {
+            .mobile-has-more.mobile-interaction-enabled:not(.mobile-scroll-at-end) > .mobile-scroll-cue {
                 display: flex;
             }
             .card h2,
@@ -1460,6 +1475,10 @@
             background: rgba(239, 247, 253, 0.52);
         }
 
+        .mobile-interaction-notice {
+            display: none;
+        }
+
         .install-panel {
             border-color: rgba(255, 255, 255, 0.8);
             background: rgba(225, 240, 251, 0.72);
@@ -1716,6 +1735,21 @@
                 background: rgba(239, 247, 253, 0.7);
             }
 
+            .mobile-interaction-notice {
+                display: block;
+                margin: 0 0 14px;
+                padding: 10px 13px;
+                border: 1px solid rgba(255, 255, 255, 0.76);
+                border-radius: 14px;
+                color: #2f455a;
+                background: rgba(239, 247, 253, 0.78);
+                box-shadow: 0 5px 16px rgba(20, 44, 71, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.84);
+                font-size: 0.86rem;
+                line-height: 1.4;
+                -webkit-backdrop-filter: blur(10px) saturate(140%);
+                backdrop-filter: blur(10px) saturate(140%);
+            }
+
             .hero {
                 -webkit-backdrop-filter: blur(14px) saturate(150%);
                 backdrop-filter: blur(14px) saturate(150%);
@@ -1883,6 +1917,10 @@
             </div>
             <p>Gestisci spese casa, prestiti e rimborsi</p>
         </section>
+
+        <p id="mobile-interaction-notice" class="mobile-interaction-notice" role="status" aria-live="polite">
+            Tieni premuto su una tabella o un grafico: l'interazione resta attiva per alcuni secondi.
+        </p>
 
         <div id="install-panel" class="install-panel hidden">
             <p class="install-title"><span class="install-icon" aria-hidden="true">i</span>Installazione app</p>
@@ -2673,6 +2711,83 @@
         }
 
         const mobileLiquidPressTimers = new WeakMap();
+        const mobileInteractionTimers = new WeakMap();
+        const activeMobileInteractions = new Set();
+        const mobileInteractionNotice = document.getElementById("mobile-interaction-notice");
+        const mobileInteractionDefaultMessage = mobileInteractionNotice.textContent.trim();
+        let pendingMobileInteraction = null;
+
+        function updateMobileInteractionNotice() {
+            if (!mobileInteractionNotice) return;
+            mobileInteractionNotice.textContent = activeMobileInteractions.size
+                ? "Interazione attiva: puoi scorrere la tabella o usare il grafico."
+                : mobileInteractionDefaultMessage;
+        }
+
+        function scheduleMobileInteractionExpiry(region) {
+            const existingTimer = mobileInteractionTimers.get(region);
+            if (existingTimer) window.clearTimeout(existingTimer);
+
+            mobileInteractionTimers.set(region, window.setTimeout(() => {
+                region.classList.remove("mobile-interaction-enabled");
+                activeMobileInteractions.delete(region);
+                mobileInteractionTimers.delete(region);
+                updateMobileInteractionNotice();
+            }, 6000));
+        }
+
+        function activateMobileInteraction(region) {
+            const wasActive = activeMobileInteractions.has(region);
+            region.classList.add("mobile-interaction-enabled");
+            activeMobileInteractions.add(region);
+            scheduleMobileInteractionExpiry(region);
+            if (!wasActive) updateMobileInteractionNotice();
+        }
+
+        function cancelPendingMobileInteraction(pointerId) {
+            if (!pendingMobileInteraction || pendingMobileInteraction.pointerId !== pointerId) return;
+            window.clearTimeout(pendingMobileInteraction.timer);
+            pendingMobileInteraction = null;
+        }
+
+        document.addEventListener("pointerdown", (event) => {
+            if (
+                !window.matchMedia("(max-width: 620px)").matches
+                || event.pointerType !== "touch"
+                || !event.isPrimary
+                || !(event.target instanceof Element)
+            ) return;
+
+            const region = event.target.closest(".chart-grid .chart-card, .table-wrap");
+            if (!region || event.target.closest("button, a, input, select, textarea, form")) return;
+            if (event.target.closest("table.mobile-action-table tbody > tr:not(.inline-edit-row)")) return;
+
+            if (region.classList.contains("mobile-interaction-enabled")) {
+                activateMobileInteraction(region);
+                return;
+            }
+
+            cancelPendingMobileInteraction(pendingMobileInteraction?.pointerId);
+            const pointerId = event.pointerId;
+            const startX = event.clientX;
+            const startY = event.clientY;
+            const timer = window.setTimeout(() => {
+                activateMobileInteraction(region);
+                pendingMobileInteraction = null;
+            }, 650);
+            pendingMobileInteraction = { pointerId, startX, startY, timer };
+        });
+
+        document.addEventListener("pointermove", (event) => {
+            if (!pendingMobileInteraction || event.pointerId !== pendingMobileInteraction.pointerId) return;
+            if (Math.hypot(event.clientX - pendingMobileInteraction.startX, event.clientY - pendingMobileInteraction.startY) > 10) {
+                cancelPendingMobileInteraction(event.pointerId);
+            }
+        });
+
+        document.addEventListener("pointerup", (event) => cancelPendingMobileInteraction(event.pointerId));
+        document.addEventListener("pointercancel", (event) => cancelPendingMobileInteraction(event.pointerId));
+
         document.addEventListener("pointerdown", (event) => {
             if (
                 !window.matchMedia("(max-width: 620px)").matches
@@ -2709,6 +2824,9 @@
         document.querySelectorAll(".table-wrap").forEach((tableWrap) => {
             const recordList = tableWrap.querySelector(".mobile-record-list");
             recordList?.addEventListener("scroll", () => {
+                if (tableWrap.classList.contains("mobile-interaction-enabled")) {
+                    scheduleMobileInteractionExpiry(tableWrap);
+                }
                 tableWrap.classList.toggle(
                     "mobile-scroll-at-end",
                     recordList.scrollTop + recordList.clientHeight >= recordList.scrollHeight - 2,
@@ -2753,6 +2871,7 @@
                 });
                 row.classList.toggle("mobile-actions-visible");
                 longPressTimer = null;
+                activateMobileInteraction(row.closest(".table-wrap"));
                 window.requestAnimationFrame(updateMobileRecordScroll);
             }, 550);
         });
