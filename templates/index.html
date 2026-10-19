@@ -446,6 +446,10 @@
             margin-top: 16px;
         }
 
+        .expenses-layout + .loan-sections-grid {
+            margin-top: 16px;
+        }
+
         .expenses-layout .expense-card,
         .renovation-grid > .card {
             display: flex;
@@ -582,17 +586,6 @@
 
         .mobile-scroll-cue {
             display: none;
-        }
-
-        .lender-balance-title { margin-top: 16px; }
-
-        .repayment-history {
-            margin-top: 24px;
-            padding-top: 2px;
-        }
-
-        .repayment-history-title {
-            margin: 18px 0 12px;
         }
 
         .expenses-layout .table-wrap {
@@ -952,6 +945,24 @@
                 border: 0;
             }
             .card.expense-card {
+                padding: 14px;
+                border: 1px solid rgba(255, 255, 255, 0.78);
+                border-radius: 20px;
+                background: rgba(239, 247, 253, 0.85);
+                box-shadow: 0 8px 22px rgba(20, 44, 71, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+                -webkit-backdrop-filter: blur(10px) saturate(140%);
+                backdrop-filter: blur(10px) saturate(140%);
+            }
+            .card.expense-card h2.table-title {
+                margin: 0 0 12px;
+                padding: 0 0 10px;
+                border: 0;
+                border-bottom: 1px solid rgba(25, 119, 189, 0.3);
+                border-radius: 0;
+                background: transparent;
+                box-shadow: none;
+            }
+            .expense-card > form {
                 padding: 0;
                 border: 0;
                 border-radius: 0;
@@ -959,15 +970,6 @@
                 box-shadow: none;
                 -webkit-backdrop-filter: none;
                 backdrop-filter: none;
-            }
-            .expense-card > form {
-                padding: 12px;
-                border: 1px solid rgba(255, 255, 255, 0.72);
-                border-radius: 20px;
-                background: rgba(239, 247, 253, 0.85);
-                box-shadow: 0 8px 22px rgba(20, 44, 71, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.72);
-                -webkit-backdrop-filter: blur(10px) saturate(140%);
-                backdrop-filter: blur(10px) saturate(140%);
             }
             .table-wrap.mobile-record-scroll {
                 position: relative;
@@ -1034,11 +1036,11 @@
                 width: 100%;
                 text-align: center;
             }
-            .lender-balance-title { margin-top: 24px; }
             .chart-head h2 {
                 flex: 1 0 100%;
             }
             .expenses-layout + .card { margin-top: 18px; }
+            .expenses-layout + .loan-sections-grid { margin-top: 18px; }
             table {
                 display: block;
                 min-width: 0;
@@ -1047,18 +1049,25 @@
             thead { display: none; }
             tbody {
                 display: grid;
-                gap: 10px;
+                gap: 0;
             }
             tbody > tr:not(.inline-edit-row) {
                 display: block;
-                padding: 4px 10px;
-                border: 1px solid var(--line);
-                border-radius: 12px;
-                background: #fff;
-                box-shadow: 0 3px 10px rgba(20, 28, 25, 0.04);
+                padding: 10px 8px;
+                border: 0;
+                border-bottom: 3px solid #1977bd;
+                border-radius: 0;
+                background: transparent;
+                box-shadow: none;
                 user-select: none;
                 -webkit-user-select: none;
                 touch-action: pan-y;
+            }
+            .table-wrap.mobile-record-scroll:not(.mobile-interaction-enabled) tbody > tr.mobile-third-record {
+                border-bottom-color: transparent;
+            }
+            .table-wrap.mobile-record-scroll.mobile-interaction-enabled tbody > tr.mobile-third-record {
+                border-bottom-color: rgba(18, 77, 131, 0.82);
             }
             .table-wrap table tbody > tr:not(.inline-edit-row) td {
                 display: flex;
@@ -1371,62 +1380,21 @@
             margin: 0 0 8px;
         }
 
+        .card h2.table-title {
+            padding: 10px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.88);
+            border-bottom: 2px solid rgba(25, 119, 189, 0.56);
+            border-radius: 12px;
+            background: rgba(239, 247, 253, 0.85);
+            box-shadow: 0 5px 14px rgba(20, 44, 71, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+        }
+
         .card h3.table-title {
             margin-top: 22px;
         }
 
-        .card h3.table-title.lender-balance-title {
-            margin: 32px 0 8px;
-        }
-
-        .card h3.table-title.repayment-history-title {
-            margin: 18px 0 8px;
-        }
-
         .card h3.clock-title {
             margin: 0 0 12px;
-        }
-
-        .loans-section-title {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 48px;
-            margin: 0 0 20px;
-            padding: 11px 16px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.82);
-            border-radius: 16px;
-            color: #193d5d;
-            background:
-                linear-gradient(115deg, rgba(248, 252, 255, 0.8), rgba(217, 235, 249, 0.56) 52%, rgba(198, 222, 241, 0.62));
-            box-shadow:
-                0 8px 22px rgba(20, 44, 71, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.96),
-                inset 0 -1px 0 rgba(65, 104, 139, 0.08);
-            font-size: 1.18rem;
-            font-weight: 500;
-            letter-spacing: -0.025em;
-            -webkit-backdrop-filter: blur(24px) saturate(175%);
-            backdrop-filter: blur(24px) saturate(175%);
-        }
-
-        .card .loans-section-title {
-            color: #193d5d;
-            -webkit-text-fill-color: #193d5d;
-            font-size: clamp(1.7rem, 1.2vw + 1.1rem, 2.05rem);
-        }
-
-        .loans-section-title::before {
-            position: absolute;
-            top: 0;
-            left: 12%;
-            width: 76%;
-            height: 1px;
-            content: "";
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.96), transparent);
-            pointer-events: none;
         }
 
         .btn {
@@ -1756,10 +1724,6 @@
                 padding: 20px;
             }
 
-            .card .loans-section-title {
-                font-size: clamp(1.3rem, 5vw, 1.55rem);
-            }
-
             .card,
             .metric {
                 border-radius: 20px;
@@ -1924,8 +1888,9 @@
 
             tbody > tr:not(.inline-edit-row) {
                 border-color: rgba(255, 255, 255, 0.78);
-                background: rgba(239, 247, 253, 0.85);
-                box-shadow: 0 4px 10px rgba(20, 44, 71, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+                border-bottom-color: rgba(18, 77, 131, 0.82);
+                background: transparent;
+                box-shadow: none;
                 -webkit-backdrop-filter: none;
                 backdrop-filter: none;
             }
@@ -2337,11 +2302,9 @@
             </div>
         </section>
 
-        <section class="card">
-            <h2 class="loans-section-title">Prestiti e Rimborsi</h2>
-            <div class="grid-2">
-                <div>
-                    <h3 class="clock-title">Nuovo prestito ricevuto</h3>
+        <section class="grid-2 loan-sections-grid">
+            <article class="card expense-card">
+                    <h2 class="table-title">Nuovo prestito ricevuto</h2>
                     <form class="loan-form" method="post" action="{{ url_for('add_loan') }}">
                         <div class="fields loan-fields">
                             <div class="date-field">
@@ -2355,9 +2318,9 @@
                         </div>
                         <button class="btn btn-brand btn-full" type="submit">Aggiungi prestito</button>
                     </form>
-                </div>
-                <div>
-                    <h3 class="clock-title">Nuovo rimborso effettuato</h3>
+            </article>
+            <article class="card expense-card">
+                    <h2 class="table-title">Nuovo rimborso effettuato</h2>
                     <form class="loan-form" method="post" action="{{ url_for('add_repayment') }}">
                         <div class="fields repayment-fields">
                             <div class="date-field">
@@ -2375,12 +2338,10 @@
                         </div>
                         <button class="btn btn-brand btn-full" type="submit">Aggiungi rimborso</button>
                     </form>
-                </div>
-            </div>
+            </article>
 
-            <div class="grid-2" style="margin-top: 14px;">
-                <div>
-                    <h3 class="table-title">Prestiti ricevuti</h3>
+            <article class="card expense-card">
+                    <h2 class="table-title">Prestiti ricevuti</h2>
                     {% if data.loans %}
                     <div class="table-wrap">
                         <table class="loans-table mobile-action-table">
@@ -2435,9 +2396,9 @@
                     {% else %}
                     <div class="empty">Nessun prestito inserito.</div>
                     {% endif %}
-                </div>
-                <div>
-                    <h3 class="table-title">Rimborsi</h3>
+            </article>
+            <article class="card expense-card">
+                    <h2 class="table-title">Rimborsi</h2>
                     {% if data.repayments %}
                     <div class="table-wrap">
                         <table class="repayments-table mobile-action-table">
@@ -2491,10 +2452,10 @@
                     {% else %}
                     <div class="empty">Nessun rimborso inserito.</div>
                     {% endif %}
-                </div>
-            </div>
+            </article>
 
-            <h3 class="table-title lender-balance-title">Saldo Residuo per Prestatore</h3>
+            <article class="card expense-card">
+            <h2 class="table-title">Saldo Residuo per Prestatore</h2>
             {% if summary.lender_balance %}
             <div class="table-wrap">
                 <table>
@@ -2518,8 +2479,9 @@
             <div class="empty">Nessun saldo da mostrare.</div>
             {% endif %}
 
-            <div class="repayment-history">
-                <h3 class="table-title repayment-history-title">Storico Rimborsi</h3>
+            </article>
+            <article class="card expense-card repayment-history">
+                <h2 class="table-title">Storico Rimborsi</h2>
                 <form method="get" action="{{ url_for('index') }}" class="filter-bar">
                     <select name="repayment_lender">
                         <option value="">Tutti i prestatori</option>
@@ -2553,6 +2515,7 @@
                 </div>
                 <div class="empty {% if filtered_repayments %}hidden{% endif %}" id="repayment-history-empty">Nessun rimborso trovato per il filtro selezionato.</div>
             </div>
+            </article>
         </section>
 
     </main>
@@ -2750,6 +2713,10 @@
                 records.forEach((row, index) => {
                     const isHidden = isMobile && index >= 3;
                     row.classList.toggle("mobile-record-hidden", isHidden);
+                    row.classList.toggle(
+                        "mobile-third-record",
+                        isMobile && records.length > 3 && index === 2,
+                    );
                     const editRow = row.nextElementSibling;
                     if (editRow?.classList.contains("inline-edit-row")) {
                         editRow.classList.toggle("mobile-record-hidden", isHidden);
