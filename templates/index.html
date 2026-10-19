@@ -882,6 +882,10 @@
             display: none !important;
         }
 
+        .repayment-filter-hidden {
+            display: none !important;
+        }
+
         @keyframes riseIn {
             from {
                 opacity: 0;
@@ -2514,11 +2518,10 @@
                         {% endfor %}
                     </select>
                     <button class="btn btn-brand" type="submit">Filtra</button>
-                    <a class="btn btn-light" href="{{ url_for('index') }}">Reset</a>
+                    <button class="btn btn-light" type="button" id="reset-repayment-filter">Reset</button>
                 </form>
 
-                {% if filtered_repayments %}
-                <div class="table-wrap">
+                <div class="table-wrap {% if not filtered_repayments %}hidden{% endif %}" id="repayment-history-table-wrap">
                     <table>
                         <thead>
                             <tr>
@@ -2528,8 +2531,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for row in filtered_repayments %}
-                            <tr>
+                            {% for row in data.repayments %}
+                            <tr data-repayment-lender="{{ row.lender }}"{% if selected_repayment_lender and row.lender != selected_repayment_lender %} class="repayment-filter-hidden"{% endif %}>
                                 <td>{{ row.date|date_it }}</td>
                                 <td>{{ row.lender }}</td>
                                 <td>{{ row.amount|euro }} €</td>
@@ -2538,9 +2541,7 @@
                         </tbody>
                     </table>
                 </div>
-                {% else %}
-                <div class="empty">Nessun rimborso trovato per il filtro selezionato.</div>
-                {% endif %}
+                <div class="empty {% if filtered_repayments %}hidden{% endif %}" id="repayment-history-empty">Nessun rimborso trovato per il filtro selezionato.</div>
             </div>
         </section>
 
@@ -2585,6 +2586,47 @@
         });
 
         restoreScrollPosition();
+
+        const repaymentFilter = document.querySelector(".repayment-history select[name='repayment_lender']");
+        const repaymentFilterForm = repaymentFilter?.closest("form");
+        const resetRepaymentFilter = document.getElementById("reset-repayment-filter");
+        const repaymentHistoryTable = document.getElementById("repayment-history-table-wrap");
+        const repaymentHistoryEmpty = document.getElementById("repayment-history-empty");
+
+        function applyRepaymentFilter(lender) {
+            if (!repaymentFilter || !repaymentHistoryTable || !repaymentHistoryEmpty) return;
+
+            repaymentFilter.value = lender;
+            const repaymentRows = repaymentHistoryTable.querySelectorAll("tbody > tr:not(.inline-edit-row)");
+            let visibleCount = 0;
+            repaymentRows.forEach((row) => {
+                const isFilteredOut = Boolean(lender) && row.dataset.repaymentLender !== lender;
+                row.classList.toggle("repayment-filter-hidden", isFilteredOut);
+                if (!isFilteredOut) visibleCount += 1;
+            });
+
+            const hasRepayments = visibleCount > 0;
+            repaymentHistoryTable.classList.toggle("hidden", !hasRepayments);
+            repaymentHistoryEmpty.classList.toggle("hidden", hasRepayments);
+
+            const url = new URL(window.location.href);
+            if (lender) {
+                url.searchParams.set("repayment_lender", lender);
+            } else {
+                url.searchParams.delete("repayment_lender");
+            }
+            window.history.replaceState(window.history.state, "", url);
+            updateMobileRecordScroll();
+        }
+
+        repaymentFilterForm?.addEventListener("submit", (event) => {
+            event.preventDefault();
+            applyRepaymentFilter(repaymentFilter?.value || "");
+        });
+
+        resetRepaymentFilter?.addEventListener("click", () => {
+            applyRepaymentFilter("");
+        });
 
         document.querySelectorAll(".date-field").forEach((field) => {
             const dateInput = field.querySelector(".date-input");
@@ -2689,7 +2731,10 @@
                 const body = table?.tBodies[0];
                 const recordList = table?.parentElement;
                 const records = body
-                    ? Array.from(body.rows).filter((row) => !row.classList.contains("inline-edit-row"))
+                    ? Array.from(body.rows).filter(
+                        (row) => !row.classList.contains("inline-edit-row")
+                            && !row.classList.contains("repayment-filter-hidden"),
+                    )
                     : [];
 
                 records.forEach((row, index) => {
