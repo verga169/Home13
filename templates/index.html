@@ -1204,7 +1204,43 @@
             --brand: #1977bd;
             --brand-dark: #124d83;
             --accent: #69a9da;
+            --scrollbar-thumb: rgba(25, 119, 189, 0.58);
+            --scrollbar-thumb-hover: rgba(18, 77, 131, 0.78);
+            --scrollbar-track: rgba(239, 247, 253, 0.38);
             --shadow: 0 14px 36px rgba(20, 44, 71, 0.18), 0 2px 8px rgba(20, 44, 71, 0.08);
+        }
+
+        html,
+        body,
+        * {
+            scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+            scrollbar-width: thin;
+        }
+
+        *::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        *::-webkit-scrollbar-track {
+            background: var(--scrollbar-track);
+            border-radius: 999px;
+        }
+
+        *::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            background-clip: padding-box;
+            border: 3px solid transparent;
+            border-radius: 999px;
+        }
+
+        *::-webkit-scrollbar-thumb:hover {
+            background: var(--scrollbar-thumb-hover);
+            background-clip: padding-box;
+        }
+
+        *::-webkit-scrollbar-corner {
+            background: transparent;
         }
 
         body {
