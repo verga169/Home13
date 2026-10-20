@@ -1243,6 +1243,30 @@
             background: transparent;
         }
 
+        @media (min-width: 981px) {
+            .fields:not(.loan-fields):not(.repayment-fields) {
+                grid-template-columns: clamp(150px, 26%, 180px) minmax(0, 1fr) clamp(105px, 18%, 125px);
+            }
+
+            .loan-fields {
+                grid-template-columns: minmax(130px, 170px) minmax(105px, 1.4fr) minmax(125px, 1.7fr) minmax(95px, 0.8fr);
+            }
+
+            .loan-fields > .date-field {
+                max-width: 170px;
+            }
+
+            .repayment-fields {
+                grid-template-columns: clamp(150px, 26%, 180px) minmax(0, 1fr) clamp(105px, 18%, 125px);
+            }
+        }
+
+        @media (min-width: 981px) and (max-width: 1200px) {
+            .loan-fields {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
         body {
             position: relative;
             isolation: isolate;
